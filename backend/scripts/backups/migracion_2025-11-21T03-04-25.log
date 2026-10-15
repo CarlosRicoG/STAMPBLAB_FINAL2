@@ -1,0 +1,29 @@
+[2025-11-21T03:04:25.422Z] === INICIO DE MIGRACIÓN ===
+[2025-11-21T03:04:25.557Z] Fecha: 20/11/2025, 22:04:25
+[2025-11-21T03:04:25.720Z] 
+--- PASO 1: BACKUP ---
+[2025-11-21T03:04:26.471Z] Backup creado: C:\Users\sebas\Downloads\NUEVA BD_STAMPLAB\scripts\backups\backup_2025-11-21T03-04-25.sql
+[2025-11-21T03:04:26.478Z] 
+--- PASO 2: ANÁLISIS ---
+[2025-11-21T03:04:26.518Z] colores: 0 registros
+[2025-11-21T03:04:26.542Z] cotizacioncolor: 0 registros
+[2025-11-21T03:04:26.557Z] cotizaciones: 0 registros
+[2025-11-21T03:04:26.576Z] cotizacioninsumo: 0 registros
+[2025-11-21T03:04:26.594Z] cotizacionproducto: 0 registros
+[2025-11-21T03:04:26.611Z] cotizaciontalla: 0 registros
+[2025-11-21T03:04:26.629Z] cotizaciontecnica: 0 registros
+[2025-11-21T03:04:26.640Z] 
+--- PASO 3: CONSOLIDACIÓN ---
+[2025-11-21T03:04:26.748Z] 
+--- PASO 4: ELIMINACIÓN ---
+[2025-11-21T03:04:26.953Z] Eliminada: colors
+[2025-11-21T03:04:27.020Z] Eliminada: cotizacioncolors
+[2025-11-21T03:04:27.515Z] Eliminada: cotizacions
+[2025-11-21T03:04:27.612Z] Eliminada: cotizacioninsumos
+[2025-11-21T03:04:27.851Z] Eliminada: cotizacionproductos
+[2025-11-21T03:04:27.906Z] Eliminada: cotizaciontallas
+[2025-11-21T03:04:27.957Z] Eliminada: cotizaciontecnicas
+[2025-11-21T03:04:27.961Z] 
+--- PASO 5: AJUSTES ---
+[2025-11-21T03:04:27.969Z] 
+--- PASO 6: VALIDACIÓN ---

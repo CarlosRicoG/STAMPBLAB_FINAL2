@@ -1,0 +1,23 @@
+[2025-11-21T03:09:59.503Z] === LIMPIEZA ADICIONAL ===
+[2025-11-21T03:09:59.978Z] detallecompra: 0 | detallecompras: 0
+[2025-11-21T03:10:00.009Z] detallecotizacion: 0 | detallecotizacions: 0
+[2025-11-21T03:10:00.052Z] detalleventa: 0 | detalleventas: 0
+[2025-11-21T03:10:00.137Z] permisoprivilegio: 0 | permisoprivilegios: 0
+[2025-11-21T03:10:00.218Z] productocolor: 0 | productocolors: 0
+[2025-11-21T03:10:00.290Z] productoinsumo: 0 | productoinsumos: 0
+[2025-11-21T03:10:00.346Z] productotalla: 0 | productotallas: 0
+[2025-11-21T03:10:00.392Z] proveedores: 0 | proveedors: 0
+[2025-11-21T03:10:00.447Z] rolpermiso: 0 | rolpermisos: 0
+[2025-11-21T03:10:00.533Z] roles: 2 | rols: 0
+[2025-11-21T03:10:00.553Z] ventas: 0 | venta: 0
+[2025-11-21T03:10:00.750Z] Eliminada: detallecompras
+[2025-11-21T03:10:00.934Z] Eliminada: detallecotizacions
+[2025-11-21T03:10:01.167Z] Eliminada: detalleventas
+[2025-11-21T03:10:01.230Z] Eliminada: permisoprivilegios
+[2025-11-21T03:10:01.313Z] Eliminada: productocolors
+[2025-11-21T03:10:01.411Z] Eliminada: productoinsumos
+[2025-11-21T03:10:01.523Z] Eliminada: productotallas
+[2025-11-21T03:10:01.646Z] Eliminada: proveedors
+[2025-11-21T03:10:01.730Z] Eliminada: rolpermisos
+[2025-11-21T03:10:01.787Z] Eliminada: rols
+[2025-11-21T03:10:01.830Z] Eliminada: venta

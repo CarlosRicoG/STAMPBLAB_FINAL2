@@ -1,0 +1,20 @@
+[2025-11-21T04:25:59.873Z] === MIGRACIÓN DE ESTRUCTURA ===
+[2025-11-21T04:26:00.358Z] 
+--- BACKUP ---
+[2025-11-21T04:26:00.796Z] Backup: C:\Users\sebas\Downloads\NUEVA BD_STAMPLAB\scripts\backups\backup_estructura_2025-11-21T04-25-59.sql
+[2025-11-21T04:26:00.799Z] 
+--- VERIFICACIÓN INVENTARIO ---
+[2025-11-21T04:26:00.815Z] InventarioProducto verificado
+[2025-11-21T04:26:00.818Z] 
+--- AGREGAR CAMPOS ---
+[2025-11-21T04:26:00.864Z] ERROR DetalleVentas.ColorID: Table 'stamplab_new.detalleventas' doesn't exist
+[2025-11-21T04:26:00.874Z] ERROR DetalleVentas.TallaID: Table 'stamplab_new.detalleventas' doesn't exist
+[2025-11-21T04:26:00.895Z] ERROR DetalleVentas.Cantidad: Table 'stamplab_new.detalleventas' doesn't exist
+[2025-11-21T04:26:00.907Z] ERROR DetalleVentas.PrecioUnitario: Table 'stamplab_new.detalleventas' doesn't exist
+[2025-11-21T04:26:00.935Z] 
+--- ELIMINAR OBSOLETAS ---
+[2025-11-21T04:26:01.075Z] Eliminada: ProductoColor
+[2025-11-21T04:26:01.136Z] Eliminada: ProductoTalla
+[2025-11-21T04:26:01.236Z] Eliminada: CotizacionProducto
+[2025-11-21T04:26:01.247Z] 
+--- VALIDACIÓN ---

@@ -1,0 +1,7 @@
+[2025-11-21T03:04:05.646Z] === INICIO DE MIGRACIÓN ===
+[2025-11-21T03:04:05.839Z] Fecha: 20/11/2025, 22:04:05
+[2025-11-21T03:04:06.252Z] 
+ERROR CRÍTICO: Unknown database 'stamplab'
+Error: Unknown database 'stamplab'
+    at Object.createConnectionPromise [as createConnection] (C:\Users\sebas\Downloads\NUEVA BD_STAMPLAB\node_modules\mysql2\promise.js:19:31)
+    at ejecutarMigracion (C:\Users\sebas\Downloads\NUEVA BD_STAMPLAB\scripts\migracion.js:56:34)
