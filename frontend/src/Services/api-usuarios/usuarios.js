@@ -2,7 +2,9 @@
 
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/usuarios"; 
+import API_BASE from "../../config/api";
+const API_URL = `${API_BASE}/api/usuarios`;
+
 
 // Configurar el token en los headers
 const getAuthHeaders = () => {
@@ -16,13 +18,15 @@ const getAuthHeaders = () => {
 };
 
 // Obtener todos los usuarios
-export const getUsuarios = async () => {
+export const getUsuarios = async (params = {}) => {
     try {
-        const response = await axios.get(API_URL, getAuthHeaders());
-        console.log("getUsuarios response:", response.data);
+        const response = await axios.get(API_URL, { 
+            params,
+            ...getAuthHeaders()   // ← agrega el Authorization: Bearer <token>
+        });
         return response.data;
     } catch (error) {
-        console.error("Error en getUsuarios:", error);
+        console.error("Error al obtener usuarios:", error);
         throw error;
     }
 };

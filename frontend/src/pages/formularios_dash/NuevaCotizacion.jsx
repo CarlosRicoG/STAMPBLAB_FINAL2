@@ -16,7 +16,7 @@ import {
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
-const BASE = "http://localhost:3001";
+const BASE = `${import.meta.env.VITE_API_URL}`;
 const TALLAS = ["S", "M", "L", "XL", "XXL"];
 
 export default function NuevaCotizacion() {

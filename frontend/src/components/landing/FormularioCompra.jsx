@@ -1,886 +1,558 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Container, Row, Col, Form, Button, Table, Modal, Alert } from "react-bootstrap";
-import { FaEye, FaEdit, FaTrash, FaPlus } from "react-icons/fa";
+import { FaShoppingCart, FaCreditCard, FaTruck, FaBoxOpen, FaQrcode, FaEyeSlash, FaChevronDown } from "react-icons/fa";
 import Swal from "sweetalert2";
 import * as api from "../../Services/api-cotizacion-landing/cotizacion-landing";
+import { getVariantesByProducto } from '../../Services/api-productos/variantes';
 import NavbarComponent from "../landing/NavBarLanding";
 import FooterComponent from "../landing/footer";
-import { getVariantesByProducto } from '../../Services/api-productos/variantes';
+import { crearVenta } from '../../Services/api-ventas/ventas';
 
+/* ── Tokens de color ── */
+const C = {
+    navy: "#1a2540",
+    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
+    accent: "#4f8ef7",
+    accentSoft: "#f0f4ff",
+    accentBorder: "#c7d9ff",
+    success: "#16a34a",
+    successSoft: "#f0fdf4",
+    successBorder: "#bbf7d0",
+    warning: "#d97706",
+    warningSoft: "#fffbeb",
+    warningBorder: "#fde68a",
+    danger: "#dc2626",
+    dangerSoft: "#fef2f2",
+    dangerBorder: "#fecaca",
+    muted: "#64748b",
+    border: "#e2e8f0",
+    bg: "#f8fafc",
+};
 
+/* ── Helpers de estilo ── */
+const selectStyle = (focused) => ({
+    width: "100%", padding: "10px 14px", fontSize: 13,
+    fontFamily: "'Outfit',sans-serif",
+    border: `1.5px solid ${focused ? C.accent : C.border}`,
+    borderRadius: 10, outline: "none", color: "#0f172a",
+    background: "#fff", transition: "border-color 0.15s",
+    cursor: "pointer", appearance: "none", WebkitAppearance: "none",
+});
+
+const inputStyle = (focused, error) => ({
+    width: "100%", padding: "10px 14px", fontSize: 13,
+    fontFamily: "'Outfit',sans-serif",
+    border: `1.5px solid ${error ? C.danger : focused ? C.accent : C.border}`,
+    borderRadius: 10, outline: "none", color: "#0f172a",
+    background: error ? C.dangerSoft : "#fff",
+    transition: "border-color 0.15s", boxSizing: "border-box",
+});
+
+/* ── SelectField wrapper con chevron ── */
+const SelectField = ({ label, value, onChange, disabled, children, required }) => {
+    const [focused, setFocused] = useState(false);
+    return (
+        <div>
+            <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
+                {label} {required && <span style={{ color: C.danger }}>*</span>}
+            </label>
+            <div style={{ position: "relative" }}>
+                <select value={value} onChange={onChange} disabled={disabled} required={required}
+                    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+                    style={{ ...selectStyle(focused), opacity: disabled ? 0.6 : 1, paddingRight: 36 }}>
+                    {children}
+                </select>
+                <FaChevronDown size={11} color={C.muted} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
+            </div>
+        </div>
+    );
+};
+
+/* ── InputField ── */
+const InputField = ({ label, type = "text", value, onChange, placeholder, required, maxLength, hint, pattern }) => {
+    const [focused, setFocused] = useState(false);
+    return (
+        <div>
+            <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
+                {label} {required && <span style={{ color: C.danger }}>*</span>}
+            </label>
+            <input type={type} value={value} onChange={onChange} placeholder={placeholder}
+                required={required} maxLength={maxLength} pattern={pattern}
+                onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+                style={inputStyle(focused)} />
+            {hint && <p style={{ margin: "5px 0 0", fontSize: 12, color: C.muted }}>{hint}</p>}
+        </div>
+    );
+};
+
+/* ── SectionCard ── */
+const SectionCard = ({ title, icon, children }) => (
+    <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.06)", overflow: "hidden", marginBottom: 18 }}>
+        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 9, background: C.bg }}>
+            {icon && <span style={{ color: C.accent }}>{icon}</span>}
+            <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: C.navy }}>{title}</p>
+        </div>
+        <div style={{ padding: "18px 20px" }}>
+            {children}
+        </div>
+    </div>
+);
+
+/* ── Radio de método de pago ── */
+const MetodoRadio = ({ id, value, checked, onChange, icon, label, color }) => (
+    <label htmlFor={id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, border: `1.5px solid ${checked ? color : C.border}`, background: checked ? `${color}0d` : "#fff", cursor: "pointer", transition: "all 0.15s", marginBottom: 10 }}>
+        <input type="radio" id={id} name="metodoPago" value={value} checked={checked} onChange={onChange} style={{ display: "none" }} />
+        <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${checked ? color : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {checked && <div style={{ width: 9, height: 9, borderRadius: "50%", background: color }} />}
+        </div>
+        <span style={{ color }}>{icon}</span>
+        <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: checked ? color : C.navy }}>{label}</p>
+    </label>
+);
+
+/* ══════════════════════════════════════════
+   COMPONENTE PRINCIPAL
+══════════════════════════════════════════ */
 const FormularioCompra = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const producto = location.state?.producto;
 
-    // Usuario
     const [usuario, setUsuario] = useState(null);
-
-    // Estados principales
     const [colorID, setColorID] = useState("");
     const [tallaID, setTallaID] = useState("");
-    const [cantidad, setCantidad] = useState(1);
     const [telaID, setTelaID] = useState("");
-    const [traePrenda, setTraePrenda] = useState(false);
-    const [prendaDescripcion, setPrendaDescripcion] = useState("");
-    const [observacionesGenerales, setObservacionesGenerales] = useState("");
-
-    // Catálogos
+    const [cantidad, setCantidad] = useState(1);
+    const [metodoPago, setMetodoPago] = useState("");
+    const [mostrarQR, setMostrarQR] = useState(false);
+    const [comprobanteArchivo, setComprobanteArchivo] = useState(null);
+    const [direccionEntrega, setDireccionEntrega] = useState("");
+    const [telefonoEntrega, setTelefonoEntrega] = useState("");
+    const [nombreReceptor, setNombreReceptor] = useState("");
     const [colores, setColores] = useState([]);
     const [tallas, setTallas] = useState([]);
     const [telas, setTelas] = useState([]);
-    const [tecnicas, setTecnicas] = useState([]);
-    const [partes, setPartes] = useState([]);
-
-    // Traer solo variantes del producto especifico
     const [variantesProducto, setVariantesProducto] = useState([]);
-
-    const coloresDisponibles = colores.filter(c =>
-        variantesProducto.some(v => v.ColorID === c.ColorID)
-    );
-
-    const tallasDisponibles = tallas.filter(t =>
-        variantesProducto.some(v => v.TallaID === t.TallaID)
-    );
-
-    const telasDisponibles = telas.filter(t =>
-        variantesProducto.some(v => v.TelaID === t.InsumoID)
-    );
-
-    const getStockPorColor = (colorID) => {
-        const variante = variantesProducto.find(v => v.ColorID === colorID);
-        return variante?.Stock ?? 0;
-    };
-
-    const getStockPorTalla = (tallaID) => {
-        const variante = variantesProducto.find(v => v.TallaID === tallaID);
-        return variante?.Stock ?? 0;
-    };
-
-    const getStockPorTela = (telaID) => {
-        const variante = variantesProducto.find(v => v.TelaID === telaID);
-        return variante?.Stock ?? 0;
-    };
-
-    // Diseños
-    const [disenos, setDisenos] = useState([]);
-    const [tecnicaID, setTecnicaID] = useState("");
-    const [parteID, setParteID] = useState("");
-    const [subparteDescripcion, setSubparteDescripcion] = useState("");
-    const [archivoDiseno, setArchivoDiseno] = useState(null);
-    const [observacionDiseno, setObservacionDiseno] = useState("");
-    const [editandoIndex, setEditandoIndex] = useState(null);
-
-    // Modales
-    const [showProductPreview, setShowProductPreview] = useState(false);
-    const [showDesignPreview, setShowDesignPreview] = useState(false);
-    const [previewSrc, setPreviewSrc] = useState(null);
     const [cargando, setCargando] = useState(false);
+
+    /* ── Focused states ── */
+    const [cantidadFocused, setCantidadFocused] = useState(false);
+    const [textareaFocused, setTextareaFocused] = useState(false);
 
     useEffect(() => {
         verificarAutenticacion();
-        if (!producto) {
-            navigate("/productosLanding");
-            return;
-        }
+        if (!producto) { navigate("/productosLanding"); return; }
         cargarCatalogos();
     }, [producto, navigate]);
+
+    useEffect(() => {
+        if (!producto || variantesProducto.length === 0) return;
+        if (colorID && !obtenerColoresDisponibles().some(c => c.ColorID === parseInt(colorID))) {
+            setColorID(""); setTallaID(""); setTelaID(""); return;
+        }
+        if (tallaID && !obtenerTallasDisponibles().some(t => t.TallaID === parseInt(tallaID))) {
+            setTallaID(""); setTelaID(""); return;
+        }
+        if (telaID && !obtenerTelasDisponibles().some(t => t.InsumoID === parseInt(telaID))) setTelaID("");
+    }, [colorID, tallaID, variantesProducto]);
 
     const verificarAutenticacion = () => {
         const usuarioStorage = localStorage.getItem("usuario");
         if (!usuarioStorage) {
-            Swal.fire({
-                icon: "warning",
-                title: "Autenticación requerida",
-                text: "Debes iniciar sesión para cotizar productos",
-            }).then(() => {
-                navigate("/login");
-            });
+            Swal.fire({ icon: "warning", title: "Autenticación requerida", text: "Debes iniciar sesión para comprar productos." })
+                .then(() => navigate("/login"));
             return;
         }
-        setUsuario(JSON.parse(usuarioStorage));
+        const user = JSON.parse(usuarioStorage);
+        setUsuario(user);
+        setNombreReceptor(user.Nombre || "");
+        setTelefonoEntrega(user.Telefono || "");
+        setDireccionEntrega(user.Direccion || "");
     };
 
     const cargarCatalogos = async () => {
         try {
-            // 1. Traer catálogos completos (para tener nombres)
-            const [colData, tallData, telData, tecData, partData] = await Promise.all([
-                api.getColores(),
-                api.getTallas(),
-                api.getTelas(),
-                api.getTecnicas(),
-                api.getPartes()
-            ]);
-
-            setColores(colData || []);
-            setTallas(tallData || []);
-            setTelas(telData || []);
-            setTecnicas(tecData || []);
-            setPartes(partData || []);
-
-            // 2. TRAER SOLO VARIANTES DEL PRODUCTO (MUY IMPORTANTE)
+            const [colData, tallData, telData] = await Promise.all([api.getColores(), api.getTallas(), api.getTelas()]);
+            setColores(colData || []); setTallas(tallData || []); setTelas(telData || []);
             const variantesRes = await getVariantesByProducto(producto.ProductoID);
             const variantes = variantesRes.datos || variantesRes;
-            setVariantesProducto(variantes);
-
+            setVariantesProducto(variantes.filter(v => v.Estado && v.Stock > 0));
         } catch (error) {
-            console.error("Error al cargar catálogos:", error);
-            Swal.fire("Error", "No se pudieron cargar los catálogos", "error");
+            Swal.fire("Error", "No se pudieron cargar los datos del producto", "error");
         }
     };
 
+    const obtenerColoresDisponibles = () => {
+        if (!variantesProducto.length) return colores;
+        const ids = [...new Set(variantesProducto.filter(v => v.Estado && v.Stock > 0).map(v => v.ColorID))];
+        return colores.filter(c => ids.includes(c.ColorID));
+    };
 
-    // VALIDAR STOCK DISPONIBLE
+    const obtenerTallasDisponibles = () => {
+        if (!variantesProducto.length) return tallas;
+        const filtered = colorID
+            ? variantesProducto.filter(v => v.Estado && v.Stock > 0 && v.ColorID === parseInt(colorID))
+            : variantesProducto.filter(v => v.Estado && v.Stock > 0);
+        const ids = [...new Set(filtered.map(v => v.TallaID))];
+        return tallas.filter(t => ids.includes(t.TallaID));
+    };
+
+    const obtenerTelasDisponibles = () => {
+        if (!variantesProducto.length) return telas;
+        const filtered = variantesProducto.filter(v => {
+            const cc = !colorID || v.ColorID === parseInt(colorID);
+            const ct = !tallaID || v.TallaID === parseInt(tallaID);
+            return v.Estado && v.Stock > 0 && cc && ct;
+        });
+        const ids = [...new Set(filtered.filter(v => v.TelaID).map(v => v.TelaID))];
+        return telas.filter(t => ids.includes(t.InsumoID));
+    };
+
+    const coloresDisponibles = obtenerColoresDisponibles();
+    const tallasDisponibles = obtenerTallasDisponibles();
+    const telasDisponibles = obtenerTelasDisponibles();
+
+    /* ── Validaciones (sin cambios de lógica) ── */
+    const validarNombreReceptor = (n) => {
+        const t = n.trim();
+        if (!t.length) return { valido: false, mensaje: "El nombre no puede estar vacío." };
+        if (t.length < 3) return { valido: false, mensaje: "El nombre debe tener al menos 3 caracteres." };
+        if (!/^[a-záéíóúñA-ZÁÉÍÓÚÑ\s'-]+$/.test(t)) return { valido: false, mensaje: "El nombre solo puede contener letras, espacios y guiones." };
+        return { valido: true };
+    };
+    const validarTelefono = (tel) => {
+        const t = tel.trim(); const limpio = t.replace(/[\s\-()]/g, '');
+        if (!t.length) return { valido: false, mensaje: "El teléfono no puede estar vacío." };
+        if (!/^\d+$/.test(limpio)) return { valido: false, mensaje: "El teléfono solo puede contener números." };
+        if (limpio.length < 7 || limpio.length > 10) return { valido: false, mensaje: "El teléfono debe tener entre 7 y 10 dígitos." };
+        return { valido: true, telefonoLimpio: limpio };
+    };
+    const validarDireccion = (d) => {
+        const t = d.trim();
+        if (!t.length) return { valido: false, mensaje: "La dirección no puede estar vacía." };
+        if (t.length < 10) return { valido: false, mensaje: "La dirección debe tener al menos 10 caracteres." };
+        if (!/\d/.test(t)) return { valido: false, mensaje: "La dirección debe incluir un número." };
+        return { valido: true };
+    };
     const validarStockDisponible = () => {
-        // Si trae prenda, no validar stock
-        if (traePrenda) {
-            return { valido: true };
-        }
-
-        const cantidadSolicitada = parseInt(cantidad) || 0;
-
-        // Buscar la variante exacta según las selecciones del usuario
-        const varianteSeleccionada = variantesProducto.find(v => {
-            // Validar solo los campos que están seleccionados
-            const coincideColor = !colorID || v.ColorID === parseInt(colorID);
-            const coincideTalla = !tallaID || v.TallaID === parseInt(tallaID);
-            const coincideTela = !telaID || v.TelaID === parseInt(telaID);
-
-            return coincideColor && coincideTalla && coincideTela && v.Estado;
+        const cant = parseInt(cantidad) || 0;
+        const variante = variantesProducto.find(v => {
+            const cc = !colorID || v.ColorID === parseInt(colorID);
+            const ct = !tallaID || v.TallaID === parseInt(tallaID);
+            const cte = !telaID || v.TelaID === parseInt(telaID);
+            return cc && ct && cte && v.Estado;
         });
+        if (!variante) return { valido: false, mensaje: "No existe esta combinación. Por favor verifica tu selección." };
+        const stock = variante.Stock || 0;
+        if (stock < cant) return { valido: false, mensaje: `Solo hay ${stock} unidad(es) disponible(s).`, stockDisponible: stock };
+        return { valido: true, stockDisponible: stock };
+    };
 
-        if (!varianteSeleccionada) {
-            return {
-                valido: false,
-                mensaje: "No existe esta combinación de producto. Por favor verifica tu selección."
-            };
+    const validarFormularioCompleto = () => {
+        if (!metodoPago) { Swal.fire("Atención", "Selecciona un método de pago.", "warning"); return false; }
+        if (metodoPago === "transferencia") {
+            if (!comprobanteArchivo) { Swal.fire("Atención", "Debes subir el comprobante de transferencia.", "warning"); return false; }
+            if (!['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(comprobanteArchivo.type)) { Swal.fire("Atención", "El comprobante debe ser JPG, PNG o PDF.", "warning"); return false; }
+            if (comprobanteArchivo.size > 5 * 1024 * 1024) { Swal.fire("Atención", "El comprobante no puede pesar más de 5MB.", "warning"); return false; }
         }
-
-        const stockDisponible = varianteSeleccionada.Stock || 0;
-
-        if (stockDisponible < cantidadSolicitada) {
-            return {
-                valido: false,
-                mensaje: `Stock insuficiente. Solo hay ${stockDisponible} unidad(es) disponible(s) de esta variante y solicitaste ${cantidadSolicitada}.`,
-                stockDisponible
-            };
+        if (metodoPago === "contraentrega") {
+            const vn = validarNombreReceptor(nombreReceptor); if (!vn.valido) { Swal.fire("Atención", vn.mensaje, "warning"); return false; }
+            const vt = validarTelefono(telefonoEntrega); if (!vt.valido) { Swal.fire("Atención", vt.mensaje, "warning"); return false; }
+            const vd = validarDireccion(direccionEntrega); if (!vd.valido) { Swal.fire("Atención", vd.mensaje, "warning"); return false; }
         }
-
-        return {
-            valido: true,
-            stockDisponible
-        };
+        if (coloresDisponibles.length > 0 && !colorID) { Swal.fire("Atención", "Debes seleccionar un color.", "warning"); return false; }
+        if (tallasDisponibles.length > 0 && !tallaID) { Swal.fire("Atención", "Debes seleccionar una talla.", "warning"); return false; }
+        if (telasDisponibles.length > 0 && !telaID) { Swal.fire("Atención", "Debes seleccionar una tela.", "warning"); return false; }
+        const vs = validarStockDisponible();
+        const cant = parseInt(cantidad);
+        if (isNaN(cant) || cant < 1) { Swal.fire("Atención", "La cantidad mínima es 1.", "warning"); return false; }
+        if (cant > 100) { Swal.fire("Atención", "La cantidad máxima es 100 unidades.", "warning"); return false; }
+        if (!vs.valido) { Swal.fire({ icon: "error", title: "Stock insuficiente", text: vs.mensaje, confirmButtonColor: C.danger }); return false; }
+        return true;
     };
 
-
-    // ===== MANEJO DE DISEÑOS =====
-    const resetCamposDiseno = () => {
-        setTecnicaID("");
-        setParteID("");
-        setSubparteDescripcion("");
-        setArchivoDiseno(null);
-        setObservacionDiseno("");
-        setEditandoIndex(null);
-    };
-
-    const handleAgregarOActualizarDiseno = () => {
-        if (!tecnicaID || !parteID) {
-            Swal.fire("Atención", "Selecciona una técnica y una parte", "warning");
-            return;
-        }
-
-        const tecnica = tecnicas.find(t => t.TecnicaID === parseInt(tecnicaID));
-        const parte = partes.find(p => p.ParteID === parseInt(parteID));
-
-        const nuevoDiseno = {
-            TecnicaID: parseInt(tecnicaID),
-            TecnicaNombre: tecnica?.Nombre,
-            ParteID: parseInt(parteID),
-            ParteNombre: parte?.Nombre,
-            SubparteDescripcion: subparteDescripcion,
-            Archivo: archivoDiseno,
-            ImagenNombre: archivoDiseno?.name || "Sin archivo",
-            Observaciones: observacionDiseno
-        };
-
-        if (editandoIndex !== null) {
-            setDisenos(prev => prev.map((d, i) => i === editandoIndex ? nuevoDiseno : d));
-        } else {
-            setDisenos(prev => [...prev, nuevoDiseno]);
-        }
-
-        resetCamposDiseno();
-        Swal.fire({
-            icon: "success",
-            title: editandoIndex !== null ? "Diseño actualizado" : "Diseño agregado",
-            timer: 1500,
-            showConfirmButton: false
-        });
-    };
-
-    const handleEditarDiseno = (index) => {
-        const d = disenos[index];
-        setTecnicaID(d.TecnicaID.toString());
-        setParteID(d.ParteID.toString());
-        setSubparteDescripcion(d.SubparteDescripcion || "");
-        setArchivoDiseno(d.Archivo);
-        setObservacionDiseno(d.Observaciones || "");
-        setEditandoIndex(index);
-        window.scrollTo({ top: 0, behavior: "smooth" });
-    };
-
-    const handleEliminarDiseno = (index) => {
-        Swal.fire({
-            title: "¿Eliminar este diseño?",
-            icon: "warning",
-            showCancelButton: true,
-            confirmButtonText: "Sí, eliminar",
-            cancelButtonText: "Cancelar"
-        }).then((result) => {
-            if (result.isConfirmed) {
-                setDisenos(prev => prev.filter((_, i) => i !== index));
-            }
-        });
-    };
-
-    const handlePreviewDiseno = (archivo) => {
-        if (!archivo) {
-            Swal.fire("Atención", "No hay archivo para previsualizar", "info");
-            return;
-        }
-        const url = URL.createObjectURL(archivo);
-        setPreviewSrc(url);
-        setShowDesignPreview(true);
-    };
-
-    // ===== CÁLCULO DE PRECIO CORREGIDO =====
     const calcularPrecioTotal = () => {
-        // Si trae prenda, no calcular precios
-        if (traePrenda) {
-            return {
-                precioBase: 0,
-                precioTalla: 0,
-                precioTela: 0,
-                cantidadUnidades: parseInt(cantidad) || 1,
-                subtotal: 0
-            };
-        }
-
-        // Buscar talla seleccionada (solo si hay tallas disponibles)
-        const tallaObj = tallasDisponibles.length > 0 && tallaID
-            ? tallas.find(t => t.TallaID === parseInt(tallaID))
-            : null;
+        const tallaObj = tallasDisponibles.length > 0 && tallaID ? tallas.find(t => t.TallaID === parseInt(tallaID)) : null;
         const precioTalla = parseFloat(tallaObj?.Precio) || 0;
-
-        // Buscar tela seleccionada (solo si hay telas disponibles)
-        const telaObj = telasDisponibles.length > 0 && telaID
-            ? telas.find(t => t.InsumoID === parseInt(telaID))
-            : null;
+        const telaObj = telasDisponibles.length > 0 && telaID ? telas.find(t => t.InsumoID === parseInt(telaID)) : null;
         const precioTela = parseFloat(telaObj?.PrecioTela) || 0;
-
-        // Precio base del producto
         const precioBaseProducto = parseFloat(producto?.PrecioBase) || 0;
-
-        // Suma total (PrecioBase + Talla + Tela)
-        const precioBase = precioBaseProducto + precioTalla + precioTela;
-
+        const precioUnitario = precioBaseProducto + precioTalla + precioTela;
         const cantidadUnidades = parseInt(cantidad) || 1;
-        const subtotal = precioBase * cantidadUnidades;
-
-        return {
-            precioBaseProducto,
-            precioBase,
-            precioTalla,
-            precioTela,
-            cantidadUnidades,
-            subtotal
-        };
+        return { precioBaseProducto, precioTalla, precioTela, precioUnitario, cantidadUnidades, subtotal: precioUnitario * cantidadUnidades };
     };
 
-    // ===== ENVIAR COTIZACIÓN =====
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        if (!usuario) {
-            Swal.fire("Error", "No hay usuario autenticado", "error");
-            return;
-        }
-
-        // Validación dinámica: solo validar los campos que realmente están disponibles
-        if (!traePrenda) {
-            if (coloresDisponibles.length > 0 && !colorID) {
-                Swal.fire("Atención", "Debes seleccionar un color", "warning");
-                return;
-            }
-            if (tallasDisponibles.length > 0 && !tallaID) {
-                Swal.fire("Atención", "Debes seleccionar una talla", "warning");
-                return;
-            }
-            if (telasDisponibles.length > 0 && !telaID) {
-                Swal.fire("Atención", "Debes seleccionar una tela", "warning");
-                return;
-            }
-
-            // VALIDACIÓN DE STOCK ANTES DE ENVIAR
-            const validacionStock = validarStockDisponible();
-            if (!validacionStock.valido) {
-                Swal.fire({
-                    icon: "error",
-                    title: "Stock insuficiente",
-                    html: `
-                    <p>${validacionStock.mensaje}</p>
-                    ${validacionStock.stockDisponible !== undefined ?
-                            `<p class="mt-2"><strong>Stock disponible:</strong> ${validacionStock.stockDisponible} unidades</p>` :
-                            ''
-                        }
-                `,
-                    confirmButtonColor: "#d33"
-                });
-                return;
-            }
-        }
-
-        if (traePrenda && !prendaDescripcion.trim()) {
-            Swal.fire("Atención", "Describe la prenda que traerás", "warning");
-            return;
-        }
-
+        if (!usuario) { Swal.fire("Error", "No hay usuario autenticado.", "error"); return; }
+        if (!validarFormularioCompleto()) return;
         setCargando(true);
         try {
-            const detalles = [{
-                ProductoID: producto.ProductoID,
-                Cantidad: parseInt(cantidad),
-                TraePrenda: traePrenda,
-                PrendaDescripcion: traePrenda ? prendaDescripcion : "",
-
-                tallas: !traePrenda && tallasDisponibles.length > 0 && tallaID ? [{
-                    TallaID: parseInt(tallaID),
-                    Cantidad: parseInt(cantidad),
-                    PrecioTalla: tallas.find(t => t.TallaID === parseInt(tallaID))?.Precio || 0
-                }] : [],
-
-                colores: !traePrenda && coloresDisponibles.length > 0 && colorID ? [{
-                    ColorID: parseInt(colorID),
-                    Cantidad: parseInt(cantidad)
-                }] : [],
-
-                insumos: !traePrenda && telasDisponibles.length > 0 && telaID ? [{
-                    InsumoID: parseInt(telaID),
-                    CantidadRequerida: parseInt(cantidad)
-                }] : [],
-
-                tecnicas: disenos.map(dis => ({
-                    TecnicaID: dis.TecnicaID,
-                    ParteID: dis.ParteID,
-                    ImagenDiseño: dis.ImagenNombre,
-                    Observaciones: `${dis.SubparteDescripcion ? 'Subparte: ' + dis.SubparteDescripcion + ' - ' : ''}${dis.Observaciones}`,
-                    CostoTecnica: 0
-                }))
-            }];
-
-            const cotizacionData = {
+            const precios = calcularPrecioTotal();
+            let comprobanteBase64 = null;
+            if (metodoPago === "transferencia" && comprobanteArchivo) {
+                comprobanteBase64 = await new Promise((res, rej) => {
+                    const r = new FileReader(); r.readAsDataURL(comprobanteArchivo);
+                    r.onload = () => res(r.result); r.onerror = rej;
+                });
+            }
+            const ventaData = {
                 DocumentoID: usuario.DocumentoID,
-                FechaCotizacion: new Date().toISOString(),
-                detalles
+                Subtotal: precios.subtotal, Total: precios.subtotal, EstadoID: 8,
+                detalles: [{ ProductoID: producto.ProductoID, ColorID: colorID ? parseInt(colorID) : null, TallaID: tallaID ? parseInt(tallaID) : null, Cantidad: parseInt(cantidad), PrecioUnitario: precios.precioUnitario }],
+                metodoPago,
+                ...(metodoPago === "transferencia" && { comprobanteTransferencia: comprobanteBase64, fechaTransferencia: new Date().toISOString() }),
+                ...(metodoPago === "contraentrega" && { nombreReceptor, telefonoEntrega, direccionEntrega }),
             };
-
-            const response = await api.createCotizacionInteligente(cotizacionData);
-
-            if (response.tipo === 'cotizacion') {
-                Swal.fire({
-                    icon: "success",
-                    title: "¡Cotización creada!",
-                    html: `
-                    <p><strong>Número de cotización:</strong> #${response.cotizacion?.CotizacionID}</p>
-                    <p class="text-muted mt-2">${response.mensaje}</p>
-                `,
-                    confirmButtonText: "Ver mis cotizaciones"
-                }).then(() => {
-                    navigate("/misCotizaciones");
-                });
-            } else if (response.tipo === 'venta') {
-                Swal.fire({
-                    icon: "success",
-                    title: "¡Pedido registrado!",
-                    html: `
-                    <p><strong>Número de pedido:</strong> #${response.venta?.VentaID}</p>
-                    <p class="text-muted mt-2">${response.mensaje}</p>
-                    <p class="mt-3"><strong>Total:</strong> $${(response.venta?.Total || 0).toLocaleString()}</p>
-                `,
-                    confirmButtonText: "Entendido"
-                }).then(() => {
-                    navigate("/productosLanding");
-                });
-            }
+            const response = await crearVenta(ventaData);
+            await Swal.fire({
+                icon: "success", title: "¡Pedido registrado!",
+                html: `<p style="font-family:'Outfit',sans-serif"><strong>Pedido #${response.venta?.VentaID || "N/A"}</strong><br>Método: ${metodoPago === "transferencia" ? "Transferencia bancaria" : "Contraentrega"}<br>Total: <strong style="color:${C.success}">$${precios.subtotal.toLocaleString()}</strong></p>`,
+                confirmButtonColor: C.navy, confirmButtonText: "OK",
+            });
+            navigate("/productosLanding");
         } catch (error) {
-            console.error("Error al crear solicitud:", error);
-
-            // MEJORAR MANEJO DE ERRORES DE STOCK DEL BACKEND
-            if (error?.response?.data?.message?.includes('Stock insuficiente') ||
-                error?.response?.data?.message?.includes('stock')) {
-                Swal.fire({
-                    icon: "error",
-                    title: "Stock insuficiente",
-                    text: error.response.data.message,
-                    confirmButtonColor: "#d33"
-                });
-            } else {
-                Swal.fire({
-                    icon: "error",
-                    title: "Error",
-                    text: error?.response?.data?.message || error?.message || "Error al procesar tu solicitud",
-                    confirmButtonColor: "#d33"
-                });
-            }
-        } finally {
-            setCargando(false);
-        }
+            Swal.fire({ icon: "error", title: "Error", text: error?.response?.data?.message || "Error al procesar tu pedido.", confirmButtonColor: C.danger });
+        } finally { setCargando(false); }
     };
 
-
     if (!producto) return null;
-
     const precios = calcularPrecioTotal();
+    const validacionStock = validarStockDisponible();
 
     return (
         <>
+            <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideDown { from{opacity:0;max-height:0;overflow:hidden} to{opacity:1;max-height:600px} }
+        .upload-area:hover { border-color: ${C.accent} !important; background: ${C.accentSoft} !important; }
+        .compra-sticky { position: sticky; top: 24px; }
+      `}</style>
+
             <NavbarComponent />
 
-            <Container className="py-4" style={{ maxWidth: '1200px' }}>
-                <h3 className="text-center mb-4 fw-bold" style={{ color: '#2c3e50' }}>
-                    Solicitar Cotización: {producto.Nombre}
-                </h3>
+            <div style={{ minHeight: "calc(100vh - 72px)", background: C.bg, fontFamily: "'Outfit',sans-serif" }}>
 
-                <Form onSubmit={handleSubmit}>
-                    <Row>
-                        {/* COLUMNA IZQUIERDA */}
-                        <Col lg={4}>
-                            <div className="sticky-top" style={{ top: '20px' }}>
-                                <div className="text-center mb-3 p-3 rounded shadow-sm"
-                                    style={{ backgroundColor: '#fff', cursor: 'pointer' }}
-                                    onClick={() => {
-                                        setPreviewSrc(producto.ImagenProducto);
-                                        setShowProductPreview(true);
-                                    }}>
-                                    <img src={producto.ImagenProducto} alt={producto.Nombre}
-                                        style={{ maxWidth: '100%', maxHeight: '280px', borderRadius: '8px', objectFit: 'contain' }} />
-                                    <p className="text-muted mt-2 mb-0" style={{ fontSize: '0.85rem' }}>
-                                        Click para ampliar
+                {/* ── Hero ── */}
+                <div style={{ background: C.navyGrad, padding: "36px 24px 44px", textAlign: "center" }}>
+                    <div style={{ maxWidth: 1040, margin: "0 auto" }}>
+                        <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 22, color: "#fff", letterSpacing: "-0.02em" }}>
+                            Comprar: {producto.Nombre}
+                        </p>
+                        <p style={{ margin: 0, color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
+                            Completa el formulario para confirmar tu pedido
+                        </p>
+                    </div>
+                </div>
+
+                {/* ── Grid principal ── */}
+                <div style={{ maxWidth: 1040, margin: "0 auto", padding: "32px 20px 60px", display: "grid", gridTemplateColumns: "340px 1fr", gap: 24, alignItems: "start" }}
+                    className="compra-grid">
+                    <style>{`@media(max-width:768px){.compra-grid{grid-template-columns:1fr !important}}`}</style>
+
+                    {/* ══════ PANEL IZQUIERDO – Resumen ══════ */}
+                    <div className="compra-sticky" style={{ animation: "fadeIn 0.35s ease" }}>
+
+                        {/* Imagen producto */}
+                        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.06)", overflow: "hidden", marginBottom: 16 }}>
+                            <div style={{ height: 240, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+                                {producto.ImagenProducto
+                                    ? <img src={producto.ImagenProducto} alt={producto.Nombre} style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
+                                    : <FaBoxOpen size={48} color={C.muted} style={{ opacity: 0.3 }} />}
+                            </div>
+                            <div style={{ padding: "14px 18px", borderTop: `1px solid ${C.border}` }}>
+                                <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 15, color: C.navy }}>{producto.Nombre}</p>
+                                {producto.Descripcion && <p style={{ margin: 0, fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{producto.Descripcion}</p>}
+                            </div>
+                        </div>
+
+                        {/* Resumen de precios */}
+                        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.06)", overflow: "hidden" }}>
+                            <div style={{ background: C.navyGrad, padding: "14px 18px" }}>
+                                <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#fff" }}>Resumen del Pedido</p>
+                            </div>
+                            <div style={{ padding: "16px 18px" }}>
+                                {[
+                                    { label: "Precio base", value: `$${precios.precioBaseProducto.toLocaleString()}` },
+                                    ...(tallasDisponibles.length > 0 && tallaID ? [{ label: "Talla", value: `+$${precios.precioTalla.toLocaleString()}` }] : []),
+                                    ...(telasDisponibles.length > 0 && telaID ? [{ label: "Tela", value: `+$${precios.precioTela.toLocaleString()}` }] : []),
+                                    { label: "Precio unitario", value: `$${precios.precioUnitario.toLocaleString()}`, bold: true },
+                                    { label: "Cantidad", value: `× ${precios.cantidadUnidades}`, bold: true },
+                                ].map(({ label, value, bold }, i) => (
+                                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                                        <span style={{ fontSize: 13, color: C.muted }}>{label}</span>
+                                        <span style={{ fontSize: 13, fontWeight: bold ? 700 : 500, color: bold ? C.navy : C.muted }}>{value}</span>
+                                    </div>
+                                ))}
+                                {/* Total */}
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 4px" }}>
+                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>Total</span>
+                                    <span style={{ fontSize: 22, fontWeight: 800, color: C.success }}>${precios.subtotal.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ══════ PANEL DERECHO – Formulario ══════ */}
+                    <form onSubmit={handleSubmit} style={{ animation: "fadeIn 0.35s ease 0.05s both" }}>
+
+                        {/* ── Características ── */}
+                        <SectionCard title="Características del Producto">
+                            <div style={{ display: "grid", gridTemplateColumns: coloresDisponibles.length > 0 && tallasDisponibles.length > 0 ? "1fr 1fr" : "1fr", gap: 14, marginBottom: 14 }}>
+                                {coloresDisponibles.length > 0 && (
+                                    <SelectField label="Color" value={colorID} required
+                                        onChange={e => { setColorID(e.target.value); setTallaID(""); setTelaID(""); }}>
+                                        <option value="">Seleccionar...</option>
+                                        {coloresDisponibles.map(c => <option key={c.ColorID} value={c.ColorID}>{c.Nombre}</option>)}
+                                    </SelectField>
+                                )}
+                                {tallasDisponibles.length > 0 && (
+                                    <SelectField label="Talla" value={tallaID} required
+                                        onChange={e => { setTallaID(e.target.value); setTelaID(""); }}>
+                                        <option value="">{!colorID ? "Primero selecciona un color" : "Seleccionar..."}</option>
+                                        {tallasDisponibles.map(t => <option key={t.TallaID} value={t.TallaID}>{t.Nombre} — +${t.Precio?.toLocaleString()}</option>)}
+                                    </SelectField>
+                                )}
+                            </div>
+                            {telasDisponibles.length > 0 && (
+                                <div style={{ marginBottom: 14 }}>
+                                    <SelectField label="Tipo de Tela" value={telaID} required
+                                        onChange={e => setTelaID(e.target.value)}>
+                                        <option value="">{!colorID || !tallaID ? "Primero selecciona color y talla" : "Seleccionar..."}</option>
+                                        {telasDisponibles.map(t => <option key={t.InsumoID} value={t.InsumoID}>{t.Nombre} — +${t.PrecioTela?.toLocaleString()}</option>)}
+                                    </SelectField>
+                                </div>
+                            )}
+                            {/* Cantidad */}
+                            <div style={{ maxWidth: 200 }}>
+                                <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
+                                    Cantidad <span style={{ color: C.danger }}>*</span>
+                                </label>
+                                <input type="number" min="1" max="100" value={cantidad}
+                                    onChange={e => { const v = e.target.value; if (v === '' || (parseInt(v) > 0 && parseInt(v) <= 100)) setCantidad(v); }}
+                                    onFocus={() => setCantidadFocused(true)} onBlur={() => setCantidadFocused(false)}
+                                    style={inputStyle(cantidadFocused)} required />
+                                {validacionStock.stockDisponible !== undefined && (
+                                    <p style={{ margin: "5px 0 0", fontSize: 12, color: C.muted }}>
+                                        Stock disponible: <strong style={{ color: validacionStock.stockDisponible > 0 ? C.success : C.danger }}>{validacionStock.stockDisponible} unidades</strong>
                                     </p>
-                                </div>
-
-                                <div className="card shadow-sm">
-                                    <div className="card-header bg-primary text-white">
-                                        <h6 className="mb-0">Resumen de Cotización</h6>
-                                    </div>
-                                    <div className="card-body">
-                                        {!traePrenda ? (
-                                            <>
-                                                <div className="d-flex justify-content-between mb-2">
-                                                    <span>Precio base producto:</span>
-                                                    <strong>${(precios.precioBaseProducto || 0).toLocaleString()}</strong>
-                                                </div>
-
-                                                {tallasDisponibles.length > 0 && (
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <span>Precio talla:</span>
-                                                        <strong>${precios.precioTalla.toLocaleString()}</strong>
-                                                    </div>
-                                                )}
-
-                                                {telasDisponibles.length > 0 && (
-                                                    <div className="d-flex justify-content-between mb-2">
-                                                        <span>Precio tela:</span>
-                                                        <strong>${precios.precioTela.toLocaleString()}</strong>
-                                                    </div>
-                                                )}
-
-                                                <hr />
-                                                <div className="d-flex justify-content-between mb-2">
-                                                    <span>Precio unitario:</span>
-                                                    <strong>${precios.precioBase.toLocaleString()}</strong>
-                                                </div>
-                                                <div className="d-flex justify-content-between mb-2">
-                                                    <span>Cantidad:</span>
-                                                    <strong>x {precios.cantidadUnidades}</strong>
-                                                </div>
-                                                <hr />
-                                                <div className="d-flex justify-content-between">
-                                                    <span className="fw-bold">Subtotal estimado:</span>
-                                                    <strong className="text-success" style={{ fontSize: '1.2rem' }}>
-                                                        ${precios.subtotal.toLocaleString()}
-                                                    </strong>
-                                                </div>
-                                            </>
-                                        ) : (
-                                            <Alert variant="info" className="mb-0">
-                                                <small>Traes tu prenda. El precio se calculará según los diseños aplicados.</small>
-                                            </Alert>
-                                        )}
-
-                                        {disenos.length > 0 && (
-                                            <Alert variant="warning" className="mt-3 mb-0">
-                                                <small>+ Costo de {disenos.length} diseño(s)<br />(Se calculará según técnicas)</small>
-                                            </Alert>
-                                        )}
-                                    </div>
-                                </div>
+                                )}
                             </div>
-                        </Col>
+                        </SectionCard>
 
-                        {/* COLUMNA DERECHA */}
-                        <Col lg={8}>
-                            {/* Tipo de Prenda */}
-                            <div className="card shadow-sm mb-3">
-                                <div className="card-header bg-light">
-                                    <h6 className="mb-0">Tipo de Prenda</h6>
-                                </div>
-                                <div className="card-body">
-                                    <Form.Check type="switch" id="traePrenda" label="Traigo mi propia prenda"
-                                        checked={traePrenda} onChange={(e) => {
-                                            setTraePrenda(e.target.checked);
-                                            if (e.target.checked) {
-                                                setColorID(""); setTallaID(""); setTelaID("");
-                                            } else {
-                                                setPrendaDescripcion("");
-                                            }
-                                        }}
-                                        style={{ fontSize: '1.05rem', fontWeight: '500' }} />
+                        {/* ── Método de pago ── */}
+                        <SectionCard title="Método de Pago" icon={<FaCreditCard size={14} />}>
 
-                                    {traePrenda && (
-                                        <div className="mt-3">
-                                            <Form.Group>
-                                                <Form.Label className="fw-medium">
-                                                    Describe tu prenda <span className="text-danger">*</span>
-                                                </Form.Label>
-                                                <Form.Control as="textarea" rows={3} value={prendaDescripcion}
-                                                    onChange={(e) => setPrendaDescripcion(e.target.value)}
-                                                    placeholder="Ej: Camiseta blanca, talla M, manga corta, 100% algodón"
-                                                    required={traePrenda} />
-                                            </Form.Group>
+                            <MetodoRadio id="pago-transferencia" value="transferencia" checked={metodoPago === "transferencia"}
+                                onChange={e => setMetodoPago(e.target.value)}
+                                icon={<FaCreditCard size={14} />} label="Transferencia Bancaria" color={C.accent} />
+
+                            {/* Bloque transferencia */}
+                            {metodoPago === "transferencia" && (
+                                <div style={{ marginBottom: 14, animation: "slideDown 0.25s ease", borderRadius: 12, border: `1.5px solid ${C.accentBorder}`, background: C.accentSoft, overflow: "hidden" }}>
+                                    {/* Datos bancarios */}
+                                    <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.accentBorder}` }}>
+                                        <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: "0.06em" }}>Datos bancarios</p>
+                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 }}>
+                                            {[["Banco", "Bancolombia"], ["Cuenta", "1234-5678-9012"], ["Titular", "La Empresa"]].map(([k, v]) => (
+                                                <div key={k} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: `1px solid ${C.accentBorder}`, gridColumn: k === "Titular" ? "1/-1" : "auto" }}>
+                                                    <p style={{ margin: "0 0 2px", fontSize: 11, color: C.muted, fontWeight: 600 }}>{k}</p>
+                                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.navy }}>{v}</p>
+                                                </div>
+                                            ))}
                                         </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Características */}
-                            {!traePrenda && (
-                                <div className="card shadow-sm mb-3">
-                                    <div className="card-header bg-light">
-                                        <h6 className="mb-0">Características de la Prenda</h6>
                                     </div>
-                                    <div className="card-body">
-                                        <Row className="g-3">
-                                            {coloresDisponibles.length > 0 && (
-                                                <Col md={4}>
-                                                    <Form.Group>
-                                                        <Form.Label className="fw-medium">
-                                                            Color <span className="text-danger">*</span>
-                                                        </Form.Label>
-                                                        <Form.Select
-                                                            value={colorID}
-                                                            onChange={(e) => setColorID(e.target.value)}
-                                                            required
-                                                        >
-                                                            <option value="">Seleccionar color...</option>
-                                                            {coloresDisponibles.map(c => {
-                                                                const stock = getStockPorColor(c.ColorID);
-                                                                return (
-                                                                    <option key={c.ColorID} value={c.ColorID} disabled={stock <= 0}>
-                                                                        {c.Nombre} {stock > 0 ? `(Stock: ${stock})` : `(Sin stock)`}
-                                                                    </option>
-                                                                );
-                                                            })}
-                                                        </Form.Select>
-                                                    </Form.Group>
-                                                </Col>
-                                            )}
 
-                                            {tallasDisponibles.length > 0 && (
-                                                <Col md={4}>
-                                                    <Form.Group>
-                                                        <Form.Label className="fw-medium">
-                                                            Talla <span className="text-danger">*</span>
-                                                        </Form.Label>
-                                                        <Form.Select
-                                                            value={tallaID}
-                                                            onChange={(e) => setTallaID(e.target.value)}
-                                                            required
-                                                        >
-                                                            <option value="">Seleccionar talla...</option>
-                                                            {tallasDisponibles.map(t => {
-                                                                const stock = getStockPorTalla(t.TallaID);
-                                                                return (
-                                                                    <option key={t.TallaID} value={t.TallaID} disabled={stock <= 0}>
-                                                                        {t.Nombre} - ${t.Precio?.toLocaleString()}
-                                                                        {stock > 0 ? ` (Stock: ${stock})` : ` (Sin stock)`}
-                                                                    </option>
-                                                                );
-                                                            })}
-                                                        </Form.Select>
-                                                    </Form.Group>
-                                                </Col>
-                                            )}
-
-                                            <Col md={4}>
-                                                <Form.Group>
-                                                    <Form.Label className="fw-medium">
-                                                        Cantidad <span className="text-danger">*</span>
-                                                    </Form.Label>
-                                                    <Form.Control
-                                                        type="number"
-                                                        min="1"
-                                                        value={cantidad}
-                                                        onChange={(e) => setCantidad(e.target.value)}
-                                                        required
-                                                    />
-                                                    {/* ✅ INDICADOR DE STOCK */}
-                                                    {!traePrenda && (
-                                                        <Form.Text className="text-muted">
-                                                            {(() => {
-                                                                const validacion = validarStockDisponible();
-                                                                if (validacion.valido && validacion.stockDisponible !== undefined) {
-                                                                    return `Stock disponible: ${validacion.stockDisponible} unidades`;
-                                                                }
-                                                                return null;
-                                                            })()}
-                                                        </Form.Text>
-                                                    )}
-                                                </Form.Group>
-                                            </Col>
-
-                                            {telasDisponibles.length > 0 && (
-                                                <Col md={12}>
-                                                    <Form.Group>
-                                                        <Form.Label className="fw-medium">
-                                                            Tipo de Tela <span className="text-danger">*</span>
-                                                        </Form.Label>
-                                                        <Form.Select
-                                                            value={telaID}
-                                                            onChange={(e) => setTelaID(e.target.value)}
-                                                            required
-                                                        >
-                                                            <option value="">Seleccionar tela...</option>
-                                                            {telasDisponibles.map(t => {
-                                                                const stock = getStockPorTela(t.InsumoID);
-                                                                return (
-                                                                    <option key={t.InsumoID} value={t.InsumoID} disabled={stock <= 0}>
-                                                                        {t.Nombre} - +${t.PrecioTela?.toLocaleString()}
-                                                                        {stock > 0 ? ` (Stock: ${stock})` : ` (Sin stock)`}
-                                                                    </option>
-                                                                );
-                                                            })}
-                                                        </Form.Select>
-                                                    </Form.Group>
-                                                </Col>
-                                            )}
-
-                                            {/* Alertas cuando no hay opciones disponibles */}
-                                            {coloresDisponibles.length === 0 && (
-                                                <Col md={12}>
-                                                    <Alert variant="info" className="mb-0">
-                                                        <small>Este producto no requiere selección de color.</small>
-                                                    </Alert>
-                                                </Col>
-                                            )}
-                                            {tallasDisponibles.length === 0 && (
-                                                <Col md={12}>
-                                                    <Alert variant="info" className="mb-0">
-                                                        <small>Este producto no requiere selección de talla.</small>
-                                                    </Alert>
-                                                </Col>
-                                            )}
-                                            {telasDisponibles.length === 0 && (
-                                                <Col md={12}>
-                                                    <Alert variant="info" className="mb-0">
-                                                        <small>Este producto no requiere selección de tela.</small>
-                                                    </Alert>
-                                                </Col>
-                                            )}
-                                        </Row>
+                                    {/* QR */}
+                                    <div style={{ padding: "12px 16px" }}>
+                                        <button type="button" onClick={() => setMostrarQR(!mostrarQR)}
+                                            style={{ display: "flex", alignItems: "center", gap: 7, background: "#fff", border: `1.5px solid ${C.accentBorder}`, borderRadius: 9, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+                                            {mostrarQR ? <FaEyeSlash size={12} /> : <FaQrcode size={12} />}
+                                            {mostrarQR ? "Ocultar QR" : "Ver código QR"}
+                                        </button>
+                                        {mostrarQR && (
+                                            <div style={{ marginTop: 12, textAlign: "center" }}>
+                                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAC6CAMAAAAu0KfDAAAABlBMVEX///8AAABVwtN+AAABxklEQVR4nO3QUZKDQAwD0eT+l94DgJQeCAXOtr4oGKzneb2MMebivHHSX31mbzljkC5d+hT6tj6dIcuQ+vRMDNKlS59I5zX9ZKKQ98QgXbr0X6X3f9P5NEG6dOnSSTGnk6/SpUv/PXrHEXpHHLsa6dKlT6cfq/nuMzdIly59Cv18SMGF9Wci/Y5IvyM301N9quxEshJZAy0sXbr0x9NJWRqXWH2NnnQR0qVLn0XvUL79KqVfFmmULl36FHpC9xBoByFi+ipduvQh9D4ivUllqwvwq5EuXfpEOjoK6NsJxy6iLyxduvRZ9M4lX8mSx7rieenSpQ+hry6z/TdVrl5E/1e6dOmz6H2B/kyI6TmtmhaLy0iXLv3B9FXWauXq5NSyE+nSpT+enupTyEoESto/oKVLl/54emKREemvPqf/tWCQLl36EHpfKYWc54vxLunSpU+hr2Zbn3Dkfb+yPkG6dOnPp79xTtWErmPXIV269Fn0nQ/hTHomK5FeflK6dOmz6O9N+Lgz6/XsoKVLl/6j9PS1V/LFert06dL/A31nUM13J0iXLn0inRfz9JnbM/3ipEuXPpF+DEGInN5bpEuXPpFujDEX5A/WVTvF1c+o+gAAAABJRU5ErkJggg=="
+                                                    alt="QR" style={{ width: 160, height: 160, borderRadius: 10, border: `2px solid ${C.accentBorder}`, padding: 8, background: "#fff" }} />
+                                                <p style={{ margin: "8px 0 0", fontSize: 12, color: C.muted }}>Escanea para realizar el pago</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             )}
 
-                            {/* Diseños */}
-                            <div className="card shadow-sm mb-3">
-                                <div className="card-header bg-light">
-                                    <h6 className="mb-0">Diseños Personalizados</h6>
+                            {/* Upload comprobante */}
+                            {metodoPago === "transferencia" && (
+                                <div style={{ marginBottom: 14 }}>
+                                    <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
+                                        Comprobante de pago <span style={{ color: C.danger }}>*</span>
+                                    </label>
+                                    <label className="upload-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "20px 16px", border: `2px dashed ${comprobanteArchivo ? C.success : C.border}`, borderRadius: 12, background: comprobanteArchivo ? C.successSoft : "#fff", cursor: "pointer", transition: "all 0.15s" }}>
+                                        <input type="file" accept="image/*,.pdf" onChange={e => setComprobanteArchivo(e.target.files[0])} style={{ display: "none" }} required />
+                                        <FaShoppingCart size={20} color={comprobanteArchivo ? C.success : C.muted} style={{ opacity: 0.6 }} />
+                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: comprobanteArchivo ? C.success : C.muted }}>
+                                            {comprobanteArchivo ? `✓ ${comprobanteArchivo.name}` : "Haz clic para subir el comprobante"}
+                                        </p>
+                                        <p style={{ margin: 0, fontSize: 11, color: C.muted }}>JPG, PNG o PDF · Máx. 5MB</p>
+                                    </label>
                                 </div>
-                                <div className="card-body">
-                                    <div className="p-3 rounded mb-3" style={{ backgroundColor: '#f8f9fa', border: '2px dashed #dee2e6' }}>
-                                        <h6 className="mb-3">{editandoIndex !== null ? "Editar" : "Nuevo"} Diseño</h6>
+                            )}
 
-                                        <Row className="g-3 mb-3">
-                                            <Col md={6}>
-                                                <Form.Group>
-                                                    <Form.Label className="fw-medium">Técnica</Form.Label>
-                                                    <Form.Select value={tecnicaID} onChange={(e) => setTecnicaID(e.target.value)}>
-                                                        <option value="">Seleccionar...</option>
-                                                        {tecnicas.map(t => (
-                                                            <option key={t.TecnicaID} value={t.TecnicaID}>{t.Nombre}</option>
-                                                        ))}
-                                                    </Form.Select>
-                                                </Form.Group>
-                                            </Col>
-                                            <Col md={6}>
-                                                <Form.Group>
-                                                    <Form.Label className="fw-medium">Parte de la prenda</Form.Label>
-                                                    <Form.Select value={parteID} onChange={(e) => setParteID(e.target.value)}>
-                                                        <option value="">Seleccionar...</option>
-                                                        {partes.map(p => (
-                                                            <option key={p.ParteID} value={p.ParteID}>{p.Nombre}</option>
-                                                        ))}
-                                                    </Form.Select>
-                                                </Form.Group>
-                                            </Col>
-                                            <Col md={6}>
-                                                <Form.Group>
-                                                    <Form.Label className="fw-medium">Subparte (opcional)</Form.Label>
-                                                    <Form.Control type="text" value={subparteDescripcion}
-                                                        onChange={(e) => setSubparteDescripcion(e.target.value)}
-                                                        placeholder="Ej: Superior izquierdo" />
-                                                </Form.Group>
-                                            </Col>
-                                            <Col md={6}>
-                                                <Form.Group>
-                                                    <Form.Label className="fw-medium">Archivo del diseño</Form.Label>
-                                                    <Form.Control type="file" accept="image/*"
-                                                        onChange={(e) => setArchivoDiseno(e.target.files[0])} />
-                                                    {archivoDiseno && (
-                                                        <small className="text-success d-block mt-1">✓ {archivoDiseno.name}</small>
-                                                    )}
-                                                </Form.Group>
-                                            </Col>
-                                            <Col md={12}>
-                                                <Form.Group>
-                                                    <Form.Label className="fw-medium">Observaciones</Form.Label>
-                                                    <Form.Control as="textarea" rows={2} value={observacionDiseno}
-                                                        onChange={(e) => setObservacionDiseno(e.target.value)}
-                                                        placeholder="Ej: Logo azul marino, tamaño 10cm x 10cm" />
-                                                </Form.Group>
-                                            </Col>
-                                        </Row>
+                            <MetodoRadio id="pago-contraentrega" value="contraentrega" checked={metodoPago === "contraentrega"}
+                                onChange={e => setMetodoPago(e.target.value)}
+                                icon={<FaTruck size={14} />} label="Pago Contraentrega" color={C.success} />
 
-                                        <div className="d-flex gap-2">
-                                            {editandoIndex !== null && (
-                                                <Button variant="secondary" size="sm" onClick={resetCamposDiseno}>Cancelar</Button>
-                                            )}
-                                            <Button variant={editandoIndex !== null ? "warning" : "success"} size="sm"
-                                                onClick={handleAgregarOActualizarDiseno}>
-                                                <FaPlus className="me-1" />
-                                                {editandoIndex !== null ? "Actualizar" : "Agregar"} diseño
-                                            </Button>
+                            {/* Bloque contraentrega */}
+                            {metodoPago === "contraentrega" && (
+                                <div style={{ animation: "slideDown 0.25s ease", borderRadius: 12, border: `1.5px solid ${C.successBorder}`, background: C.successSoft, padding: "16px 18px", marginTop: 4 }}>
+                                    <p style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: C.success, textTransform: "uppercase", letterSpacing: "0.06em" }}>Datos de entrega</p>
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                        <InputField label="Nombre de quien recibe" value={nombreReceptor}
+                                            onChange={e => setNombreReceptor(e.target.value.replace(/[^a-záéíóúñA-ZÁÉÍÓÚÑ\s'-]/g, ''))}
+                                            placeholder="Ej: Juan Pérez" required maxLength={100} />
+                                        <InputField label="Teléfono de contacto" value={telefonoEntrega}
+                                            onChange={e => setTelefonoEntrega(e.target.value.replace(/[^\d\s\-()]/g, ''))}
+                                            placeholder="Ej: 3001234567" required maxLength={10} />
+                                        <div>
+                                            <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
+                                                Dirección de entrega <span style={{ color: C.danger }}>*</span>
+                                            </label>
+                                            <textarea rows={2} value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)}
+                                                placeholder="Ej: Calle 123 #45-67, Apto 301" required maxLength={250}
+                                                onFocus={() => setTextareaFocused(true)} onBlur={() => setTextareaFocused(false)}
+                                                style={{ ...inputStyle(textareaFocused), resize: "vertical", minHeight: 72 }} />
                                         </div>
                                     </div>
-
-                                    {disenos.length > 0 ? (
-                                        <Table striped bordered hover size="sm" responsive>
-                                            <thead className="table-light">
-                                                <tr>
-                                                    <th>Técnica</th>
-                                                    <th>Parte</th>
-                                                    <th>Subparte</th>
-                                                    <th>Diseño</th>
-                                                    <th>Acciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {disenos.map((d, i) => (
-                                                    <tr key={i}>
-                                                        <td>{d.TecnicaNombre}</td>
-                                                        <td>{d.ParteNombre}</td>
-                                                        <td>{d.SubparteDescripcion || "—"}</td>
-                                                        <td>
-                                                            {d.Archivo ? (
-                                                                <span className="text-success">✓ {d.Archivo.name}</span>
-                                                            ) : (
-                                                                <span className="text-muted">Sin archivo</span>
-                                                            )}
-                                                        </td>
-                                                        <td>
-                                                            <div className="d-flex gap-1">
-                                                                <Button variant="outline-primary" size="sm"
-                                                                    onClick={() => handlePreviewDiseno(d.Archivo)} disabled={!d.Archivo}>
-                                                                    <FaEye />
-                                                                </Button>
-                                                                <Button variant="outline-warning" size="sm"
-                                                                    onClick={() => handleEditarDiseno(i)}>
-                                                                    <FaEdit />
-                                                                </Button>
-                                                                <Button variant="outline-danger" size="sm"
-                                                                    onClick={() => handleEliminarDiseno(i)}>
-                                                                    <FaTrash />
-                                                                </Button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </Table>
-                                    ) : (
-                                        <Alert variant="info" className="mb-0">
-                                            <small>No hay diseños agregados. Puedes continuar sin diseño personalizado.</small>
-                                        </Alert>
-                                    )}
                                 </div>
-                            </div>
+                            )}
+                        </SectionCard>
 
-                            {/* Observaciones */}
-                            <div className="card shadow-sm mb-3">
-                                <div className="card-header bg-light">
-                                    <h6 className="mb-0">Observaciones Adicionales</h6>
-                                </div>
-                                <div className="card-body">
-                                    <Form.Control as="textarea" rows={3} value={observacionesGenerales}
-                                        onChange={(e) => setObservacionesGenerales(e.target.value)}
-                                        placeholder="Fecha de entrega deseada, detalles adicionales, etc." />
-                                </div>
-                            </div>
-
-                            {/* Botones */}
-                            <div className="d-flex gap-3 justify-content-end">
-                                <Button variant="secondary" onClick={() => navigate("/productosLanding")} disabled={cargando}>
-                                    Cancelar
-                                </Button>
-                                <Button variant="success" type="submit" disabled={cargando}>
-                                    {cargando ? (
-                                        <>
-                                            <span className="spinner-border spinner-border-sm me-2" />
-                                            Enviando...
-                                        </>
-                                    ) : (
-                                        "Enviar Cotización"
-                                    )}
-                                </Button>
-                            </div>
-                        </Col>
-                    </Row>
-                </Form>
-
-                {/* Modales */}
-                <Modal show={showProductPreview} onHide={() => setShowProductPreview(false)} centered size="lg">
-                    <Modal.Header closeButton>
-                        <Modal.Title>{producto?.Nombre}</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body className="text-center">
-                        {previewSrc && <img src={previewSrc} alt="Preview" style={{ maxWidth: '100%', maxHeight: '70vh' }} />}
-                    </Modal.Body>
-                </Modal>
-
-                <Modal show={showDesignPreview} onHide={() => {
-                    if (previewSrc) URL.revokeObjectURL(previewSrc);
-                    setShowDesignPreview(false);
-                }} centered size="lg">
-                    <Modal.Header closeButton>
-                        <Modal.Title>Vista Previa del Diseño</Modal.Title>
-                    </Modal.Header>
-                    <Modal.Body className="text-center">
-                        {previewSrc && <img src={previewSrc} alt="Preview diseño" style={{ maxWidth: '100%', maxHeight: '70vh' }} />}
-                    </Modal.Body>
-                </Modal>
-            </Container>
+                        {/* ── Botones ── */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 4 }}>
+                            <button type="button" onClick={() => navigate("/productosLanding")} disabled={cargando}
+                                style={{ background: "#f1f5f9", color: C.muted, border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+                                Cancelar
+                            </button>
+                            <button type="submit" disabled={cargando}
+                                style={{ background: cargando ? C.muted : C.navyGrad, color: "#fff", border: "none", borderRadius: 10, padding: "11px 28px", fontSize: 13, fontWeight: 700, cursor: cargando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, transition: "opacity 0.15s" }}
+                                onMouseEnter={e => { if (!cargando) e.currentTarget.style.opacity = "0.88"; }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}>
+                                {cargando ? (
+                                    <>
+                                        <div style={{ width: 15, height: 15, border: "2.5px solid rgba(255,255,255,0.4)", borderTop: "2.5px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                        Procesando...
+                                    </>
+                                ) : (
+                                    <><FaShoppingCart size={13} /> Confirmar Pedido</>
+                                )}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
 
             <FooterComponent />
         </>

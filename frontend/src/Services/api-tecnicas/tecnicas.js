@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/tecnicas";
+import API_BASE from "../../config/api";
+const API_URL = `${API_BASE}/api/tecnicas`;
+
 
 export const getAllTecnicas = async () => {
   try {
@@ -24,16 +26,12 @@ export const getTecnicaById = async (id) => {
 
 export const createTecnica = async (data) => {
   try {
-    // Asegurarse que el objeto esté correctamente formateado
     const payload = {
       Nombre: data.Nombre,
       Descripcion: data.Descripcion || "",
-      imagenTecnica: data.imagenTecnica || "", 
-      Estado: data.Estado !== undefined ? data.Estado : true
+      imagenTecnica: data.imagenTecnica || "",
+      Estado: data.Estado !== undefined ? data.Estado : true,
     };
-
-    console.log("Enviando técnica:", payload);
-    
     const response = await axios.post(API_URL, payload);
     return response.data;
   } catch (error) {
@@ -47,12 +45,9 @@ export const updateTecnica = async (id, data) => {
     const payload = {
       Nombre: data.Nombre,
       Descripcion: data.Descripcion,
-      imagenTecnica: data.imagenTecnica, 
-      Estado: data.Estado
+      imagenTecnica: data.imagenTecnica,
+      Estado: data.Estado,
     };
-
-    console.log("Actualizando técnica:", payload);
-    
     const response = await axios.put(`${API_URL}/${id}`, payload);
     return response.data;
   } catch (error) {
@@ -66,7 +61,11 @@ export const deleteTecnica = async (id) => {
     const response = await axios.delete(`${API_URL}/${id}`);
     return response.data;
   } catch (error) {
-    console.error("Error en deleteTecnica:", error);
+    // Loggear el cuerpo de la respuesta de error para debugging
+    console.error(
+      "Error en deleteTecnica:",
+      error.response?.data || error.message
+    );
     throw error;
   }
 };

@@ -1,32 +1,63 @@
 import { useState, useEffect } from "react";
-import { FaPlusCircle, FaEdit, FaTrash } from "react-icons/fa";
+import { FaPlusCircle, FaEdit, FaTrash, FaBoxOpen } from "react-icons/fa";
 import Swal from "sweetalert2";
 
 import TallasForm from "./formularios_dash/TallasForm.jsx";
 import { getTallas, deleteTalla } from "../Services/api-tallas/tallas.js";
 
+/* ── Tokens de color (mismos que Técnicas) ── */
+const C = {
+    navy: "#1a2540",
+    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
+    accent: "#4f8ef7",
+    accentSoft: "#f0f4ff",
+    accentBorder: "#c7d9ff",
+    success: "#16a34a",
+    warning: "#d97706",
+    danger: "#dc2626",
+    muted: "#64748b",
+    border: "#e2e8f0",
+    bg: "#f8fafc",
+};
+
+const Badge = ({ type, children }) => {
+    const map = {
+        success: { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
+        warning: { bg: "#fffbeb", color: C.warning, border: "#fde68a" },
+        danger: { bg: "#fef2f2", color: C.danger, border: "#fecaca" },
+        accent: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
+        navy: { bg: C.navy, color: "#fff", border: C.navy },
+        muted: { bg: "#f1f5f9", color: C.muted, border: "#e2e8f0" },
+    };
+    const s = map[type] || map.muted;
+    return (
+        <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, borderRadius: 20, padding: "3px 11px", fontSize: 11, fontWeight: 700, fontFamily: "'Outfit',sans-serif" }}>
+            {children}
+        </span>
+    );
+};
+
+const TH = { background: C.navyGrad, color: "#fff", fontSize: 11, fontWeight: 700, padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
+
 const Tallas = () => {
     const [search, setSearch] = useState("");
     const [tallas, setTallas] = useState([]);
-       const [showForm, setShowForm] = useState(false);
+    const [showForm, setShowForm] = useState(false);
     const [tallaEdit, setTallaEdit] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    useEffect(() => {
-        fetchTallas();
-    }, []);
+    useEffect(() => { fetchTallas(); }, []);
 
     const fetchTallas = async () => {
         setLoading(true);
+        setError(null);
         try {
             const result = await getTallas();
-            if (result.estado) {
-                setTallas(result.datos);
-            } else {
-                setTallas([]);
-            }
-        } catch (error) {
-            console.error("Error cargando tallas:", error);
+            if (result.estado) setTallas(result.datos);
+            else setError("Error al cargar tallas");
+        } catch (err) {
+            setError("Error al cargar las tallas: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -38,159 +69,123 @@ const Tallas = () => {
         setTallaEdit(null);
     };
 
-    const handleEdit = (t) => {
-        setTallaEdit(t);
-        setShowForm(true);
-    };
+    const handleEdit = (t) => { setTallaEdit(t); setShowForm(true); };
+    const handleCloseForm = () => { setShowForm(false); setTallaEdit(null); };
 
     const handleDelete = async (id) => {
         const result = await Swal.fire({
-            title: "¿Estás seguro?",
-            text: "Esta acción no se puede revertir",
+            title: "¿Eliminar talla?",
+            text: "Esta acción no se puede revertir.",
             icon: "warning",
             showCancelButton: true,
-            confirmButtonColor: "#3085d6",
-            cancelButtonColor: "#d33",
+            confirmButtonColor: C.danger,
+            cancelButtonColor: C.navy,
             confirmButtonText: "Sí, eliminar",
             cancelButtonText: "Cancelar",
         });
 
         if (result.isConfirmed) {
             try {
+                setLoading(true);
                 const response = await deleteTalla(id);
                 if (response.estado) {
                     await fetchTallas();
-                    Swal.fire("Eliminada", "La talla se eliminó correctamente", "success");
-                } else {
-                    throw new Error(response.mensaje);
-                }
-            } catch (error) {
-                Swal.fire("Error", error.message || "No se pudo eliminar la talla", "error");
-            }
+                    Swal.fire({ toast: true, icon: "success", title: "Talla eliminada", position: "top-end", showConfirmButton: false, timer: 2000 });
+                } else throw new Error(response.mensaje);
+            } catch (err) {
+                Swal.fire({ icon: "error", title: "Error", text: err.message || "No se pudo eliminar la talla", confirmButtonColor: C.danger });
+            } finally { setLoading(false); }
         }
     };
 
-    const handleCloseForm = () => {
-        setShowForm(false);
-        setTallaEdit(null);
-    };
+    const filtered = tallas.filter(t => t.Nombre.toLowerCase().includes(search.toLowerCase()));
 
-    const filtered = tallas.filter((t) =>
-        t.Nombre.toLowerCase().includes(search.toLowerCase())
-    );
-
-    if (showForm) {
-        return (
-            <TallasForm
-                onClose={handleCloseForm}
-                onSave={handleSave}
-                tallaEdit={tallaEdit}
-            />
-        );
-    }
+    if (showForm) return <TallasForm onClose={handleCloseForm} onSave={handleSave} tallaEdit={tallaEdit} tallasExistentes={tallas} />;
 
     return (
-        <div
-            className="d-flex flex-column"
-            style={{
-                minHeight: "100dvh",
-                background: "linear-gradient(135deg, #ffffffff 0%, #fafcff 100%)",
-                padding: "20px 30px",
-                fontSize: "0.9rem",
-            }}
-        >
-            <div className="d-flex justify-content-between align-items-center mb-3">
-                <h1 className="fs-5 fw-bold mb-0 text-primary" style={{ letterSpacing: 1 }}>
-                    Gestión de Tallas
-                </h1>
-                <button
-                    className="btn btn-sm btn-primary d-flex align-items-center gap-2 shadow-sm"
-                    onClick={() => {
-                        setTallaEdit(null);
-                        setShowForm(true);
-                    }}
-                >
-                    <FaPlusCircle size={18} />
-                    Agregar Talla
-                </button>
-            </div>
+        <>
+            <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .tal-row:hover { background: ${C.accentSoft} !important; }
+        .icon-btn { transition: all 0.18s; }
+        .icon-btn:hover { transform: scale(1.08); }
+      `}</style>
 
-            <div className="d-flex justify-content-end mb-3">
-                <div className="input-group input-group-sm" style={{ maxWidth: 260 }}>
-                    <span className="input-group-text bg-white border-end-0">🔍</span>
-                    <input
-                        type="text"
-                        className="form-control border-start-0"
-                        placeholder="Buscar talla..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                    />
+            <div style={{ minHeight: "100vh", background: C.bg, padding: "28px 32px", fontFamily: "'Outfit',sans-serif" }}>
+
+                {/* ── HEADER ── */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+                    <h4 style={{ margin: 0, fontWeight: 800, fontSize: 22, color: C.navy, letterSpacing: "-0.02em" }}>Gestión de Tallas</h4>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                        <input type="text" placeholder="Buscar talla..." value={search} onChange={e => setSearch(e.target.value)}
+                            style={{ border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "8px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", width: 220, color: "#0f172a" }}
+                            onFocus={e => e.target.style.borderColor = C.accent}
+                            onBlur={e => e.target.style.borderColor = C.border} />
+                        <button onClick={() => { setTallaEdit(null); setShowForm(true); }} disabled={loading}
+                            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, opacity: loading ? 0.7 : 1 }}
+                            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#2d3f6e"; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = C.navy; }}>
+                            <FaPlusCircle size={15} /> Agregar Talla
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <div className="flex-grow-1" style={{ overflow: "auto", minHeight: 0 }}>
-                <div className="table-responsive rounded-4 shadow-sm" style={{ background: "#fff" }}>
-                    <table className="table table-sm align-middle mb-0">
-                        <thead
-                            style={{
-                                background: "linear-gradient(90deg, #1976d2 60%, #64b5f6 100%)",
-                                color: "#fff",
-                                fontSize: "0.85rem",
-                            }}
-                        >
+                {error && (
+                    <div style={{ background: "#fef2f2", border: `1.5px solid #fecaca`, borderRadius: 12, padding: "12px 18px", marginBottom: 20, color: C.danger, fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 12 }}>
+                        {error}
+                        <button onClick={fetchTallas} style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Reintentar</button>
+                    </div>
+                )}
+
+                {/* ── TABLA ── */}
+                <div style={{ background: "#fff", borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", overflow: "hidden", animation: "fadeIn 0.3s ease" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>
+                        <thead>
                             <tr>
-                                <th style={{ borderTopLeftRadius: 12 }}>ID</th>
-                                <th>Nombre</th>
-                                <th>Precio Talla</th> {/* ← NUEVA CELDA */}
-                                <th style={{ width: 140 }}>Acciones</th>
+                                {["ID", "Nombre", "Precio Talla", "Acciones"].map((h, i) => (
+                                    <th key={i} style={{ ...TH, textAlign: i === 3 ? "center" : "left", borderTopLeftRadius: i === 0 ? 18 : 0, borderTopRightRadius: i === 3 ? 18 : 0 }}>{h}</th>
+                                ))}
                             </tr>
                         </thead>
-
                         <tbody>
                             {loading ? (
-                                <tr>
-                                    <td colSpan={4} className="text-center py-4">
-                                        <div className="spinner-border text-primary" role="status"></div>
-                                    </td>
-                                </tr>
+                                <tr><td colSpan={4} style={{ textAlign: "center", padding: "48px 0" }}>
+                                    <div style={{ width: 36, height: 36, border: `3px solid ${C.border}`, borderTop: `3px solid ${C.accent}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+                                    <p style={{ color: C.muted, margin: 0, fontSize: 13 }}>Cargando tallas...</p>
+                                </td></tr>
                             ) : filtered.length === 0 ? (
-                                <tr>
-                                    <td colSpan={4} className="text-center py-4 text-muted">
-                                        No hay tallas para mostrar.
-                                    </td>
-                                </tr>
+                                <tr><td colSpan={4} style={{ textAlign: "center", padding: "48px 0" }}>
+                                    <FaBoxOpen style={{ color: C.muted, opacity: 0.3, fontSize: 32, marginBottom: 10 }} />
+                                    <p style={{ color: C.muted, marginBottom: 14, fontSize: 13 }}>
+                                        {search ? "No se encontraron tallas con ese nombre." : "No hay tallas registradas."}
+                                    </p>
+                                    {!search && <button onClick={() => { setTallaEdit(null); setShowForm(true); }} style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Crear primera talla</button>}
+                                </td></tr>
                             ) : (
-                                filtered.map((t) => (
-                                    <tr key={t.TallaID} style={{ borderBottom: "1px solid #e3e8ee" }}>
-                                        <td>
-                                            <span className="badge bg-light text-dark px-2 py-1 shadow-sm">
-                                                {t.TallaID}
-                                            </span>
+                                filtered.map((t, idx) => (
+                                    <tr key={t.TallaID} className="tal-row" style={{ background: idx % 2 === 0 ? "#fff" : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
+                                        <td style={{ padding: "11px 14px" }}>
+                                            <Badge type="accent">{t.TallaID}</Badge>
                                         </td>
-                                        <td className="fw-medium">{t.Nombre}</td>
-
-                                        {/* NUEVA COLUMNA DE PRECIO */}
-                                        <td className="fw-medium">
+                                        <td style={{ padding: "11px 14px", fontWeight: 600, color: C.navy }}>{t.Nombre}</td>
+                                        <td style={{ padding: "11px 14px" }}>
                                             {t.Precio !== null && t.Precio !== undefined
-                                                ? `$ ${t.Precio}`
-                                                : "No tiene precio"}
+                                                ? <Badge type="success">$ {t.Precio}</Badge>
+                                                : <Badge type="muted">Sin precio</Badge>
+                                            }
                                         </td>
-
-                                        <td>
-                                            <div className="d-flex justify-content-center gap-1">
-                                                <button
-                                                    className="btn btn-outline-warning btn-sm rounded-circle"
-                                                    title="Editar"
-                                                    onClick={() => handleEdit(t)}
-                                                >
-                                                    <FaEdit size={14} />
+                                        <td style={{ padding: "11px 14px", textAlign: "center" }}>
+                                            <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                                                <button className="icon-btn" onClick={() => handleEdit(t)} title="Editar"
+                                                    style={{ width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${C.warning}20`, background: `${C.warning}0d`, color: C.warning, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                    <FaEdit size={12} />
                                                 </button>
-                                                <button
-                                                    className="btn btn-outline-danger btn-sm rounded-circle"
-                                                    title="Eliminar"
-                                                    onClick={() => handleDelete(t.TallaID)}
-                                                >
-                                                    <FaTrash size={14} />
+                                                <button className="icon-btn" onClick={() => handleDelete(t.TallaID)} title="Eliminar"
+                                                    style={{ width: 30, height: 30, borderRadius: 7, border: `1.5px solid ${C.danger}20`, background: `${C.danger}0d`, color: C.danger, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                    <FaTrash size={12} />
                                                 </button>
                                             </div>
                                         </td>
@@ -201,7 +196,7 @@ const Tallas = () => {
                     </table>
                 </div>
             </div>
-        </div>
+        </>
     );
 };
 

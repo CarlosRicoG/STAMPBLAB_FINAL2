@@ -1,11 +1,13 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/productos"; 
+import API_BASE from "../../config/api";
+const API_URL = `${API_BASE}/api/productos`;
+
 
 // Obtener todos los productos
-export const getProductos = async () => {
+export const getProductos = async (params = {}) => {
   try {
-    const response = await axios.get(API_URL);
+    const response = await axios.get(API_URL, { params });
     return response.data;
   } catch (error) {
     console.error("Error al obtener productos:", error);

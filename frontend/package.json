@@ -16,6 +16,7 @@
     "jose": "^6.1.2",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.546.0",
+    "picomatch": "^4.0.4",
     "react": "^19.1.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.1.1",
@@ -45,3 +46,4 @@
   "author": "",
   "license": "ISC"
 }
+

@@ -1,11 +1,57 @@
 import { useState } from "react";
-import { Form, Button, Card, Row, Col } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import { registrarUsuario } from "../../Services/api-auth/auth";
 import fondo from "../../assets/images/imagenfondo.png";
+import logo from "../../assets/images/nuevo_logo_stamplab.png";
 import NavbarComponent from "../landing/NavBarLanding";
 import FooterComponent from "../landing/footer";
 import Swal from "sweetalert2";
+
+/* ── Tokens de color ── */
+const C = {
+    navy: "#1a2540",
+    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
+    accent: "#4f8ef7",
+    accentSoft: "#f0f4ff",
+    accentBorder: "#c7d9ff",
+    danger: "#dc2626",
+    muted: "#64748b",
+    border: "#e2e8f0",
+    bg: "#f8fafc",
+};
+
+const InputField = ({ label, type = "text", placeholder, value, onChange, onBlur, disabled, error, required }) => {
+    const [focused, setFocused] = useState(false);
+    return (
+        <div>
+            <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
+                {label} {required && <span style={{ color: C.danger }}>*</span>}
+            </label>
+            <input
+                type={type}
+                placeholder={placeholder}
+                value={value}
+                onChange={onChange}
+                onBlur={onBlur}
+                disabled={disabled}
+                required={required}
+                onFocus={() => setFocused(true)}
+                onBlurCapture={() => setFocused(false)}
+                style={{
+                    width: "100%", padding: "10px 14px", fontSize: 13,
+                    fontFamily: "'Outfit',sans-serif",
+                    border: `1.5px solid ${error ? C.danger : focused ? C.accent : C.border}`,
+                    borderRadius: 10, outline: "none", color: "#0f172a",
+                    background: error ? "#fef2f2" : "#fff",
+                    transition: "border-color 0.15s",
+                    boxSizing: "border-box",
+                    opacity: disabled ? 0.7 : 1,
+                }}
+            />
+            {error && <p style={{ margin: "5px 0 0", fontSize: 12, color: C.danger, fontWeight: 600 }}>{error}</p>}
+        </div>
+    );
+};
 
 const RegistroLanding = () => {
     const [nombre, setNombre] = useState("");
@@ -18,152 +64,56 @@ const RegistroLanding = () => {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    // Estados para errores de validación
-    const [errores, setErrores] = useState({
-        nombre: "",
-        documento: "",
-        correo: "",
-        telefono: "",
-        direccion: "",
-        contraseña: "",
-        confirmar: ""
-    });
+    const [errores, setErrores] = useState({ nombre: "", documento: "", correo: "", telefono: "", direccion: "", contraseña: "", confirmar: "" });
 
-    // Validación de nombre
-    const validarNombre = (valor) => {
-        if (!valor.trim()) {
-            return "El nombre es requerido";
-        }
-        if (valor.trim().length < 3) {
-            return "El nombre debe tener al menos 3 caracteres";
-        }
-        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(valor)) {
-            return "El nombre solo debe contener letras";
-        }
+    const validarNombre = (v) => {
+        if (!v.trim()) return "El nombre es requerido.";
+        if (v.trim().length < 3) return "El nombre debe tener al menos 3 caracteres.";
+        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/.test(v)) return "El nombre solo debe contener letras.";
+        return "";
+    };
+    const validarDocumento = (v) => {
+        if (!v.trim()) return "El documento es requerido.";
+        if (!/^\d+$/.test(v)) return "El documento solo debe contener números.";
+        if (v.length < 7 || v.length > 10) return "El documento debe tener entre 7 y 10 dígitos.";
+        return "";
+    };
+    const validarCorreo = (v) => {
+        if (!v.trim()) return "El correo es requerido.";
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "El correo no es válido.";
+        return "";
+    };
+    const validarTelefono = (v) => {
+        if (!v.trim()) return "El teléfono es requerido.";
+        if (!/^[\d\s-]+$/.test(v)) return "Solo puede contener números, espacios o guiones.";
+        const soloNumeros = v.replace(/[\s-]/g, "");
+        if (soloNumeros.length < 7 || soloNumeros.length > 10) return "El teléfono debe tener entre 7 y 10 dígitos.";
+        return "";
+    };
+    const validarDireccion = (v) => {
+        if (!v.trim()) return "La dirección es requerida.";
+        if (v.trim().length < 5) return "La dirección debe tener al menos 5 caracteres.";
+        return "";
+    };
+    const validarContraseña = (v) => {
+        if (!v) return "La contraseña es requerida.";
+        if (v.length < 4) return "La contraseña debe tener al menos 4 caracteres.";
+        if (v.length > 20) return "La contraseña no debe exceder 20 caracteres.";
+        return "";
+    };
+    const validarConfirmar = (v) => {
+        if (!v) return "Debes confirmar tu contraseña.";
+        if (v !== contraseña) return "Las contraseñas no coinciden.";
         return "";
     };
 
-    // Validación de documento
-    const validarDocumento = (valor) => {
-        if (!valor.trim()) {
-            return "El documento es requerido";
-        }
-        if (!/^\d+$/.test(valor)) {
-            return "El documento solo debe contener números";
-        }
-        if (valor.length < 6 || valor.length > 10) {
-            return "El documento debe tener entre 6 y 10 dígitos";
-        }
-        return "";
-    };
-
-    // Validación de correo
-    const validarCorreo = (valor) => {
-        if (!valor.trim()) {
-            return "El correo es requerido";
-        }
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(valor)) {
-            return "El correo no es válido";
-        }
-        return "";
-    };
-
-    // Validación de teléfono
-    const validarTelefono = (valor) => {
-        if (!valor.trim()) {
-            return "El teléfono es requerido";
-        }
-        if (!/^\d+$/.test(valor)) {
-            return "El teléfono solo debe contener números";
-        }
-        if (valor.length < 7 || valor.length > 10) {
-            return "El teléfono debe tener entre 7 y 10 dígitos";
-        }
-        return "";
-    };
-
-    // Validación de dirección
-    const validarDireccion = (valor) => {
-        if (!valor.trim()) {
-            return "La dirección es requerida";
-        }
-        if (valor.trim().length < 5) {
-            return "La dirección debe tener al menos 5 caracteres";
-        }
-        return "";
-    };
-
-    // Validación de contraseña
-    const validarContraseña = (valor) => {
-        if (!valor) {
-            return "La contraseña es requerida";
-        }
-        if (valor.length < 4) {
-            return "La contraseña debe tener al menos 4 caracteres";
-        }
-        if (valor.length > 20) {
-            return "La contraseña no debe exceder 20 caracteres";
-        }
-        return "";
-    };
-
-    // Validación de confirmación de contraseña
-    const validarConfirmar = (valor) => {
-        if (!valor) {
-            return "Debes confirmar tu contraseña";
-        }
-        if (valor !== contraseña) {
-            return "Las contraseñas no coinciden";
-        }
-        return "";
-    };
-
-    // Manejadores onBlur
-    const handleBlurNombre = () => {
-        const error = validarNombre(nombre);
-        setErrores(prev => ({ ...prev, nombre: error }));
-    };
-
-    const handleBlurDocumento = () => {
-        const error = validarDocumento(documento);
-        setErrores(prev => ({ ...prev, documento: error }));
-    };
-
-    const handleBlurCorreo = () => {
-        const error = validarCorreo(correo);
-        setErrores(prev => ({ ...prev, correo: error }));
-    };
-
-    const handleBlurTelefono = () => {
-        const error = validarTelefono(telefono);
-        setErrores(prev => ({ ...prev, telefono: error }));
-    };
-
-    const handleBlurDireccion = () => {
-        const error = validarDireccion(direccion);
-        setErrores(prev => ({ ...prev, direccion: error }));
-    };
-
-    const handleBlurContraseña = () => {
-        const error = validarContraseña(contraseña);
-        setErrores(prev => ({ ...prev, contraseña: error }));
-        // Re-validar confirmar si ya tiene valor
-        if (confirmar) {
-            const errorConfirmar = validarConfirmar(confirmar);
-            setErrores(prev => ({ ...prev, confirmar: errorConfirmar }));
-        }
-    };
-
-    const handleBlurConfirmar = () => {
-        const error = validarConfirmar(confirmar);
-        setErrores(prev => ({ ...prev, confirmar: error }));
+    const blur = (field, fn, value) => {
+        const e = fn(value);
+        setErrores(prev => ({ ...prev, [field]: e }));
     };
 
     const handleRegistro = async (e) => {
         e.preventDefault();
-
-        // Validar todos los campos antes de enviar
         const nuevosErrores = {
             nombre: validarNombre(nombre),
             documento: validarDocumento(documento),
@@ -171,57 +121,24 @@ const RegistroLanding = () => {
             telefono: validarTelefono(telefono),
             direccion: validarDireccion(direccion),
             contraseña: validarContraseña(contraseña),
-            confirmar: validarConfirmar(confirmar)
+            confirmar: validarConfirmar(confirmar),
         };
-
         setErrores(nuevosErrores);
-
-        // Verificar si hay errores
-        const hayErrores = Object.values(nuevosErrores).some(error => error !== "");
-        if (hayErrores) {
-            Swal.fire({
-                icon: "error",
-                title: "Errores en el formulario",
-                text: "Por favor corrige los errores antes de continuar",
-            });
+        if (Object.values(nuevosErrores).some(e => e !== "")) {
+            Swal.fire({ icon: "error", title: "Errores en el formulario", text: "Por favor corrige los errores antes de continuar.", confirmButtonColor: C.danger });
             return;
         }
-
         setLoading(true);
-
         try {
-            const datos = {
-                DocumentoID: documento.trim(),
-                Nombre: nombre.trim(),
-                Correo: correo.trim(),
-                Telefono: telefono.trim(),
-                Direccion: direccion.trim(),
-                Contraseña: contraseña,
-                RolID: 2,
-            };
-
+            const datos = { DocumentoID: documento.trim(), Nombre: nombre.trim(), Correo: correo.trim(), Telefono: telefono.trim(), Direccion: direccion.trim(), Contraseña: contraseña, RolID: 2 };
             const response = await registrarUsuario(datos);
-            const registroExitoso = response.data?.estado !== false;
-
-            if (registroExitoso) {
-                Swal.fire({
-                    icon: "success",
-                    title: "¡Registro exitoso!",
-                    text: "Tu cuenta ha sido creada. Por favor inicia sesión.",
-                    confirmButtonColor: "#3085d6",
-                }).then(() => {
-                    navigate("/login");
-                });
+            if (response.data?.estado !== false) {
+                Swal.fire({ icon: "success", title: "¡Registro exitoso!", text: "Tu cuenta ha sido creada. Por favor inicia sesión.", confirmButtonColor: C.navy }).then(() => navigate("/login"));
             } else {
                 throw new Error(response.data?.mensaje || "Error al registrar usuario");
             }
         } catch (err) {
-            console.error("Error en registro:", err);
-            Swal.fire({
-                icon: "error",
-                title: "Error al registrarse",
-                text: err.response?.data?.mensaje || err.message || "Verifica los datos e intenta nuevamente",
-            });
+            Swal.fire({ icon: "error", title: "Error al registrarse", text: err.response?.data?.mensaje || err.message || "Verifica los datos e intenta nuevamente.", confirmButtonColor: C.danger });
         } finally {
             setLoading(false);
         }
@@ -229,212 +146,110 @@ const RegistroLanding = () => {
 
     return (
         <>
+            <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
+
             <NavbarComponent />
 
-            <div className="d-flex justify-content-center align-items-center py-5 bg-light">
-                <Card
-                    style={{
-                        width: "65rem",
-                        backgroundColor: "#ffffff",
-                        color: "#212529",
-                        border: "1px solid #dee2e6",
-                    }}
-                    className="shadow-lg rounded-4 overflow-hidden"
-                >
-                    <Row className="g-0">
-                        <Col md={6} className="d-none d-md-block">
-                            <div
-                                style={{
-                                    backgroundImage: `url(${fondo})`,
-                                    backgroundSize: "cover",
-                                    backgroundPosition: "center",
-                                    height: "100%",
-                                    width: "100%",
-                                }}
-                            ></div>
-                        </Col>
+            <div style={{ minHeight: "calc(100vh - 72px)", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 20px", fontFamily: "'Outfit',sans-serif" }}>
+                <div style={{ width: "100%", maxWidth: 980, background: "#fff", borderRadius: 20, boxShadow: "0 4px 32px rgba(26,37,64,0.12), 0 0 0 1px #f1f5f9", overflow: "hidden", display: "flex", animation: "fadeIn 0.35s ease" }}>
 
-                        <Col md={6} className="p-5 d-flex flex-column justify-content-center">
-                            <h4 className="text-center mb-4 fw-bold text-dark">
-                                Formulario de Registro
-                            </h4>
+                    {/* ── Panel izquierdo (imagen) ── */}
+                    <div style={{ flex: "0 0 340px", backgroundImage: `url(${fondo})`, backgroundSize: "cover", backgroundPosition: "center", position: "relative", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}
+                        className="d-none d-lg-flex">
+                        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(26,37,64,0.85) 0%, rgba(26,37,64,0.25) 60%, transparent 100%)" }} />
+                        <div style={{ position: "relative", padding: "32px 28px" }}>
+                            <p style={{ margin: 0, color: "rgba(255,255,255,0.9)", fontSize: 22, fontWeight: 800, lineHeight: 1.3 }}>Crea tu cuenta</p>
+                            <p style={{ margin: "8px 0 0", color: "rgba(255, 255, 255, 0.94)", fontSize: 13 }}>Únete a StampLab y accede a cotizaciones, productos y más.</p>
+                        </div>
+                    </div>
 
-                            <Form onSubmit={handleRegistro}>
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label className="fw-semibold">Nombre</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                placeholder="Ingresa tu nombre"
-                                                value={nombre}
-                                                onChange={(e) => setNombre(e.target.value)}
-                                                onBlur={handleBlurNombre}
-                                                className="rounded-3 shadow-sm"
-                                                disabled={loading}
-                                                isInvalid={!!errores.nombre}
-                                                required
-                                            />
-                                            <Form.Control.Feedback type="invalid">
-                                                {errores.nombre}
-                                            </Form.Control.Feedback>
-                                        </Form.Group>
-                                    </Col>
+                    {/* ── Panel derecho (formulario) ── */}
+                    <div style={{ flex: 1, padding: "40px 36px", display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0, overflowY: "auto" }}>
 
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label className="fw-semibold">Número documento</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                placeholder="Número de documento"
-                                                value={documento}
-                                                onChange={(e) => setDocumento(e.target.value)}
-                                                onBlur={handleBlurDocumento}
-                                                className="rounded-3 shadow-sm"
-                                                disabled={loading}
-                                                isInvalid={!!errores.documento}
-                                                required
-                                            />
-                                            <Form.Control.Feedback type="invalid">
-                                                {errores.documento}
-                                            </Form.Control.Feedback>
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                        {/* Logo mobile */}
+                        <div className="d-flex d-lg-none" style={{ justifyContent: "center", marginBottom: 20 }}>
+                            <img src={logo} alt="StampLab" style={{ height: 44 }} />
+                        </div>
 
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label className="fw-semibold">Correo electrónico</Form.Label>
-                                            <Form.Control
-                                                type="email"
-                                                placeholder="Correo"
-                                                value={correo}
-                                                onChange={(e) => setCorreo(e.target.value)}
-                                                onBlur={handleBlurCorreo}
-                                                className="rounded-3 shadow-sm"
-                                                disabled={loading}
-                                                isInvalid={!!errores.correo}
-                                                required
-                                            />
-                                            <Form.Control.Feedback type="invalid">
-                                                {errores.correo}
-                                            </Form.Control.Feedback>
-                                        </Form.Group>
-                                    </Col>
+                        <div style={{ marginBottom: 28 }}>
+                            <p style={{ margin: 0, fontWeight: 800, fontSize: 22, color: C.navy, letterSpacing: "-0.02em" }}>Formulario de Registro</p>
+                            <p style={{ margin: "5px 0 0", fontSize: 13, color: C.muted }}>Completa todos los campos para crear tu cuenta</p>
+                        </div>
 
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label className="fw-semibold">Teléfono</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                placeholder="Teléfono"
-                                                value={telefono}
-                                                onChange={(e) => setTelefono(e.target.value)}
-                                                onBlur={handleBlurTelefono}
-                                                className="rounded-3 shadow-sm"
-                                                disabled={loading}
-                                                isInvalid={!!errores.telefono}
-                                                required
-                                            />
-                                            <Form.Control.Feedback type="invalid">
-                                                {errores.telefono}
-                                            </Form.Control.Feedback>
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                        <form onSubmit={handleRegistro}>
+                            {/* Fila 1: Nombre + Documento */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                <InputField label="Nombre" placeholder="Ingresa tu nombre" value={nombre}
+                                    onChange={e => setNombre(e.target.value)}
+                                    onBlur={() => blur("nombre", validarNombre, nombre)}
+                                    disabled={loading} error={errores.nombre} required />
+                                <InputField label="Número de documento" placeholder="Número de documento" value={documento}
+                                    onChange={e => setDocumento(e.target.value)}
+                                    onBlur={() => blur("documento", validarDocumento, documento)}
+                                    disabled={loading} error={errores.documento} required />
+                            </div>
 
-                                <Row>
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label className="fw-semibold">Dirección</Form.Label>
-                                            <Form.Control
-                                                type="text"
-                                                placeholder="Dirección"
-                                                value={direccion}
-                                                onChange={(e) => setDireccion(e.target.value)}
-                                                onBlur={handleBlurDireccion}
-                                                className="rounded-3 shadow-sm"
-                                                disabled={loading}
-                                                isInvalid={!!errores.direccion}
-                                                required
-                                            />
-                                            <Form.Control.Feedback type="invalid">
-                                                {errores.direccion}
-                                            </Form.Control.Feedback>
-                                        </Form.Group>
-                                    </Col>
+                            {/* Fila 2: Correo + Teléfono */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                <InputField label="Correo electrónico" type="email" placeholder="Correo" value={correo}
+                                    onChange={e => setCorreo(e.target.value)}
+                                    onBlur={() => blur("correo", validarCorreo, correo)}
+                                    disabled={loading} error={errores.correo} required />
+                                <InputField label="Teléfono" placeholder="Teléfono" value={telefono}
+                                    onChange={e => setTelefono(e.target.value)}
+                                    onBlur={() => blur("telefono", validarTelefono, telefono)}
+                                    disabled={loading} error={errores.telefono} required />
+                            </div>
 
-                                    <Col md={6}>
-                                        <Form.Group className="mb-3">
-                                            <Form.Label className="fw-semibold">Contraseña</Form.Label>
-                                            <Form.Control
-                                                type="password"
-                                                placeholder="Contraseña"
-                                                value={contraseña}
-                                                onChange={(e) => setContraseña(e.target.value)}
-                                                onBlur={handleBlurContraseña}
-                                                className="rounded-3 shadow-sm"
-                                                disabled={loading}
-                                                isInvalid={!!errores.contraseña}
-                                                required
-                                            />
-                                            <Form.Control.Feedback type="invalid">
-                                                {errores.contraseña}
-                                            </Form.Control.Feedback>
-                                        </Form.Group>
-                                    </Col>
-                                </Row>
+                            {/* Fila 3: Dirección + Contraseña */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+                                <InputField label="Dirección" placeholder="Dirección" value={direccion}
+                                    onChange={e => setDireccion(e.target.value)}
+                                    onBlur={() => blur("direccion", validarDireccion, direccion)}
+                                    disabled={loading} error={errores.direccion} required />
+                                <InputField label="Contraseña" type="password" placeholder="Contraseña" value={contraseña}
+                                    onChange={e => setContraseña(e.target.value)}
+                                    onBlur={() => blur("contraseña", validarContraseña, contraseña)}
+                                    disabled={loading} error={errores.contraseña} required />
+                            </div>
 
-                                <Form.Group className="mb-4">
-                                    <Form.Label className="fw-semibold">Confirmar contraseña</Form.Label>
-                                    <Form.Control
-                                        type="password"
-                                        placeholder="Confirmar contraseña"
-                                        value={confirmar}
-                                        onChange={(e) => setConfirmar(e.target.value)}
-                                        onBlur={handleBlurConfirmar}
-                                        className="rounded-3 shadow-sm"
-                                        disabled={loading}
-                                        isInvalid={!!errores.confirmar}
-                                        required
-                                    />
-                                    <Form.Control.Feedback type="invalid">
-                                        {errores.confirmar}
-                                    </Form.Control.Feedback>
-                                </Form.Group>
+                            {/* Confirmar contraseña */}
+                            <div style={{ marginBottom: 24 }}>
+                                <InputField label="Confirmar contraseña" type="password" placeholder="Confirmar contraseña" value={confirmar}
+                                    onChange={e => setConfirmar(e.target.value)}
+                                    onBlur={() => blur("confirmar", validarConfirmar, confirmar)}
+                                    disabled={loading} error={errores.confirmar} required />
+                            </div>
 
-                                <div className="d-grid mb-3">
-                                    <Button
-                                        type="submit"
-                                        variant="primary"
-                                        className="fw-bold w-100 rounded-pill shadow-sm"
-                                        disabled={loading}
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                                                Registrando...
-                                            </>
-                                        ) : (
-                                            "Registrar"
-                                        )}
-                                    </Button>
-                                </div>
+                            {/* Botón */}
+                            <button type="submit" disabled={loading}
+                                style={{ width: "100%", padding: "12px", borderRadius: 10, border: "none", background: loading ? C.muted : C.navyGrad, color: "#fff", fontWeight: 700, fontSize: 14, cursor: loading ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, transition: "opacity 0.15s" }}
+                                onMouseEnter={e => { if (!loading) e.currentTarget.style.opacity = "0.88"; }}
+                                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}>
+                                {loading ? (
+                                    <>
+                                        <div style={{ width: 16, height: 16, border: "2.5px solid rgba(255,255,255,0.4)", borderTop: "2.5px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                                        Registrando...
+                                    </>
+                                ) : "Registrar"}
+                            </button>
+                        </form>
 
-                                <p className="text-center mb-0 text-secondary">
-                                    ¿Ya tienes cuenta?{" "}
-                                    <Link
-                                        to="/login"
-                                        className="fw-semibold text-primary text-decoration-none"
-                                    >
-                                        Inicia sesión
-                                    </Link>
-                                </p>
-                            </Form>
-                        </Col>
-                    </Row>
-                </Card>
+                        <p style={{ margin: "20px 0 0", textAlign: "center", fontSize: 13, color: C.muted }}>
+                            ¿Ya tienes cuenta?{" "}
+                            <Link to="/login" style={{ color: C.accent, fontWeight: 700, textDecoration: "none" }}
+                                onMouseEnter={e => e.currentTarget.style.textDecoration = "underline"}
+                                onMouseLeave={e => e.currentTarget.style.textDecoration = "none"}>
+                                Inicia sesión
+                            </Link>
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <FooterComponent />

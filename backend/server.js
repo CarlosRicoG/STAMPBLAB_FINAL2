@@ -9,9 +9,12 @@ const PORT = process.env.PORT || 3000;
 
 
 // ==================== MIDDLEWARES ====================
-// Permitir TODAS las peticiones en desarrollo
+// Orígenes permitidos (CORS_ORIGIN, separados por coma)
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,https://stamp-lab-proyecto.vercel.app')
+    .split(',').map(o => o.trim());
 app.use(cors({
-    origin: 'https://stamp-lab-proyecto.vercel.app'
+    origin: allowedOrigins,
+    credentials: true
 }));
 
 app.use(express.json({ limit: '50mb' }));

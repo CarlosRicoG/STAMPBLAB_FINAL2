@@ -1,14 +1,76 @@
 import React, { useState, useEffect } from "react";
-import {
-    Container, Card, Row, Col, Form, Button, Modal,
-    InputGroup, Table, Badge
-} from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import axios from "axios";
 import { crearVenta, updateVenta, getVentaById } from "../../Services/api-ventas/ventas";
-import Swal from 'sweetalert2';
+import Swal from "sweetalert2";
 
+/* ── Tokens de color (mismos que AgregarProducto) ── */
+const C = {
+    navy: "#1a2540",
+    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
+    accent: "#4f8ef7",
+    accentSoft: "#f0f4ff",
+    accentBorder: "#c7d9ff",
+    success: "#16a34a",
+    successSoft: "#f0fdf4",
+    successBorder: "#bbf7d0",
+    warning: "#d97706",
+    danger: "#dc2626",
+    muted: "#64748b",
+    border: "#e2e8f0",
+    bg: "#f8fafc",
+};
+
+const TH = {
+    background: C.navyGrad,
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "11px 14px",
+    whiteSpace: "nowrap",
+    letterSpacing: "0.04em",
+    textAlign: "left",
+};
+
+/* ── Pequeño badge ── */
+const Badge = ({ type, children }) => {
+    const map = {
+        success: { bg: C.successSoft, color: C.success, border: C.successBorder },
+        accent:  { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
+        muted:   { bg: "#f1f5f9", color: C.muted, border: C.border },
+        navy:    { bg: C.navy, color: "#fff", border: C.navy },
+    };
+    const s = map[type] || map.muted;
+    return (
+        <span style={{
+            background: s.bg, color: s.color, border: `1px solid ${s.border}`,
+            borderRadius: 20, padding: "3px 11px", fontSize: 11, fontWeight: 700,
+            fontFamily: "'Outfit',sans-serif",
+        }}>
+            {children}
+        </span>
+    );
+};
+
+/* ── Modal de selección de producto (custom, sin Bootstrap Modal) ── */
+const ProductoModal = ({ show, onClose, children }) => {
+    if (!show) return null;
+    return (
+        <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
+            zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+        }}>
+            <div style={{
+                background: "#fff", borderRadius: 18, width: "100%", maxWidth: 860,
+                maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column",
+                boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "'Outfit',sans-serif",
+            }}>
+                {children}
+            </div>
+        </div>
+    );
+};
 
 export default function NuevaVenta({ onClose, ventaEdit }) {
     const navigate = useNavigate();
@@ -43,83 +105,73 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
 
         const fetchUsuarios = async () => {
             try {
-                const res = await axios.get("http://localhost:3000/api/usuarios", {
-                    headers: { Authorization: `Bearer ${token}` }
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/usuarios`, {
+                    headers: { Authorization: `Bearer ${token}` },
                 });
                 setUsuarios(res.data);
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
         };
 
         const fetchProductos = async () => {
             try {
-                const res = await axios.get("http://localhost:3000/api/productos", {
-                    headers: { Authorization: `Bearer ${token}` }
+                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/productos`, {
+                    headers: { Authorization: `Bearer ${token}` },
                 });
                 setProductos(res.data.datos || []);
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
         };
 
         fetchUsuarios();
         fetchProductos();
 
-        // Si estamos editando, cargar datos de la venta
-        if (ventaEdit) {
-            cargarDatosVenta();
-        }
+        if (ventaEdit) cargarDatosVenta();
     }, [ventaEdit]);
 
-    // Cargar datos de la venta para editar
     const cargarDatosVenta = async () => {
         try {
             const ventaData = await getVentaById(ventaEdit.VentaID);
-
             setClienteSeleccionado(ventaData.DocumentoID);
             setSubtotal(parseFloat(ventaData.Subtotal));
             setTotal(parseFloat(ventaData.Total));
 
-            // Cargar productos agregados desde los detalles
-            if (ventaData.detalles && ventaData.detalles.length > 0) {
+            if (ventaData.detalles?.length > 0) {
                 const productosEditados = ventaData.detalles.map(det => ({
                     ProductoID: det.ProductoID,
-                    Nombre: det.producto?.Nombre || 'Producto',
+                    Nombre: det.producto?.Nombre || "Producto",
                     Cantidad: det.Cantidad,
                     PrecioUnitario: parseFloat(det.PrecioUnitario),
                     ColorID: det.ColorID,
-                    ColorNombre: det.color?.Nombre || '-',
+                    ColorNombre: det.color?.Nombre || "-",
                     TallaID: det.TallaID,
-                    TallaNombre: det.talla?.Nombre || '-',
-                    TelaID: null,
-                    TelaNombre: "Sin tela",
-                    InventarioID: null,
-                    StockDisponible: 999 // En edición no validamos stock
+                    TallaNombre: det.talla?.Nombre || "-",
+                    TelaID: det.TelaID || null,
+                    TelaNombre: det.tela?.Nombre || "Sin tela",
+                    InventarioID: det.InventarioID || null,
+                    StockDisponible: 999,
                 }));
                 setProductosAgregados(productosEditados);
             }
         } catch (error) {
             console.error("Error al cargar venta:", error);
-            alert("Error al cargar datos de la venta");
+            Swal.fire({ icon: "error", title: "Error", text: "Error al cargar datos de la venta", confirmButtonColor: C.danger });
         }
     };
 
-    // Filtrados para el modal
+    // Filtro productos modal
     const productosFiltrados = productos.filter(p =>
         p.Nombre.toLowerCase().includes(busquedaProducto.toLowerCase())
     );
 
     // Recalcula totales
     useEffect(() => {
-        const sub = productosAgregados.reduce((acc, item) =>
-            acc + (item.Cantidad * item.PrecioUnitario), 0
+        const sub = productosAgregados.reduce(
+            (acc, item) => acc + item.Cantidad * item.PrecioUnitario, 0
         );
         setSubtotal(sub);
         setTotal(sub);
     }, [productosAgregados]);
 
-    // Cargar variantes de un producto
+    // Cargar variantes al seleccionar producto
     const onSeleccionarProductoModal = async (producto) => {
         setProductoSeleccionado(producto);
         setColorSeleccionado("");
@@ -129,23 +181,14 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         try {
             const token = localStorage.getItem("token");
             const res = await axios.get(
-                `http://localhost:3000/api/inventarioproducto/producto/${producto.ProductoID}`,
+                `${import.meta.env.VITE_API_URL}/api/inventarioproducto/producto/${producto.ProductoID}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
-
             const variantesResp = res.data.datos || res.data || [];
-
-            if (!Array.isArray(variantesResp)) {
-                console.warn("⚠ Backend no devolvió array:", variantesResp);
-                setVariantes([]);
-                return;
-            }
-
-            setVariantes(variantesResp);
-
+            setVariantes(Array.isArray(variantesResp) ? variantesResp : []);
         } catch (error) {
             console.error("Error cargando variantes:", error);
-            alert("Error al cargar variantes del producto");
+            Swal.fire({ icon: "error", title: "Error", text: "Error al cargar variantes del producto", confirmButtonColor: C.danger });
             setVariantes([]);
         }
     };
@@ -153,24 +196,22 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
     // Colores únicos disponibles
     const coloresDisponibles = variantes
         .map(v => v.color)
-        .filter((c, index, self) =>
-            index === self.findIndex(x => x.ColorID === c.ColorID)
-        );
+        .filter((c, i, self) => c && i === self.findIndex(x => x?.ColorID === c.ColorID));
 
-    // Tallas disponibles según color
+    // Tallas disponibles según color seleccionado
     const tallasDisponibles = variantes
         .filter(v => v.ColorID === parseInt(colorSeleccionado))
         .map(v => v.talla)
-        .filter((t, i, self) =>
-            i === self.findIndex(x => x.TallaID === t.TallaID)
+        .filter((t, i, self) => t && i === self.findIndex(x => x?.TallaID === t.TallaID));
+
+    const obtenerVarianteActual = () =>
+        variantes.find(
+            v => v.ColorID === parseInt(colorSeleccionado) && v.TallaID === parseInt(tallaSeleccionada)
         );
 
-    /**
- * Calcula el stock disponible real de una variante, restando lo ya agregado en el carrito.
- * @param {Object} variante - objeto variante (de la lista variantes)
- * @param {number|null} excludeIndex - índice en productosAgregados a excluir de la resta (útil al editar cantidad)
- * @returns {number} stock disponible
- */
+    /* ── TELA: obtener la tela de la variante actual ── */
+    const telaVarianteActual = obtenerVarianteActual()?.tela || null;
+
     const calcularStockDisponible = (variante, excludeIndex = null) => {
         if (!variante) return 0;
         const usadoEnCarrito = productosAgregados
@@ -179,61 +220,26 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                 p.ProductoID === productoSeleccionado?.ProductoID &&
                 p.ColorID === variante.ColorID &&
                 p.TallaID === variante.TallaID &&
-                (excludeIndex === null || p.idx !== excludeIndex) // posible exclusión
-            )
-            .reduce((acc, p) => acc + (p.Cantidad || 0), 0);
-
-        const baseStock = typeof variante.Stock === 'number' ? variante.Stock : 0;
-        return Math.max(0, baseStock - usadoEnCarrito);
-    };
-
-
-    const obtenerVarianteActual = () => {
-        return variantes.find(v =>
-            v.ColorID === parseInt(colorSeleccionado) &&
-            v.TallaID === parseInt(tallaSeleccionada)
-        );
-    };
-
-
-    const calcularStockDisponiblePor = (productoID, colorID, tallaID, excludeIndex = null) => {
-        const variante = variantes.find(v =>
-            v.ProductoID === productoID &&
-            v.ColorID === parseInt(colorID) &&
-            v.TallaID === parseInt(tallaID)
-        );
-        if (!variante) return 0;
-        const usadoEnCarrito = productosAgregados
-            .map((p, idx) => ({ ...p, idx }))
-            .filter(p =>
-                p.ProductoID === productoID &&
-                p.ColorID === variante.ColorID &&
-                p.TallaID === variante.TallaID &&
                 (excludeIndex === null || p.idx !== excludeIndex)
             )
             .reduce((acc, p) => acc + (p.Cantidad || 0), 0);
-
-        return Math.max(0, variante.Stock - usadoEnCarrito);
+        return Math.max(0, (variante.Stock || 0) - usadoEnCarrito);
     };
 
-
-    // Agregar producto
     const agregarProducto = () => {
-        if (!productoSeleccionado) return alert('Seleccione un producto');
-        if (!colorSeleccionado) return alert('Seleccione color');
-        if (!tallaSeleccionada) return alert('Seleccione talla');
+        if (!productoSeleccionado) return Swal.fire({ icon: "warning", title: "Seleccione un producto", confirmButtonColor: C.navy });
+        if (!colorSeleccionado) return Swal.fire({ icon: "warning", title: "Seleccione un color", confirmButtonColor: C.navy });
+        if (!tallaSeleccionada) return Swal.fire({ icon: "warning", title: "Seleccione una talla", confirmButtonColor: C.navy });
 
         const variante = obtenerVarianteActual();
-        if (!variante) return alert('Variante no encontrada');
+        if (!variante) return Swal.fire({ icon: "error", title: "Variante no encontrada", confirmButtonColor: C.danger });
 
         const cantidad = parseInt(cantidadSeleccionada) || 1;
-        if (cantidad <= 0) return alert('Cantidad inválida');
+        if (cantidad <= 0) return Swal.fire({ icon: "warning", title: "Cantidad inválida", confirmButtonColor: C.navy });
 
-        // Usamos el stock real teniendo en cuenta lo ya agregado
         const stockDisponible = calcularStockDisponible(variante);
-
         if (!modoEdicion && cantidad > stockDisponible) {
-            return alert(`Stock insuficiente. Solo quedan ${stockDisponible} unidades`);
+            return Swal.fire({ icon: "warning", title: "Stock insuficiente", text: `Solo quedan ${stockDisponible} unidades disponibles`, confirmButtonColor: C.navy });
         }
 
         const precioBase = parseFloat(productoSeleccionado.PrecioBase) || 0;
@@ -241,25 +247,19 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         const precioTela = parseFloat(variante.tela?.PrecioTela) || 0;
         const precioUnitario = precioBase + precioTalla + precioTela;
 
-        // Verificar si ya existe en carrito (misma variante)
-        const existenteIndex = productosAgregados.findIndex(p =>
-            p.ProductoID === productoSeleccionado.ProductoID &&
-            p.ColorID === variante.ColorID &&
-            p.TallaID === variante.TallaID
+        const existenteIndex = productosAgregados.findIndex(
+            p => p.ProductoID === productoSeleccionado.ProductoID &&
+                p.ColorID === variante.ColorID &&
+                p.TallaID === variante.TallaID
         );
 
         if (existenteIndex >= 0) {
-            const nuevos = [...productosAgregados];
-            const nuevoTotal = nuevos[existenteIndex].Cantidad + cantidad;
-
-            // Al verificar el límite, debemos considerar que 'calcularStockDisponible' ya resta lo existente,
-            // así que comparamos con variante.Stock (restado del carrito sin incluir este item)
             const stockDisponibleParaAgregar = calcularStockDisponible(variante, existenteIndex);
             if (!modoEdicion && cantidad > stockDisponibleParaAgregar) {
-                return alert(`No puedes añadir ${cantidad} unidades. Stock máximo disponible: ${stockDisponibleParaAgregar}`);
+                return Swal.fire({ icon: "warning", title: "Stock insuficiente", text: `Máximo disponible: ${stockDisponibleParaAgregar}`, confirmButtonColor: C.navy });
             }
-
-            nuevos[existenteIndex].Cantidad = nuevoTotal;
+            const nuevos = [...productosAgregados];
+            nuevos[existenteIndex].Cantidad += cantidad;
             setProductosAgregados(nuevos);
         } else {
             setProductosAgregados(prev => ([
@@ -270,25 +270,17 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                     Cantidad: cantidad,
                     PrecioUnitario: precioUnitario,
                     ColorID: variante.ColorID,
-                    ColorNombre: variante.color?.Nombre,
+                    ColorNombre: variante.color?.Nombre || "-",
                     TallaID: variante.TallaID,
-                    TallaNombre: variante.talla?.Nombre,
-                    TelaID: variante.TelaID,
+                    TallaNombre: variante.talla?.Nombre || "-",
+                    /* ── TELA: guardamos id y nombre de la tela de la variante ── */
+                    TelaID: variante.TelaID || variante.tela?.InsumoID || null,
                     TelaNombre: variante.tela?.Nombre || "Sin tela",
                     InventarioID: variante.InventarioID,
-                    StockDisponible: variante.Stock
-                }
+                    StockDisponible: variante.Stock,
+                },
             ]));
         }
-
-        // --- Actualizar variantes localmente para reflejar el nuevo stock en UI ---
-        setVariantes(prev =>
-            prev.map(v =>
-                (v.ColorID === variante.ColorID && v.TallaID === variante.TallaID)
-                    ? { ...v, Stock: Math.max(0, (v.Stock || 0) - cantidad) }
-                    : v
-            )
-        );
 
         // Reset UI
         setProductoSeleccionado(null);
@@ -299,34 +291,22 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         setShowModalProducto(false);
     };
 
-
-    // Eliminar producto
     const eliminarProducto = (index) => {
         const nuevos = [...productosAgregados];
         nuevos.splice(index, 1);
         setProductosAgregados(nuevos);
     };
 
-    // Cambiar cantidad
     const cambiarCantidad = (index, valor) => {
         const nuevos = [...productosAgregados];
         const cantidad = parseInt(valor);
-
         if (isNaN(cantidad) || cantidad <= 0) return;
 
         const item = nuevos[index];
-
-        // buscamos la variante correspondiente en 'variantes' para calcular stock real
-        const variante = variantes.find(v =>
-            v.ProductoID === item.ProductoID &&
-            v.ColorID === item.ColorID &&
-            v.TallaID === item.TallaID
+        const variante = variantes.find(
+            v => v.ProductoID === item.ProductoID && v.ColorID === item.ColorID && v.TallaID === item.TallaID
         );
-
-        // si no existe la variante localmente (p.ej. venimos de editar), usamos la propiedad StockDisponible guardada
         let stockTotal = variante ? variante.Stock : (item.StockDisponible ?? 0);
-
-        // calcular stock disponible exclusión del propio item
         const usadoExcluyendoActual = productosAgregados
             .map((p, idx) => ({ ...p, idx }))
             .filter(p =>
@@ -336,90 +316,22 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                 p.idx !== index
             )
             .reduce((acc, p) => acc + (p.Cantidad || 0), 0);
-
         const stockDisponible = Math.max(0, stockTotal - usadoExcluyendoActual);
 
         if (!modoEdicion && cantidad > stockDisponible) {
-            alert(`Stock insuficiente. Solo quedan ${stockDisponible} unidades.`);
+            Swal.fire({ icon: "warning", title: "Stock insuficiente", text: `Solo quedan ${stockDisponible} unidades`, confirmButtonColor: C.navy });
             return;
         }
-
         item.Cantidad = cantidad;
         setProductosAgregados(nuevos);
     };
 
-
-    // Generar o actualizar venta
-    // const handleGenerarVenta  = async () => {
-    //     if (!clienteSeleccionado) return alert('Seleccione un cliente');
-    //     if (productosAgregados.length === 0) return alert('Agregue al menos un producto');
-
-    //     const detalles = productosAgregados.map(p => ({
-    //         ProductoID: p.ProductoID,
-    //         Cantidad: p.Cantidad,
-    //         PrecioUnitario: parseFloat(p.PrecioUnitario),
-    //         ColorID: p.ColorID,
-    //         TallaID: p.TallaID,
-    //         TelaID: p.TelaID ?? null,
-    //         InventarioID: p.InventarioID
-    //     }));
-
-    //     const venta = {
-    //         DocumentoID: clienteSeleccionado,
-    //         Subtotal: parseFloat(subtotal.toFixed(2)),
-    //         Total: parseFloat(total.toFixed(2)),
-    //         EstadoID: modoEdicion ? ventaEdit.EstadoID : 8, // 8 = Pendiente
-    //         detalles
-    //     };
-
-    //     try {
-    //         const token = localStorage.getItem('token');
-
-    //         if (modoEdicion) {
-    //             // Actualizar venta existente
-    //             await axios.put(
-    //                 `http://localhost:3000/api/ventas/${ventaEdit.VentaID}`,
-    //                 venta,
-    //                 { headers: { Authorization: `Bearer ${token}` } }
-    //             );
-    //             alert('Venta actualizada con éxito!');
-    //         } else {
-    //             // Crear nueva venta
-    //             await axios.post('http://localhost:3000/api/ventas', venta, {
-    //                 headers: { Authorization: `Bearer ${token}` }
-    //             });
-    //             alert('Venta registrada con éxito!');
-    //         }
-
-    //         // Cerrar formulario y volver a la tabla
-    //         if (onClose) {
-    //             onClose();
-    //         } else {
-    //             navigate('/dashboard/ventas');
-    //         }
-    //     } catch (err) {
-    //         console.error('Error completo:', err.response?.data || err);
-    //         alert(`Error: ${err.response?.data?.error || 'Error al procesar la venta'}`);
-    //     }
-    // };
-
     const generarVenta = async () => {
         if (!clienteSeleccionado) {
-            await Swal.fire({
-                icon: 'warning',
-                title: 'Cliente requerido',
-                text: 'Por favor selecciona un cliente'
-            });
-            return;
+            return Swal.fire({ icon: "warning", title: "Cliente requerido", text: "Por favor selecciona un cliente", confirmButtonColor: C.navy });
         }
-
         if (productosAgregados.length === 0) {
-            await Swal.fire({
-                icon: 'warning',
-                title: 'Sin productos',
-                text: 'Debes agregar al menos un producto a la venta'
-            });
-            return;
+            return Swal.fire({ icon: "warning", title: "Sin productos", text: "Debes agregar al menos un producto a la venta", confirmButtonColor: C.navy });
         }
 
         const detalles = productosAgregados.map(p => ({
@@ -429,102 +341,115 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
             ColorID: p.ColorID,
             TallaID: p.TallaID,
             TelaID: p.TelaID ?? null,
-            InventarioID: p.InventarioID
+            InventarioID: p.InventarioID,
         }));
 
         const venta = {
             DocumentoID: clienteSeleccionado,
             Subtotal: parseFloat(subtotal.toFixed(2)),
             Total: parseFloat(total.toFixed(2)),
-            EstadoID: modoEdicion ? ventaEdit.EstadoID : 8, // 8 = Pendiente
-            detalles
+            EstadoID: modoEdicion ? ventaEdit.EstadoID : 9,
+            detalles,
         };
 
         try {
-            const token = localStorage.getItem('token');
-
+            const token = localStorage.getItem("token");
             if (modoEdicion) {
-                // Actualizar venta existente
-                const response = await axios.put(
-                    `http://localhost:3000/api/ventas/${ventaEdit.VentaID}`,
-                    venta,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-
+                await axios.put(`${import.meta.env.VITE_API_URL}/api/ventas/${ventaEdit.VentaID}`, venta, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
                 await Swal.fire({
-                    icon: 'success',
-                    title: '¡Venta actualizada!',
-                    html: `
-                    <p>La venta <strong>#${ventaEdit.VentaID}</strong> se ha actualizado correctamente</p>
-                    <p class="mt-2"><strong>Total:</strong> $${total.toLocaleString()}</p>
-                `,
-                    confirmButtonColor: '#28a745',
-                    confirmButtonText: 'Entendido'
+                    icon: "success", title: "¡Venta actualizada!",
+                    html: `<p>La venta <strong>#${ventaEdit.VentaID}</strong> se actualizó correctamente</p><p><strong>Total:</strong> $${total.toLocaleString()}</p>`,
+                    confirmButtonColor: C.success,
                 });
             } else {
-                // Crear nueva venta
-                const response = await axios.post(
-                    'http://localhost:3000/api/ventas',
-                    venta,
-                    { headers: { Authorization: `Bearer ${token}` } }
-                );
-
+                const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/ventas`, venta, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
                 const ventaCreada = response.data?.venta || response.data;
-
+                const clienteNombre = usuarios.find(u => u.DocumentoID === parseInt(clienteSeleccionado))?.Nombre || "Cliente";
                 await Swal.fire({
-                    icon: 'success',
-                    title: '¡Venta registrada exitosamente!'
+                    icon: "success", title: "¡Venta registrada exitosamente!",
+                    html: `
+                        <div style="text-align:left;padding:10px;font-family:'Outfit',sans-serif">
+                            <p><strong>Número:</strong> #${ventaCreada.VentaID || "N/A"}</p>
+                            <p><strong>Cliente:</strong> ${clienteNombre}</p>
+                            <p><strong>Productos:</strong> ${productosAgregados.length} ítem(s)</p>
+                            <hr style="margin:10px 0">
+                            <p style="font-size:1.2rem;color:${C.success}"><strong>Total:</strong> $${total.toLocaleString()}</p>
+                        </div>`,
+                    confirmButtonColor: C.success, confirmButtonText: "Ver ventas",
                 });
             }
-
-            // Cerrar formulario y volver a la tabla
-            if (onClose) {
-                onClose();
-            } else {
-                navigate('/dashboard/ventas');
-            }
+            if (onClose) onClose(); else navigate("/dashboard/ventas");
         } catch (err) {
-            console.error('Error completo:', err.response?.data || err);
-
-            // ALERTAS DE ERROR ESPECÍFICAS
-            if (err.response?.data?.error?.includes('Stock insuficiente') ||
-                err.response?.data?.error?.includes('stock')) {
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Stock insuficiente',
-                    text: err.response.data.error,
-                    confirmButtonColor: '#d33'
-                });
-            } else if (err.response?.status === 404) {
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Error de datos',
-                    text: 'Uno o más productos no fueron encontrados',
-                    confirmButtonColor: '#d33'
-                });
-            } else {
-                await Swal.fire({
-                    icon: 'error',
-                    title: 'Error al procesar la venta',
-                    text: err.response?.data?.error || err.message || 'Ocurrió un error inesperado',
-                    confirmButtonColor: '#d33'
-                });
-            }
+            console.error("Error:", err.response?.data || err);
+            const msg = err.response?.data?.error || err.message || "Error inesperado";
+            Swal.fire({ icon: "error", title: "Error al procesar la venta", text: msg, confirmButtonColor: C.danger });
         }
     };
 
-    return (
-        <Container className="py-4">
-            <h3 className="text-center mb-4 text-primary fw-bold">
-                {modoEdicion ? 'EDITAR VENTA' : 'FORMULARIO DE VENTA'}
-            </h3>
+    const varianteActual = obtenerVarianteActual();
+    const stockActual = calcularStockDisponible(varianteActual);
 
-            <Card className="p-4 mb-4" style={{ background: "#f5f5fa" }}>
-                <Row className="mb-4 align-items-end">
-                    <Col md={5}>
-                        <Form.Group>
-                            <Form.Label className="fw-bold">Cliente *</Form.Label>
-                            <Form.Select
+    return (
+        <>
+            <style>{`
+                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+                * { box-sizing: border-box; }
+                @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+                @keyframes spin { to{transform:rotate(360deg)} }
+                .venta-row:hover { background: ${C.accentSoft} !important; }
+                .prod-card:hover { transform: scale(1.03); border-color: ${C.accent} !important; }
+                .icon-btn:hover { transform: scale(1.08); }
+                .field-label { font-size:12px; font-weight:700; color:${C.navy}; margin-bottom:5px; display:block; }
+                .field-input {
+                    width:100%; border:1.5px solid ${C.border}; border-radius:9px;
+                    padding:9px 13px; font-family:'Outfit',sans-serif; font-size:13px;
+                    color:#0f172a; background:#fff; outline:none; transition:border-color 0.18s;
+                }
+                .field-input:focus { border-color:${C.accent}; }
+                .field-input:disabled { background:${C.bg}; color:${C.muted}; cursor:not-allowed; }
+                .field-select {
+                    width:100%; border:1.5px solid ${C.border}; border-radius:9px;
+                    padding:9px 13px; font-family:'Outfit',sans-serif; font-size:13px;
+                    color:#0f172a; background:#fff; outline:none; transition:border-color 0.18s; cursor:pointer;
+                }
+                .field-select:focus { border-color:${C.accent}; }
+                .field-select:disabled { background:${C.bg}; color:${C.muted}; cursor:not-allowed; }
+            `}</style>
+
+            <div style={{ minHeight: "100%", background: C.bg, padding: "28px 32px", fontFamily: "'Outfit',sans-serif", animation: "fadeIn 0.3s ease" }}>
+
+                {/* ── HEADER ── */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
+                    <h4 style={{ margin: 0, fontWeight: 800, fontSize: 22, color: C.navy, letterSpacing: "-0.02em" }}>
+                        {modoEdicion ? "Editar Venta" : "Nueva Venta"}
+                    </h4>
+                    <div style={{ display: "flex", gap: 10 }}>
+                        <button onClick={generarVenta}
+                            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}
+                            onMouseEnter={e => e.currentTarget.style.background = "#2d3f6e"}
+                            onMouseLeave={e => e.currentTarget.style.background = C.navy}>
+                            {modoEdicion ? "Actualizar Venta" : "Generar Venta"}
+                        </button>
+                        <button onClick={onClose || (() => navigate("/dashboard/ventas"))}
+                            style={{ background: "#fef2f2", color: C.danger, border: `1.5px solid #fecaca`, borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+
+                {/* ── CARD PRINCIPAL ── */}
+                <div style={{ background: "#fff", borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07)", padding: "24px 28px", marginBottom: 24 }}>
+
+                    {/* Fila cliente + totales */}
+                    <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 20, marginBottom: 24, alignItems: "end" }}>
+                        <div>
+                            <label className="field-label">Cliente *</label>
+                            <select
+                                className="field-select"
                                 value={clienteSeleccionado}
                                 onChange={e => setClienteSeleccionado(e.target.value)}
                                 disabled={modoEdicion}
@@ -532,282 +457,306 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                                 <option value="">Seleccione un cliente...</option>
                                 {usuarios.map(u => (
                                     <option key={u.DocumentoID} value={u.DocumentoID}>
-                                        {u.Nombre} - {u.DocumentoID}
+                                        {u.Nombre} — {u.DocumentoID}
                                     </option>
                                 ))}
-                            </Form.Select>
-                        </Form.Group>
-                    </Col>
+                            </select>
+                        </div>
 
-                    <Col md={2}>
-                        <Form.Group>
-                            <Form.Label className="fw-bold">Subtotal</Form.Label>
-                            <Form.Control
+                        <div>
+                            <label className="field-label">Subtotal</label>
+                            <input
+                                className="field-input"
                                 readOnly
                                 value={`$${subtotal.toLocaleString()}`}
-                                style={{ background: "#e9ecef", fontWeight: "600" }}
+                                style={{ background: C.bg, fontWeight: 600, color: C.muted }}
                             />
-                        </Form.Group>
-                    </Col>
+                        </div>
 
-                    <Col md={2}>
-                        <Form.Group>
-                            <Form.Label className="fw-bold">Total</Form.Label>
-                            <Form.Control
+                        <div>
+                            <label className="field-label">Total</label>
+                            <input
+                                className="field-input"
                                 readOnly
                                 value={`$${total.toLocaleString()}`}
-                                style={{ background: "#d1e7dd", fontWeight: "700" }}
+                                style={{ background: C.successSoft, fontWeight: 700, color: C.success, border: `1.5px solid ${C.successBorder}` }}
                             />
-                        </Form.Group>
-                    </Col>
-
-                    <Col md={3} className="d-flex justify-content-end gap-2">
-                        <Button variant="success" className="px-3" onClick={generarVenta}>
-                            {modoEdicion ? 'Actualizar Venta' : 'Generar Venta'}
-                        </Button>
-                        <Button
-                            variant="danger"
-                            onClick={onClose || (() => navigate('/dashboard/ventas'))}
-                        >
-                            Cancelar
-                        </Button>
-                    </Col>
-                </Row>
-
-                <hr className="my-4" />
-
-                <Row className="mb-3">
-                    <Col className="d-flex justify-content-between align-items-center">
-                        <h5 className="mb-0">Agregar Productos</h5>
-                        <Button
-                            variant="primary"
-                            onClick={() => setShowModalProducto(true)}
-                        >
-                            + Elegir Producto
-                        </Button>
-                    </Col>
-                </Row>
-            </Card>
-
-            {/* TABLA */}
-            <Card className="p-3 mb-4">
-                <h5 className="mb-3">Productos Agregados</h5>
-                <Table striped bordered hover responsive>
-                    <thead className="table-primary text-center">
-                        <tr>
-                            <th>#</th>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Precio Unit.</th>
-                            <th>Color</th>
-                            <th>Talla</th>
-                            <th>Subtotal</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {productosAgregados.map((p, i) => (
-                            <tr key={i}>
-                                <td className="text-center">{i + 1}</td>
-                                <td>{p.Nombre}</td>
-                                <td className="text-center">
-                                    <Form.Control
-                                        type="number"
-                                        min={1}
-                                        value={p.Cantidad}
-                                        onChange={e => cambiarCantidad(i, e.target.value)}
-                                        style={{ width: 70, margin: "0 auto" }}
-                                    />
-                                </td>
-                                <td className="text-end">
-                                    ${parseFloat(p.PrecioUnitario).toLocaleString()}
-                                </td>
-                                <td className="text-center">{p.ColorNombre}</td>
-                                <td className="text-center">{p.TallaNombre}</td>
-                                <td className="text-end fw-bold">
-                                    ${(p.Cantidad * parseFloat(p.PrecioUnitario)).toLocaleString()}
-                                </td>
-                                <td className="text-center">
-                                    <Button
-                                        variant="outline-danger"
-                                        size="sm"
-                                        onClick={() => eliminarProducto(i)}
-                                    >
-                                        <X size={16} />
-                                    </Button>
-                                </td>
-                            </tr>
-                        ))}
-                        {productosAgregados.length === 0 && (
-                            <tr>
-                                <td colSpan={8} className="text-center text-muted">
-                                    <em>No hay productos agregados</em>
-                                </td>
-                            </tr>
-                        )}
-                    </tbody>
-                </Table>
-
-                <div className="d-flex justify-content-end mt-3">
-                    <div className="text-end">
-                        <h6 className="mb-1">
-                            Subtotal: <span className="text-primary">${subtotal.toLocaleString()}</span>
-                        </h6>
-                        <h5 className="mb-0">
-                            Total: <Badge bg="success" className="fs-6">${total.toLocaleString()}</Badge>
-                        </h5>
+                        </div>
                     </div>
-                </div>
-            </Card>
 
-            {/* MODAL (igual que antes) */}
-            <Modal
-                show={showModalProducto}
-                onHide={() => setShowModalProducto(false)}
-                size="lg"
-            >
-                <Modal.Header closeButton>
-                    <Modal.Title>Seleccionar Producto</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <InputGroup className="mb-4">
-                        <InputGroup.Text><Search size={18} /></InputGroup.Text>
-                        <Form.Control
-                            placeholder="Buscar producto por nombre..."
-                            value={busquedaProducto}
-                            onChange={e => setBusquedaProducto(e.target.value)}
-                        />
-                    </InputGroup>
+                    <div style={{ height: 1, background: C.border, marginBottom: 22 }} />
 
-                    <Row>
-                        {productosFiltrados.map(producto => (
-                            <Col md={4} className="mb-3" key={producto.ProductoID}>
-                                <Card
-                                    className="h-100 shadow-sm"
-                                    style={{ cursor: "pointer", transition: "transform 0.2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.transform = "scale(1.03)"}
-                                    onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
-                                    onClick={() => onSeleccionarProductoModal(producto)}
-                                >
-                                    <div style={{
-                                        height: 180,
-                                        background: "#f0f0f0",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center"
-                                    }}>
-                                        {producto.ImagenProducto ? (
-                                            <img
-                                                src={producto.ImagenProducto}
-                                                alt={producto.Nombre}
-                                                style={{ maxHeight: "100%", maxWidth: "100%" }}
-                                            />
-                                        ) : (
-                                            <span style={{ fontSize: 14, color: "#999" }}>
-                                                Imagen del producto
-                                            </span>
-                                        )}
-                                    </div>
-                                    <Card.Body>
-                                        <Card.Title style={{ fontSize: 16 }}>
-                                            {producto.Nombre}
-                                        </Card.Title>
-                                        <Card.Text>
-                                            <strong>Precio base:</strong> ${parseFloat(producto.PrecioBase || 0).toLocaleString()}
-                                        </Card.Text>
-                                    </Card.Body>
-                                </Card>
-                            </Col>
-                        ))}
-                    </Row>
+                    {/* Botón agregar producto */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 15, color: C.navy }}>Productos en la venta</p>
+                        <button
+                            onClick={() => setShowModalProducto(true)}
+                            style={{ background: C.accentSoft, color: C.accent, border: `1.5px solid ${C.accentBorder}`, borderRadius: 10, padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
+                            + Elegir Producto
+                        </button>
+                    </div>
 
-                    {productoSeleccionado && (
-                        <div className="mt-3 p-3 border rounded">
-                            <h6>Configuración: {productoSeleccionado.Nombre}</h6>
-                            <Row>
-                                <Col md={4}>
-                                    <Form.Group>
-                                        <Form.Label>Color</Form.Label>
-                                        <Form.Select
-                                            value={colorSeleccionado}
-                                            onChange={e => {
-                                                setColorSeleccionado(e.target.value);
-                                                setTallaSeleccionada("");
-                                                setCantidadSeleccionada(1);
-                                            }}
-                                        >
-                                            <option value="">Seleccione color</option>
-                                            {coloresDisponibles.map(c => (
-                                                <option key={c.ColorID} value={c.ColorID}>
-                                                    {c.Nombre}
-                                                </option>
-                                            ))}
-                                        </Form.Select>
-                                    </Form.Group>
-                                </Col>
-
-                                <Col md={4}>
-                                    <Form.Group>
-                                        <Form.Label>Talla</Form.Label>
-                                        <Form.Select
-                                            value={tallaSeleccionada}
-                                            onChange={e => setTallaSeleccionada(e.target.value)}
-                                        >
-                                            <option value="">Seleccione talla</option>
-                                            {tallasDisponibles.map(t => (
-                                                <option key={t.TallaID} value={t.TallaID}>
-                                                    {t.Nombre}
-                                                </option>
-                                            ))}
-                                        </Form.Select>
-                                    </Form.Group>
-                                </Col>
-
-                                <Col md={4}>
-                                    <Form.Group>
-                                        <Form.Label>Cantidad</Form.Label>
-                                        <Form.Control
-                                            type="number"
-                                            min={1}
-                                            value={cantidadSeleccionada}
-                                            onChange={e => setCantidadSeleccionada(e.target.value)}
-                                        />
-                                    </Form.Group>
-                                </Col>
-                            </Row>
-
-                            <div className="mt-3">
-                                {colorSeleccionado && tallaSeleccionada ? (
-                                    <div>
-                                        <strong>Stock disponible:</strong> {calcularStockDisponible(obtenerVarianteActual())}
-                                        <Button
-                                            variant="primary"
-                                            className="ms-3"
-                                            onClick={agregarProducto}
-                                            disabled={calcularStockDisponible(obtenerVarianteActual()) <= 0}
-                                        >
-                                            Agregar a la venta
-                                        </Button>
-                                    </div>
+                    {/* ── TABLA PRODUCTOS AGREGADOS ── */}
+                    <div style={{ borderRadius: 14, overflow: "hidden", border: `1px solid ${C.border}` }}>
+                        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>
+                            <thead>
+                                <tr>
+                                    {["#", "Producto", "Color", "Talla", "Tela", "Cant.", "P. Unit.", "Subtotal", ""].map((h, i) => (
+                                        <th key={i} style={{
+                                            ...TH,
+                                            textAlign: ["Cant.", "P. Unit.", "Subtotal"].includes(h) ? "right" : (h === "" ? "center" : "left"),
+                                            borderTopLeftRadius: i === 0 ? 14 : 0,
+                                            borderTopRightRadius: i === 8 ? 14 : 0,
+                                        }}>{h}</th>
+                                    ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {productosAgregados.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={9} style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13 }}>
+                                            <p style={{ margin: "0 0 10px" }}>No hay productos agregados</p>
+                                            <button onClick={() => setShowModalProducto(true)}
+                                                style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+                                                + Agregar primer producto
+                                            </button>
+                                        </td>
+                                    </tr>
                                 ) : (
-                                    <div className="text-muted">
-                                        Seleccione color y talla para ver stock
-                                    </div>
+                                    productosAgregados.map((p, i) => (
+                                        <tr key={i} className="venta-row" style={{ background: i % 2 === 0 ? "#fff" : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
+                                            <td style={{ padding: "10px 14px" }}>
+                                                <Badge type="muted">{i + 1}</Badge>
+                                            </td>
+                                            <td style={{ padding: "10px 14px", fontWeight: 600, color: C.navy }}>{p.Nombre}</td>
+                                            <td style={{ padding: "10px 14px" }}>
+                                                <Badge type="accent">{p.ColorNombre}</Badge>
+                                            </td>
+                                            <td style={{ padding: "10px 14px" }}>
+                                                <Badge type="navy">{p.TallaNombre}</Badge>
+                                            </td>
+                                            <td style={{ padding: "10px 14px" }}>
+                                                {/* ── TELA mostrada en la tabla ── */}
+                                                <Badge type={p.TelaNombre !== "Sin tela" ? "success" : "muted"}>
+                                                    {p.TelaNombre}
+                                                </Badge>
+                                            </td>
+                                            <td style={{ padding: "10px 14px", textAlign: "right" }}>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    value={p.Cantidad}
+                                                    onChange={e => cambiarCantidad(i, e.target.value)}
+                                                    style={{ width: 62, border: `1.5px solid ${C.border}`, borderRadius: 7, padding: "5px 8px", fontFamily: "'Outfit',sans-serif", fontSize: 13, textAlign: "center", outline: "none" }}
+                                                    onFocus={e => e.target.style.borderColor = C.accent}
+                                                    onBlur={e => e.target.style.borderColor = C.border}
+                                                />
+                                            </td>
+                                            <td style={{ padding: "10px 14px", textAlign: "right", color: C.muted }}>
+                                                ${parseFloat(p.PrecioUnitario).toLocaleString()}
+                                            </td>
+                                            <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: C.navy }}>
+                                                ${(p.Cantidad * parseFloat(p.PrecioUnitario)).toLocaleString()}
+                                            </td>
+                                            <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                                                <button className="icon-btn" onClick={() => eliminarProducto(i)} title="Eliminar"
+                                                    style={{ width: 28, height: 28, borderRadius: 7, border: `1.5px solid #fecaca`, background: "#fef2f2", color: C.danger, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}>
+                                                    <X size={13} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
                                 )}
+                            </tbody>
+                        </table>
+                    </div>
 
+                    {/* Resumen totales */}
+                    {productosAgregados.length > 0 && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 18, gap: 24 }}>
+                            <div style={{ textAlign: "right" }}>
+                                <p style={{ margin: "0 0 4px", fontSize: 13, color: C.muted, fontWeight: 600 }}>
+                                    Subtotal: <span style={{ color: C.accent }}>${subtotal.toLocaleString()}</span>
+                                </p>
+                                <p style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.navy }}>
+                                    Total: <span style={{ color: C.success }}>${total.toLocaleString()}</span>
+                                </p>
                             </div>
                         </div>
                     )}
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button
-                        variant="secondary"
-                        onClick={() => setShowModalProducto(false)}
-                    >
+                </div>
+            </div>
+
+            {/* ── MODAL SELECCIÓN DE PRODUCTO ── */}
+            <ProductoModal show={showModalProducto} onClose={() => setShowModalProducto(false)}>
+                {/* Header */}
+                <div style={{ background: C.navyGrad, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+                    <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#fff" }}>Seleccionar Producto</p>
+                    <button onClick={() => setShowModalProducto(false)}
+                        style={{ width: 30, height: 30, borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        ✕
+                    </button>
+                </div>
+
+                {/* Body */}
+                <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>
+
+                    {/* Buscador */}
+                    <div style={{ position: "relative", marginBottom: 20 }}>
+                        <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.muted }} />
+                        <input
+                            className="field-input"
+                            placeholder="Buscar producto por nombre..."
+                            value={busquedaProducto}
+                            onChange={e => setBusquedaProducto(e.target.value)}
+                            style={{ paddingLeft: 38 }}
+                        />
+                    </div>
+
+                    {/* Grid de productos */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+                        {productosFiltrados.map(producto => (
+                            <div key={producto.ProductoID} className="prod-card"
+                                onClick={() => onSeleccionarProductoModal(producto)}
+                                style={{
+                                    border: `1.5px solid ${productoSeleccionado?.ProductoID === producto.ProductoID ? C.accent : C.border}`,
+                                    borderRadius: 14, overflow: "hidden", cursor: "pointer",
+                                    background: productoSeleccionado?.ProductoID === producto.ProductoID ? C.accentSoft : "#fff",
+                                    transition: "all 0.18s", boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                                }}>
+                                <div style={{ height: 150, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                    {producto.ImagenProducto
+                                        ? <img src={producto.ImagenProducto} alt={producto.Nombre} style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
+                                        : <span style={{ color: C.muted, fontSize: 12 }}>Sin imagen</span>
+                                    }
+                                </div>
+                                <div style={{ padding: "12px 14px" }}>
+                                    <p style={{ margin: "0 0 4px", fontWeight: 700, fontSize: 13, color: C.navy }}>{producto.Nombre}</p>
+                                    <p style={{ margin: 0, fontSize: 12, color: C.accent, fontWeight: 600 }}>
+                                        Precio base: ${parseFloat(producto.PrecioBase || 0).toLocaleString()}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* ── CONFIGURACIÓN DE VARIANTE ── */}
+                    {productoSeleccionado && (
+                        <div style={{ border: `1.5px solid ${C.accentBorder}`, borderRadius: 14, padding: "18px 20px", background: C.accentSoft }}>
+                            <p style={{ margin: "0 0 14px", fontWeight: 700, fontSize: 14, color: C.navy }}>
+                                Configurar: <span style={{ color: C.accent }}>{productoSeleccionado.Nombre}</span>
+                            </p>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+                                {/* Color */}
+                                <div>
+                                    <label className="field-label">Color</label>
+                                    <select className="field-select" value={colorSeleccionado}
+                                        onChange={e => { setColorSeleccionado(e.target.value); setTallaSeleccionada(""); setCantidadSeleccionada(1); }}>
+                                        <option value="">Seleccione color</option>
+                                        {coloresDisponibles.map(c => (
+                                            <option key={c.ColorID} value={c.ColorID}>{c.Nombre}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Talla */}
+                                <div>
+                                    <label className="field-label">Talla</label>
+                                    <select className="field-select" value={tallaSeleccionada}
+                                        onChange={e => setTallaSeleccionada(e.target.value)}
+                                        disabled={!colorSeleccionado}>
+                                        <option value="">Seleccione talla</option>
+                                        {tallasDisponibles.map(t => (
+                                            <option key={t.TallaID} value={t.TallaID}>{t.Nombre}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Cantidad */}
+                                <div>
+                                    <label className="field-label">Cantidad</label>
+                                    <input type="number" min={1} className="field-input"
+                                        value={cantidadSeleccionada}
+                                        onChange={e => setCantidadSeleccionada(e.target.value)} />
+                                </div>
+                            </div>
+
+                            {/* ── INFO DE VARIANTE: Tela + Stock ── */}
+                            {colorSeleccionado && tallaSeleccionada && varianteActual && (
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+                                    {/* Tela de la variante */}
+                                    <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}` }}>
+                                        <p style={{ margin: "0 0 5px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Tela de la variante</p>
+                                        {telaVarianteActual ? (
+                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                <Badge type="success">{telaVarianteActual.Nombre}</Badge>
+                                                <span style={{ fontSize: 12, color: C.muted }}>
+                                                    +${parseFloat(telaVarianteActual.PrecioTela || 0).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <Badge type="muted">Sin tela</Badge>
+                                        )}
+                                    </div>
+
+                                    {/* Stock disponible */}
+                                    <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}` }}>
+                                        <p style={{ margin: "0 0 5px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Stock disponible</p>
+                                        <span style={{ fontSize: 18, fontWeight: 800, color: stockActual > 0 ? C.success : C.danger }}>
+                                            {stockActual}
+                                        </span>
+                                        <span style={{ fontSize: 12, color: C.muted, marginLeft: 5 }}>unidades</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Desglose de precio */}
+                            {colorSeleccionado && tallaSeleccionada && varianteActual && (
+                                <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}`, marginBottom: 16, fontSize: 12 }}>
+                                    <p style={{ margin: "0 0 8px", fontWeight: 700, fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Desglose de precio unitario</p>
+                                    <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                                        <span style={{ color: C.muted }}>Base: <strong style={{ color: C.navy }}>${parseFloat(productoSeleccionado.PrecioBase || 0).toLocaleString()}</strong></span>
+                                        <span style={{ color: C.muted }}>Talla: <strong style={{ color: C.navy }}>${parseFloat(varianteActual.talla?.Precio || 0).toLocaleString()}</strong></span>
+                                        <span style={{ color: C.muted }}>Tela: <strong style={{ color: C.navy }}>${parseFloat(varianteActual.tela?.PrecioTela || 0).toLocaleString()}</strong></span>
+                                        <span style={{ color: C.muted }}>
+                                            Total unit.: <strong style={{ color: C.accent, fontSize: 13 }}>
+                                                ${(parseFloat(productoSeleccionado.PrecioBase || 0) + parseFloat(varianteActual.talla?.Precio || 0) + parseFloat(varianteActual.tela?.PrecioTela || 0)).toLocaleString()}
+                                            </strong>
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Botón agregar */}
+                            {colorSeleccionado && tallaSeleccionada ? (
+                                <button
+                                    onClick={agregarProducto}
+                                    disabled={!modoEdicion && stockActual <= 0}
+                                    style={{
+                                        background: (!modoEdicion && stockActual <= 0) ? "#e2e8f0" : C.navy,
+                                        color: (!modoEdicion && stockActual <= 0) ? C.muted : "#fff",
+                                        border: "none", borderRadius: 10, padding: "10px 22px",
+                                        fontSize: 13, fontWeight: 700, cursor: (!modoEdicion && stockActual <= 0) ? "not-allowed" : "pointer",
+                                        fontFamily: "'Outfit',sans-serif",
+                                    }}>
+                                    {(!modoEdicion && stockActual <= 0) ? "Sin stock disponible" : "Agregar a la venta"}
+                                </button>
+                            ) : (
+                                <p style={{ margin: 0, color: C.muted, fontSize: 13 }}>Seleccione color y talla para continuar</p>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* Footer modal */}
+                <div style={{ padding: "14px 24px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
+                    <button onClick={() => setShowModalProducto(false)}
+                        style={{ background: "#f1f5f9", color: C.muted, border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
                         Cerrar
-                    </Button>
-                </Modal.Footer>
-            </Modal>
-        </Container>
+                    </button>
+                </div>
+            </ProductoModal>
+        </>
     );
 }

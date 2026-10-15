@@ -24,7 +24,5 @@ dist-ssr
 *.sw?
 
 
-src/components/dashboard/StockNotificationBanner.jsx
-src/components/dashboard/layouts/DashboardLayout.jsx
-src/components/layouts/DashboardLayout.jsx
+.env
 

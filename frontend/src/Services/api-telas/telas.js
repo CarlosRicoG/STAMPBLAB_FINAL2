@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3001/telas";
+import API_BASE from "../../config/api";
+const API_URL = `${API_BASE}/api/telas`;
+
 
 // Obtener todas las telas
 export const getTelas = async () => {

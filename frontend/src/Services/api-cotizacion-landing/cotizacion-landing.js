@@ -1,8 +1,10 @@
 // Services/api-cotizaciones/cotizacion-landing.js
 
 import axios from "axios";
-const API_URL = "http://localhost:3000/api/cotizaciones";
-const API_BASE = "http://localhost:3000/api";
+import API_BASE_URL from "../../config/api";
+
+const API_URL = `${API_BASE_URL}/api/cotizaciones`;
+const API_BASE = `${API_BASE_URL}/api`;
 
 // ============================================
 // COTIZACIONES

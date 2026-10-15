@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/inventarioproducto"; 
+import API_BASE from "../../config/api";
+const API_URL = `${API_BASE}/api/inventarioproducto`;
+
 
 // Obtener todas las variantes (inventario completo)
 export const getAllVariantes = async () => {

@@ -27,6 +27,8 @@ import Ventas from "../pages/Ventas";
 import { ProtectedRoute } from "./ProtectedRoute";
 import VentasPendientes from "../pages/VentasPendientes";
 import Compras from "../pages/Compras";
+import Clientes from "../pages/Clientes";
+import MisCompras from "../components/landing/MisCompras";
 
 const AppRoutes = () => {
 
@@ -36,7 +38,7 @@ const AppRoutes = () => {
         <Routes>
             {/* Ruta raíz redirige al registro */}
             <Route path="/" element={<Home />} />
-            
+
 
             {/* Rutas del Landing */}
             <Route path="/landing" element={<Home />} />
@@ -48,6 +50,7 @@ const AppRoutes = () => {
             <Route path="/recuperarcontraseña" element={<RecuperarContraseña />} />
             <Route path="/restablecercontraseña" element={<RestablecerContraseña />} />
             <Route path="/editarperfil" element={<EditarPerfil />} />
+            <Route path="/miscompras" element={<MisCompras />} />
             <Route path="/miscotizaciones" element={<MisCotizaciones />} />
             <Route path="/formularioCompra" element={<FormularioCompra />} />
 
@@ -64,18 +67,19 @@ const AppRoutes = () => {
                 {/* Rutas del Dashboard */}
                 <Route index element={<DashboardMedicionesempeño />} />
                 <Route path="ventas" element={<Ventas></Ventas>} />
-                <Route path="/dashboard/ventas-pendientes" element={<VentasPendientes/>} />
+                <Route path="/dashboard/ventas-pendientes" element={<VentasPendientes />} />
                 <Route path="cotizaciones" element={<Cotizaciones />} />
                 <Route path="cotizaciones/nueva" element={<NuevaCotizacion />} />
                 <Route path="roles" element={<Roles />} />
                 <Route path="insumos" element={<Insumos />} />
-                <Route path="pedidos" element={<Compras/>} />
+                <Route path="pedidos" element={<Compras />} />
                 <Route path="productos" element={<Productos />} />
                 <Route path="agregar-producto" element={<AgregarProducto />} />
                 <Route path="/dashboard/editar-producto/:id" element={<AgregarProducto />} />
                 <Route path="colores" element={<Colores />} />
                 <Route path="tallas" element={<Tallas />} />
                 <Route path="usuarios" element={<Usuarios />} />
+                <Route path="clientes" element={<Clientes />} />
                 <Route path="proveedores" element={<Proveedores />} />
                 <Route path="tecnicas" element={<Tecnicas />} />
                 <Route path="mediciondesempeño" element={<DashboardMedicionesempeño />} />

@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000/api/tallas";
+import API_BASE from "../../config/api";
+const API_URL = `${API_BASE}/api/tallas`;
+
 
 export const getTallas = async () => {
   const res = await axios.get(API_URL);
