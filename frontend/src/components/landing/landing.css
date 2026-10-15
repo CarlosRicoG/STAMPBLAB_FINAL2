@@ -1,0 +1,476 @@
+/* Landing.css */
+
+
+.card-landing-title {
+  color: #000000;
+  font-size: 1.5em;
+  line-height: normal;
+  font-weight: 700;
+  margin-bottom: 0.5em;
+}
+
+.card-landing-desc {
+  font-size: 1em;
+  font-weight: 400;
+  line-height: 1.5em;
+  color: #161616;
+}
+
+.card-landing-desc p {
+  font-size: 1em;
+  color: #161616;
+
+}
+
+.go-corner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  width: 2em;
+  height: 2em;
+  overflow: hidden;
+  top: 0;
+  right: 0;
+  background: linear-gradient(135deg, #6293c8, #384c6c);
+  border-radius: 0 4px 0 32px;
+}
+
+.go-arrow {
+  margin-top: -4px;
+  margin-right: -4px;
+  color: rgb(14, 13, 13);
+  font-family: courier, sans;
+}
+
+.card-landing {
+  display: block;
+  position: relative;
+  height: 200px;
+  color: #000000;
+  border-radius: 10px;
+  padding: 2em 1.2em;
+  text-decoration: none;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #c3e6ec, #a7d1d9);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.card-landing:before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -16px;
+  right: -16px;
+  background: linear-gradient(135deg, #364a60, #384c6c);
+  height: 32px;
+  width: 50px;
+  color: #fff;
+  border-radius: 32px;
+  transform: scale(1);
+  transform-origin: 50% 50%;
+  transition: transform 0.35s ease-out;
+}
+
+.card-landing:hover:before {
+  transform: scale(28);
+}
+
+.card-landing .card-landing-desc {
+  transition: all 0.5s ease-out;
+  color: rgba(0, 0, 0, 0.8);
+}
+
+.card-landing:hover .card-title {
+  transition: all 0.5s ease-out;
+  color: #000000;
+}
+
+/* Fondo oscuro animado */
+
+/* Cuando se pasa el hover en la card, cambiar color del título y descripción */
+.card-landing:hover .card-landing-title,
+.card-landing:hover .card-landing-desc {
+  color: #ffffff;
+  /* texto blanco */
+}
+
+
+
+
+
+/**************************************************/
+
+
+
+
+
+/* ESTILOS DEL BANNER A CONTINUACION */
+/* Banner principal */
+.banner-landing {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  /* ocupa todo el alto de la pantalla */
+  background-image: url("https://plus.unsplash.com/premium_photo-1718913936342-eaafff98834b?q=80&w=1472&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
+  background-size: cover;
+  /* se ajusta al ancho */
+  background-position: center;
+  /* centrado */
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: start;
+}
+
+
+
+/* Capa oscura encima de la imagen */
+/* .banner-landing::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);    /     oscurece un poco el fondo
+  z-index: 1;
+} */
+
+
+
+/* Contenido por encima del overlay */
+.banner-landing .container {
+  position: relative;
+  z-index: 2;
+}
+
+.banner-landing h3,
+.banner-landing p {
+  color: #ffffff !important;
+  text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.7);
+}
+
+
+
+
+/*******     ESTILOS CARRUSEL PRODUCTOS       **********/
+/* Aumenta el área de clic de las flechas */
+/* Controles del carrusel */
+.carousel-control-prev, 
+.carousel-control-next {
+  top: 50%;
+  transform: translateY(-10%);
+  opacity: 1; /* Cambiado de -1 a 1 */
+  z-index: 10; /* Cambiado de -10 a 10 */
+}
+
+.carousel-control-prev {
+  left: -5%;
+}
+
+.carousel-control-next {
+  right: -5%;
+}
+
+.carousel-control-prev-icon, 
+.carousel-control-next-icon {
+  background-color: rgba(0, 0, 0, 0.7);
+  border-radius: 20%;
+  padding: 20px;
+}
+
+/* NUEVO: Mover indicadores más abajo */
+.carousel-indicators {
+  bottom: -55px !important; /* Ajusta este valor según necesites */
+}
+
+
+
+
+
+
+
+/* -----------------------Card producto,detalle------------------------*/
+
+.product-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.product-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-img-container {
+  position: relative;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.overlay-info {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(0, 123, 255, 0.95) 0%, rgba(0, 0, 0, 0.8) 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  text-align: center;
+  padding: 20px;
+  font-size: 0.85rem;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  transform: scale(0.95);
+}
+
+.card-img-container:hover .overlay-info {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.overlay-info h6 {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 15px;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.overlay-info p {
+  margin-bottom: 8px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.overlay-info strong {
+  color: #ffff;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.color-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  display: inline-block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.color-circle:hover {
+  transform: scale(1.2);
+  border-color: #0144fc;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+/* Animación de entrada para los elementos del overlay */
+.overlay-info > * {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.overlay-info > *:nth-child(1) { animation-delay: 0.1s; }
+.overlay-info > *:nth-child(2) { animation-delay: 0.2s; }
+.overlay-info > *:nth-child(3) { animation-delay: 0.3s; }
+.overlay-info > *:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mejoras adicionales para la tarjeta */
+.product-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  border: none;
+}
+
+.product-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.15);
+}
+
+.card-img-container {
+  position: relative;
+  padding: 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.overlay-info {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 50%;
+  background: rgba(37, 36, 36, 0.1) 10% ;
+  color: #030a0f;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  text-align: center;
+  padding: 20px;
+  font-size: 0.85rem;
+  border-radius: 5px;
+  backdrop-filter: blur(10px);
+  transform: scale(0.95);
+}
+
+.card-img-container:hover .overlay-info {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.overlay-info h6 {
+  font-weight: 600;
+  font-size: 1rem;
+  margin-bottom: 15px;
+  color: #1c7cd6;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.5px;
+}
+
+.overlay-info p {
+  
+  margin-bottom: 8px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.overlay-info strong {
+  color: #1c7cd6;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.color-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  display: inline-block;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.color-circle:hover {
+  transform: scale(1.2);
+  border-color: #0144fc;
+  box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+}
+
+/* Animación de entrada para los elementos del overlay */
+.overlay-info > * {
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.overlay-info > *:nth-child(1) { animation-delay: 0.1s; }
+.overlay-info > *:nth-child(2) { animation-delay: 0.2s; }
+.overlay-info > *:nth-child(3) { animation-delay: 0.3s; }
+.overlay-info > *:nth-child(4) { animation-delay: 0.4s; }
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mejoras adicionales para la tarjeta */
+.product-card .card-body {
+  padding: 1.5rem;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* distribuye contenido */
+  height: 100%; /* ocupa toda la tarjeta */
+}
+
+.product-card .card-body h6 {
+  color: #2c3e50;
+  font-weight: 600;
+  margin-bottom: 10px;
+  font-size: 1.1rem;
+}
+
+.product-card .card-body .text-success {
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.product-card .card-body .btn-success {
+  margin-top: auto; /* empuja el botón al fondo */
+  align-self: center; /* centra horizontalmente */
+}
+
+.product-card .btn-success {
+  background: #1274b4 100%; 
+  border: none;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.9rem;
+}
+
+.product-card .btn-success:hover {
+  background: #15426d;
+  transform: translateY(-2px);
+}
+
+/* Efecto de brillo en el overlay */
+.overlay-info::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 50%;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  transform: rotate(45deg);
+  transition: all 0.6s ease;
+  opacity: 0;
+}
+
+.card-img-container:hover .overlay-info::before {
+  animation: shimmer 1.5s ease-in-out;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(45deg);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(45deg);
+    opacity: 0;
+  }
+}

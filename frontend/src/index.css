@@ -1,0 +1,31 @@
+/* archivo: src/index.css o un css global */
+.navbar-icon {
+    transition: transform 0.3s ease, color 0.3s ease;
+}
+
+.navbar-icon:hover {
+    transform: scale(1.15);
+    color: #0d6efd;
+    /* azul bootstrap */
+}
+
+.navbar-btn {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.navbar-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.tecnicas button {
+  transition: transform 0.3s ease, background-color 0.3s ease;
+}
+
+.tecnicas button:hover {
+  background-color: #126baf !important;
+  color: #fff !important;
+}
+
+  
+
