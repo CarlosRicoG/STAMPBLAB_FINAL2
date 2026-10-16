@@ -1,3 +1,4 @@
+const { validar, esquemas } = require('../middleware/validar');
 const { ESTADO_VENTA } = require('../config/estados');
 const express = require('express');
 const router = express.Router();
@@ -50,10 +51,10 @@ router.get('/', verificarToken, soloSuyas, ventaController.getAllVentas);
 router.get('/:id', verificarToken, ventaPropiaOAdmin, ventaController.getVentaById);
 
 // POST /api/ventas - Crear una nueva venta con detalles
-router.post('/', verificarToken, ventaDelCliente, ventaController.crearVenta);
+router.post('/', verificarToken, ventaDelCliente, validar(esquemas.venta), ventaController.crearVenta);
 
 // PUT /api/ventas/:id - Actualizar una venta
-router.put('/:id', admin, ventaController.updateVenta);
+router.put('/:id', admin, validar(esquemas.ventaEdicion), ventaController.updateVenta);
 
 // DELETE /api/ventas/:id - Eliminar una venta
 router.delete('/:id', admin, ventaController.deleteVenta);

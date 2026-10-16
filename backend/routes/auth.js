@@ -1,4 +1,5 @@
 // routes/auth.js
+const { validar, esquemas } = require('../middleware/validar');
 const log = require('../utils/log');
 const express = require('express');
 const JWT_SECRET = require('../config/jwt');
@@ -8,7 +9,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../models');
 
 // ==================== LOGIN ====================
-router.post('/login', async (req, res) => {
+router.post('/login', validar(esquemas.login), async (req, res) => {
     try {
         // Aceptar tanto mayúsculas como minúsculas
         const Correo = req.body.Correo || req.body.correo;
@@ -79,7 +80,7 @@ router.post('/login', async (req, res) => {
 
 
 // ==================== REGISTRO ====================
-router.post('/registro', async (req, res) => {
+router.post('/registro', validar(esquemas.registro), async (req, res) => {
     try {
         const { DocumentoID, Nombre, Correo, Telefono, Direccion, Contraseña, RolID } = req.body;
 

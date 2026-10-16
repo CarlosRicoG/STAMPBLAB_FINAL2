@@ -22,6 +22,20 @@ app.use(cors({
     credentials: true
 }));
 
+// Normaliza los mensajes de error: toda respuesta 4xx/5xx trae "message" y "mensaje"
+// (el backend historicamente usaba ambos nombres y el frontend lee cualquiera de los dos)
+app.use((req, res, next) => {
+    const json = res.json.bind(res);
+    res.json = (cuerpo) => {
+        if (res.statusCode >= 400 && cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo)) {
+            if (cuerpo.message && !cuerpo.mensaje) cuerpo.mensaje = cuerpo.message;
+            else if (cuerpo.mensaje && !cuerpo.message) cuerpo.message = cuerpo.mensaje;
+        }
+        return json(cuerpo);
+    };
+    next();
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 const path = require('path');

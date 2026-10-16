@@ -1,3 +1,4 @@
+const { validar, esquemas } = require('../middleware/validar');
 const express = require('express');
 const router = express.Router();
 const cotizacionController = require('../controllers/cotizacionController');
@@ -61,8 +62,8 @@ router.get('/:id', verificarToken, cotizacionPropiaOAdmin, cotizacionController.
 router.put('/detalle/:id', admin, require('../controllers/detallecotizacionController').updateDetalleCotizacion);
 router.put('/:id', admin, cotizacionController.updateCotizacion);
 router.delete('/:id', admin, cotizacionController.deleteCotizacion);
-router.post('/inteligente', verificarToken, cotizacionDelCliente, cotizacionController.createCotizacionInteligente);
-router.post('/completa', admin, cotizacionController.createCotizacionCompleta);
+router.post('/inteligente', verificarToken, cotizacionDelCliente, validar(esquemas.cotizacion), cotizacionController.createCotizacionInteligente);
+router.post('/completa', admin, validar(esquemas.cotizacion), cotizacionController.createCotizacionCompleta);
 router.post('/:cotizacionID/convertir-a-venta', admin, cotizacionController.convertirCotizacionAVenta);
 router.put('/:cotizacionID/cancelar', admin, cotizacionController.cancelarCotizacion);
 
