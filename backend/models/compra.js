@@ -34,7 +34,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: 'Proveedor',
+        model: 'proveedores',
         key: 'id'
       },
       comment: 'FK al id del proveedor'

@@ -1,5 +1,8 @@
 const db = require('./models');
 
+// Las FK se crean en orden arbitrario: se desactivan solo durante el sync
+db.sequelize.addHook('afterConnect', conn => conn.promise().query('SET FOREIGN_KEY_CHECKS=0'));
+
 async function syncDatabase() {
     try {
         console.log('Sincronizando base de datos...');

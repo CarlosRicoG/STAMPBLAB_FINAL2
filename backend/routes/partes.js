@@ -1,16 +1,6 @@
-// RUTA TEMPORAL - borrar después de usarla
-router.get('/seed/insertar', async (req, res) => {
-    try {
-        const { Parte } = require('../models');
-
-        // Eliminar los incorrectos
-        await Parte.destroy({ where: { ParteID: [1, 2, 3] } });
-
-        res.json({ message: 'Partes incorrectas eliminadas' });
-    } catch (error) {
-        res.json({ error: error.message });
-    }
-});
+const express = require('express');
+const router = express.Router();
+const parteController = require('../controllers/parteController');
 
 // GET /api/partes - Obtener todas las partes
 router.get('/', parteController.getAllPartes);
