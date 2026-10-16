@@ -2,3 +2,7 @@
 node_modules
 .DS_Store
 .mysql-dev/
+
+# Imagenes subidas por usuarios (no versionar nuevas)
+backend/uploads/disenos/*
+!backend/uploads/disenos/.gitkeep

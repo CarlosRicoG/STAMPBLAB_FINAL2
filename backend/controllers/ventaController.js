@@ -39,6 +39,7 @@ exports.getAllVentas = async (req, res) => {
 
         // ── Filtro por estado ──
         const whereVenta = {};
+        if (req.query.documentoID) whereVenta.DocumentoID = req.query.documentoID; // ventas de un cliente
         if (estado === "pendientes") {
             whereVenta.EstadoID = 8;
         } else if (estado === "procesadas") {

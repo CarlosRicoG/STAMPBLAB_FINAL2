@@ -1,4 +1,5 @@
 const { Usuario, Rol } = require('../models');
+const JWT_SECRET = require('../config/jwt');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
@@ -365,7 +366,7 @@ exports.login = async (req, res) => {
 
         const token = jwt.sign(
             { id: usuario.DocumentoID, rol: usuario.RolID },
-            process.env.JWT_SECRET || 'clave_secreta',
+            JWT_SECRET,
             { expiresIn: '2h' }
         );
 

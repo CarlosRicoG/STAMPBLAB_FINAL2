@@ -1,12 +1,15 @@
 jest.mock('../models', () => ({
     Producto: { findAndCountAll: jest.fn(), findByPk: jest.fn(), create: jest.fn() },
     InventarioProducto: { destroy: jest.fn() },
+    DetalleVenta: { count: jest.fn().mockResolvedValue(0) },
+    DetalleCotizacion: { count: jest.fn().mockResolvedValue(0) },
+    DetalleCompra: { count: jest.fn().mockResolvedValue(0) },
     Color: {},
     Talla: {},
     Insumo: {},
 }));
 
-const { Producto, InventarioProducto } = require('../models');
+const { Producto, InventarioProducto, DetalleVenta } = require('../models');
 const controller = require('../controllers/productoController');
 
 const mockRes = () => {
@@ -97,6 +100,16 @@ describe('ProductoController - Pruebas Unitarias', () => {
             const res = mockRes();
             await controller.deleteProducto(req, res);
             expect(res.status).toHaveBeenCalledWith(404);
+        });
+
+        test('no elimina un producto con ventas/cotizaciones/compras (400)', async () => {
+            const destroyMock = jest.fn();
+            Producto.findByPk.mockResolvedValue({ ProductoID: 1, Nombre: 'Camiseta', destroy: destroyMock });
+            DetalleVenta.count.mockResolvedValueOnce(3);
+            const res = mockRes();
+            await controller.deleteProducto({ params: { id: '1' } }, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(destroyMock).not.toHaveBeenCalled();
         });
 
         test('debería eliminar el producto y sus variantes correctamente', async () => {

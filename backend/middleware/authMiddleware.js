@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const JWT_SECRET = require('../config/jwt');
 
 const verificarToken = (req, res, next) => {
     try {
@@ -10,7 +11,7 @@ const verificarToken = (req, res, next) => {
         }
 
         // Verificar el token
-        const decoded = jwt.verify(token.replace('Bearer ', ''), 'clave_secreta');
+        const decoded = jwt.verify(token.replace('Bearer ', ''), JWT_SECRET);
 
         // Guardar los datos del usuario en la request
         req.usuario = decoded;

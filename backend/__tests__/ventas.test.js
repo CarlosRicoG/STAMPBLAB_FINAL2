@@ -101,8 +101,8 @@ describe('VentaController - Pruebas Unitarias', () => {
         });
 
         test('debería crear la venta correctamente', async () => {
-            InventarioProducto.findOne.mockResolvedValue({ Stock: 10 });
-            InventarioProducto.decrement.mockResolvedValue(true);
+            const variante = { Stock: 10, decrement: jest.fn().mockResolvedValue(true) };
+            InventarioProducto.findOne.mockResolvedValue(variante);
             DetalleVenta.create.mockResolvedValue({});
             Venta.create.mockResolvedValue({ VentaID: 5, DocumentoID: '123', Total: 20000 });
             const req = {
@@ -114,6 +114,7 @@ describe('VentaController - Pruebas Unitarias', () => {
             const res = mockRes();
             await controller.crearVenta(req, res);
             expect(res.status).toHaveBeenCalledWith(201);
+            expect(variante.decrement).toHaveBeenCalledWith('Stock', { by: 2 }); // descuenta en UNA sola variante
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Venta creada correctamente' }));
         });
     });

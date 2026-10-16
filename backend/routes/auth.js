@@ -1,5 +1,6 @@
 // routes/auth.js
 const express = require('express');
+const JWT_SECRET = require('../config/jwt');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -47,7 +48,7 @@ router.post('/login', async (req, res) => {
         // Crear token JWT
         const token = jwt.sign(
             { id: usuario.DocumentoID, rol: usuario.RolID },
-            'clave_secreta', // Usa variable de entorno en producción
+            JWT_SECRET, // Usa variable de entorno en producción
             { expiresIn: '2h' }
         );
 
@@ -127,7 +128,7 @@ router.post('/registro', async (req, res) => {
         // Crear token automáticamente después del registro
         const token = jwt.sign(
             { id: nuevoUsuario.DocumentoID, rol: nuevoUsuario.RolID },
-            'clave_secreta',
+            JWT_SECRET,
             { expiresIn: '2h' }
         );
 
@@ -184,26 +185,32 @@ router.post('/recuperar-password', async (req, res) => {
         // Generar token temporal (válido por 1 hora)
         const token = jwt.sign(
             { id: usuario.DocumentoID, tipo: 'recuperacion' },
-            'clave_secreta',
+            JWT_SECRET,
             { expiresIn: '1h' }
         );
 
         // URL del frontend para restablecer contraseña
-        const urlRecuperacion = `http://localhost:5173/restablecercontraseña?token=${token}`;
+        const urlRecuperacion = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/restablecercontraseña?token=${token}`;
 
-        // Configurar nodemailer
+        // Credenciales del correo en variables de entorno (MAIL_USER / MAIL_PASS = contraseña de aplicación de Gmail)
+        const { MAIL_USER, MAIL_PASS } = process.env;
+        if (!MAIL_USER || !MAIL_PASS) {
+            console.warn('MAIL_USER/MAIL_PASS no configurados: no se envia correo. Enlace de recuperacion:', urlRecuperacion);
+            return res.json({
+                mensaje: 'Si el correo existe, recibirás un enlace de recuperación',
+                estado: true
+            });
+        }
+
         const nodemailer = require('nodemailer');
 
         const transporter = nodemailer.createTransport({
-            service: 'gmail', // o el servicio que uses
-            auth: {
-                user: 'medipapoy23@gmail.com', // Cambia esto
-                pass: 'dafrcvvuvglxexwg' // Usa contraseña de aplicación de Gmail
-            }
+            service: 'gmail',
+            auth: { user: MAIL_USER, pass: MAIL_PASS }
         });
 
         const mailOptions = {
-            from: 'STAMPLAB <medipapoy23@gmail.com>',
+            from: `STAMPLAB <${MAIL_USER}>`,
             to: usuario.Correo,
             subject: 'Recuperación de Contraseña - STAMPLAB',
             html: `
@@ -269,7 +276,7 @@ router.post('/restablecer-password', async (req, res) => {
         // Verificar el token
         let decoded;
         try {
-            decoded = jwt.verify(token, 'clave_secreta');
+            decoded = jwt.verify(token, JWT_SECRET);
         } catch (error) {
             return res.status(401).json({ 
                 mensaje: 'El token es inválido o ha expirado' 

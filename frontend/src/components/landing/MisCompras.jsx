@@ -199,14 +199,14 @@ const MisCompras = () => {
 
     const cargarVentas = async () => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas`);
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas?documentoID=${encodeURIComponent(documentoID)}&limit=1000&page=1`);
             const data = await response.json();
 
             // ✅ FIX: Mostrar TODAS las ventas del usuario (con y sin MetodoPago)
             // Antes el filtro `!v.MetodoPago` excluía las compras del Landing (transferencia/contraentrega)
-            const ventasUsuario = Array.isArray(data)
-                ? data.filter(v => String(v.DocumentoID) === String(documentoID))
-                : [];
+            // El endpoint devuelve { datos, total, ... } y ya viene filtrado por cliente
+            const lista = Array.isArray(data) ? data : (data.datos || []);
+            const ventasUsuario = lista.filter(v => String(v.DocumentoID) === String(documentoID));
 
             // Ordenar de más reciente a más antigua
             ventasUsuario.sort((a, b) => new Date(b.FechaVenta) - new Date(a.FechaVenta));

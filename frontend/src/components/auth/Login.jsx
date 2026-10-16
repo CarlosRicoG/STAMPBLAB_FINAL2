@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUsuario } from "../../Services/api-auth/auth";
-import * as jose from 'jose';
 import fondo from "../../assets/images/imagenfondo.png";
 import logo from "../../assets/images/nuevo_logo_stamplab.png";
 import NavbarComponent from "../landing/NavBarLanding";
@@ -63,20 +62,6 @@ const LoginLanding = () => {
         setLoading(true);
 
         try {
-            if (correo === "admin@gmail.com" && contraseña === "admin123") {
-                const secret = new TextEncoder().encode('clave_secreta');
-                const tokenAdmin = await new jose.SignJWT({ id: 'admin', rol: 1 })
-                    .setProtectedHeader({ alg: 'HS256' })
-                    .setIssuedAt()
-                    .setExpirationTime('2h')
-                    .sign(secret);
-                localStorage.setItem("token", tokenAdmin);
-                localStorage.setItem("usuario", JSON.stringify({ Nombre: "Administrador", DocumentoID: "admin", rol: 1 }));
-                await Swal.fire({ icon: "success", title: "¡Bienvenido Administrador!", text: "Has iniciado sesión exitosamente", timer: 2000, showConfirmButton: false });
-                navigate("/dashboard");
-                return;
-            }
-
             const res = await loginUsuario({ Correo: correo, Contraseña: contraseña });
             localStorage.setItem("token", res.data.token);
             localStorage.setItem("usuario", JSON.stringify({ Nombre: res.data.nombre, Correo: res.data.correo || res.data.Correo, DocumentoID: res.data.DocumentoID || res.data.documentoID, rol: res.data.rol }));

@@ -28,6 +28,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN}
+      MAIL_USER: ${MAIL_USER}
+      MAIL_PASS: ${MAIL_PASS}
+      FRONTEND_URL: ${FRONTEND_URL}
     ports:
       - "3000:3000"
     depends_on:
