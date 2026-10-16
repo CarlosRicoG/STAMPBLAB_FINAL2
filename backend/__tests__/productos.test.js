@@ -104,7 +104,7 @@ describe('ProductoController - Pruebas Unitarias', () => {
 
         test('no elimina un producto con ventas/cotizaciones/compras (400)', async () => {
             const destroyMock = jest.fn();
-            Producto.findByPk.mockResolvedValue({ ProductoID: 1, Nombre: 'Camiseta', destroy: destroyMock });
+            Producto.findByPk.mockResolvedValue({ ProductoID: 1, Nombre: 'Camiseta', getDataValue: jest.fn(), destroy: destroyMock });
             DetalleVenta.count.mockResolvedValueOnce(3);
             const res = mockRes();
             await controller.deleteProducto({ params: { id: '1' } }, res);
@@ -114,7 +114,7 @@ describe('ProductoController - Pruebas Unitarias', () => {
 
         test('debería eliminar el producto y sus variantes correctamente', async () => {
             const destroyMock = jest.fn().mockResolvedValue(true);
-            Producto.findByPk.mockResolvedValue({ ProductoID: 1, Nombre: 'Camiseta', destroy: destroyMock });
+            Producto.findByPk.mockResolvedValue({ ProductoID: 1, Nombre: 'Camiseta', getDataValue: jest.fn(), destroy: destroyMock });
             InventarioProducto.destroy.mockResolvedValue(true);
             const req = { params: { id: '1' } };
             const res = mockRes();

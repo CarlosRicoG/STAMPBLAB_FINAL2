@@ -6,3 +6,9 @@ node_modules
 # Imagenes subidas por usuarios (no versionar nuevas)
 backend/uploads/disenos/*
 !backend/uploads/disenos/.gitkeep
+
+# Imagenes de catalogo subidas (productos/tecnicas): se regeneran, no se versionan
+backend/uploads/productos/*
+backend/uploads/tecnicas/*
+!backend/uploads/productos/.gitkeep
+!backend/uploads/tecnicas/.gitkeep

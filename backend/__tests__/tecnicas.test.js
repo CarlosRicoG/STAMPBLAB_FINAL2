@@ -94,7 +94,7 @@ describe('TecnicaController - Pruebas Unitarias', () => {
 
         test('debería eliminar la técnica correctamente', async () => {
             const destroyMock = jest.fn().mockResolvedValue(true);
-            Tecnica.findByPk.mockResolvedValue({ TecnicaID: 1, Nombre: 'Bordado', destroy: destroyMock });
+            Tecnica.findByPk.mockResolvedValue({ TecnicaID: 1, Nombre: 'Bordado', getDataValue: jest.fn(), destroy: destroyMock });
             const req = { params: { id: '1' } };
             const res = mockRes();
             await controller.deleteTecnica(req, res);

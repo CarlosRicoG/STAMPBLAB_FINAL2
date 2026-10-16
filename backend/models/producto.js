@@ -1,5 +1,7 @@
 'use strict';
 const { Model } = require('sequelize');
+const { aUrlPublica } = require('../utils/imagenes');
+
 module.exports = (sequelize, DataTypes) => {
     class Producto extends Model {
         static associate(models) {
@@ -37,7 +39,11 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: 0,
             comment: 'Precio base del producto sin adicionales'
         },
-        ImagenProducto: DataTypes.TEXT('long')
+        ImagenProducto: {
+            type: DataTypes.TEXT('long'),
+            // La BD guarda la ruta relativa (/uploads/productos/..); la API entrega la URL completa
+            get() { return aUrlPublica(this.getDataValue('ImagenProducto')); }
+        }
     }, {
         sequelize,
         modelName: 'Producto',

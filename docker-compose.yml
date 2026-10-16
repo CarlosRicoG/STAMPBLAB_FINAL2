@@ -28,6 +28,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@stamplab.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123*}
       MAIL_USER: ${MAIL_USER}

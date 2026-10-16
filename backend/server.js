@@ -29,6 +29,11 @@ const fs = require('fs');
 
 // Servir imágenes de diseños estáticamente
 app.use('/uploads/disenos', express.static(path.join(__dirname, 'uploads', 'disenos')));
+// Imágenes del catálogo (nombre aleatorio => se pueden cachear un año)
+for (const carpeta of ['productos', 'tecnicas']) {
+    fs.mkdirSync(path.join(__dirname, 'uploads', carpeta), { recursive: true });
+    app.use('/uploads/' + carpeta, express.static(path.join(__dirname, 'uploads', carpeta), { maxAge: '365d', immutable: true }));
+}
 
 // Crear carpeta si no existe
 const uploadDir = path.join(__dirname, 'uploads', 'disenos');

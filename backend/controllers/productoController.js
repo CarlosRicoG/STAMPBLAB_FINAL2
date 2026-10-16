@@ -1,4 +1,5 @@
 // Obtener todos los productos con sus variantes
+const { aUrlPublica, normalizar, borrarSiEsLocal } = require('../utils/imagenes');
 const { Producto, InventarioProducto, Color, Talla, Insumo } = require('../models');
 const { Op } = require('sequelize');   
 
@@ -87,7 +88,7 @@ exports.createProducto = async (req, res) => {
             Nombre: Nombre.trim(),
             Descripcion: Descripcion ? Descripcion.trim() : null,
             PrecioBase: precioBaseNum,
-            ImagenProducto: ImagenProducto || null
+            ImagenProducto: normalizar(ImagenProducto, 'productos') || null
         });
 
         res.status(201).json({
@@ -96,6 +97,9 @@ exports.createProducto = async (req, res) => {
             datos: nuevoProducto
         });
     } catch (error) {
+        if (error.status === 400) {
+            return res.status(400).json({ estado: false, mensaje: error.message, message: error.message });
+        }
         console.error('Error al crear producto:', error);
         res.status(500).json({
             estado: false,
@@ -130,12 +134,16 @@ exports.updateProducto = async (req, res) => {
             }
         }
 
+        const imagenAnterior = producto.getDataValue('ImagenProducto');
+        const imagenNueva = ImagenProducto !== undefined ? normalizar(ImagenProducto, 'productos') : imagenAnterior;
+
         await producto.update({
             Nombre: Nombre ? Nombre.trim() : producto.Nombre,
             Descripcion: Descripcion !== undefined ? (Descripcion ? Descripcion.trim() : null) : producto.Descripcion,
             PrecioBase: PrecioBase !== undefined ? parseFloat(PrecioBase) : producto.PrecioBase,
-            ImagenProducto: ImagenProducto !== undefined ? ImagenProducto : producto.ImagenProducto
+            ImagenProducto: imagenNueva
         });
+        if (imagenNueva !== imagenAnterior) borrarSiEsLocal(imagenAnterior);
 
         res.json({
             estado: true,
@@ -143,6 +151,9 @@ exports.updateProducto = async (req, res) => {
             datos: producto
         });
     } catch (error) {
+        if (error.status === 400) {
+            return res.status(400).json({ estado: false, mensaje: error.message, message: error.message });
+        }
         console.error('Error al actualizar producto:', error);
         res.status(500).json({
             estado: false,
@@ -233,7 +244,9 @@ exports.deleteProducto = async (req, res) => {
             where: { ProductoID: req.params.id }
         });
 
+        const imagenProducto = producto.getDataValue('ImagenProducto');
         await producto.destroy();
+        borrarSiEsLocal(imagenProducto);
 
         res.json({
             estado: true,

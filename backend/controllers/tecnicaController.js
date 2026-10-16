@@ -1,3 +1,4 @@
+const { aUrlPublica, normalizar, borrarSiEsLocal } = require('../utils/imagenes');
 const log = require('../utils/log');
 const { Tecnica } = require('../models');
 
@@ -61,7 +62,7 @@ exports.createTecnica = async (req, res) => {
         const nuevaTecnica = await Tecnica.create({
             Nombre: Nombre.trim(),
             Descripcion: Descripcion ? Descripcion.trim() : "",
-            imagenTecnica: imagenTecnica.trim(),
+            imagenTecnica: normalizar(imagenTecnica.trim(), 'tecnicas'),
             Estado: Estado !== undefined ? Boolean(Estado) : true
         });
 
@@ -73,6 +74,9 @@ exports.createTecnica = async (req, res) => {
             tecnica: nuevaTecnica 
         });
     } catch (error) {
+        if (error.status === 400) {
+            return res.status(400).json({ estado: false, mensaje: error.message, message: error.message });
+        }
         console.error('Error en createTecnica:', error);
         console.error('Detalles del error:', {
             name: error.name,
@@ -118,7 +122,7 @@ exports.updateTecnica = async (req, res) => {
         }
         
         if (imagenTecnica !== undefined) {
-            updateData.imagenTecnica = imagenTecnica.trim();
+            updateData.imagenTecnica = normalizar(imagenTecnica.trim(), 'tecnicas');
         }
         
         if (Estado !== undefined) {
@@ -137,6 +141,9 @@ exports.updateTecnica = async (req, res) => {
             tecnica 
         });
     } catch (error) {
+        if (error.status === 400) {
+            return res.status(400).json({ estado: false, mensaje: error.message, message: error.message });
+        }
         console.error('Error en updateTecnica:', error);
         console.error('Detalles del error:', {
             name: error.name,
@@ -164,7 +171,9 @@ exports.deleteTecnica = async (req, res) => {
             });
         }
 
+        const imagenTecnica = tecnica.getDataValue('imagenTecnica');
         await tecnica.destroy();
+        borrarSiEsLocal(imagenTecnica);
 
         res.json({
             estado: true,

@@ -1,4 +1,5 @@
 'use strict';
+const { aUrlPublica } = require('../utils/imagenes');
 const { Model } = require('sequelize');
 
 module.exports = (sequelize, DataTypes) => {
@@ -32,9 +33,10 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     imagenTecnica: {
-      type: DataTypes.TEXT('long'), 
+      type: DataTypes.TEXT('long'),
       allowNull: true,
-      comment: 'Puede ser Base64, URL o ruta local'
+      comment: 'Ruta local (/uploads/tecnicas/..), URL o data URL SVG',
+      get() { return aUrlPublica(this.getDataValue('imagenTecnica')); }
     },
     Descripcion: {
       type: DataTypes.STRING(500),

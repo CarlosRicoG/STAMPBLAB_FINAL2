@@ -47,6 +47,11 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 - El frontend adjunta el token automáticamente a todas las llamadas (`src/utils/authInterceptors.js`) y cierra la sesión si vence.
 - Cabeceras de seguridad con `helmet`. Los `console.log` de depuración se silencian con `NODE_ENV=production`.
 
+## Imagenes
+- Las fotos de productos y tecnicas se guardan como **archivos** en `backend/uploads/` (la BD solo guarda la ruta) y la API devuelve `PUBLIC_URL/uploads/...`. Maximo 5 MB por imagen (png/jpg/webp/gif).
+- Para convertir imagenes antiguas que estaban en base64: `node scripts/migrar-imagenes.js` (seguro de repetir).
+- En produccion define `PUBLIC_URL` con la URL publica del backend y respalda la carpeta `uploads/`.
+
 ## Notas
 - Los IDs de `estados` estan centralizados en `backend/config/estados.js` (y `frontend/src/config/estados.js`); `seed-base.js` los carga desde ahi.
 - El panel `/dashboard` solo abre con rol Administrador.
