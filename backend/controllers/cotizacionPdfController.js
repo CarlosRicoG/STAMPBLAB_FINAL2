@@ -17,6 +17,7 @@ const {
     SubParte,
 } = require('../models');
 
+const log = require('../utils/log');
 const PDFDocument = require('pdfkit');
 const https = require('https');
 const http  = require('http');
@@ -155,9 +156,9 @@ exports.descargarPdfCotizacion = async (req, res) => {
     try {
         const { cotizacionID } = req.params;
 
-        console.log('\n' + '='.repeat(60));
-        console.log('GENERANDO PDF DE COTIZACIÓN #' + cotizacionID);
-        console.log('='.repeat(60));
+        log('\n' + '='.repeat(60));
+        log('GENERANDO PDF DE COTIZACIÓN #' + cotizacionID);
+        log('='.repeat(60));
 
         // ── 1. Obtener cotización completa ──
         const cotizacion = await Cotizacion.findByPk(cotizacionID, {
@@ -587,7 +588,7 @@ exports.descargarPdfCotizacion = async (req, res) => {
 
         doc.end();
 
-        console.log(`✅ PDF generado correctamente para cotización #${cotizacionID}`);
+        log(`✅ PDF generado correctamente para cotización #${cotizacionID}`);
 
     } catch (error) {
         console.error('\nERROR AL GENERAR PDF:', error.message);

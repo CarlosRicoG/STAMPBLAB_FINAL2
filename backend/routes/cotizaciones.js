@@ -1,6 +1,26 @@
 const express = require('express');
 const router = express.Router();
 const cotizacionController = require('../controllers/cotizacionController');
+const { verificarToken, admin, esAdmin, propioOAdmin } = require('../middleware/authMiddleware');
+const { Cotizacion } = require('../models');
+
+// Un cliente solo ve sus cotizaciones; el administrador ve todo.
+const cotizacionPropiaOAdmin = async (req, res, next) => {
+    try {
+        if (esAdmin(req)) return next();
+        const cot = await Cotizacion.findByPk(req.params.id, { attributes: ['CotizacionID', 'DocumentoID'] });
+        if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
+        if (String(cot.DocumentoID) !== String(req.usuario.id)) {
+            return res.status(403).json({ mensaje: 'No tienes permiso para ver esta cotización' });
+        }
+        next();
+    } catch (e) { next(e); }
+};
+// Cliente: la cotizacion siempre queda a su nombre.
+const cotizacionDelCliente = (req, res, next) => {
+    if (!esAdmin(req)) req.body.DocumentoID = req.usuario.id;
+    next();
+};
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -27,7 +47,7 @@ const upload = multer({
 });
 
 // ── Subir imagen de diseño ──
-router.post('/upload-diseno', upload.single('imagen'), (req, res) => {
+router.post('/upload-diseno', verificarToken, upload.single('imagen'), (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No se recibió imagen' });
     res.json({ filename: req.file.filename });
 });
@@ -35,15 +55,15 @@ router.post('/upload-diseno', upload.single('imagen'), (req, res) => {
 // ── Servir imagen por nombre ──
 router.get('/imagen/:filename', cotizacionController.getImagenDiseno);
 
-router.get('/', cotizacionController.getAllCotizaciones);
-router.get('/usuario/:documentoID', cotizacionController.getCotizacionesByUsuario);
-router.get('/:id', cotizacionController.getCotizacionById);
-router.put('/detalle/:id', require('../controllers/detallecotizacionController').updateDetalleCotizacion);
-router.put('/:id', cotizacionController.updateCotizacion);
-router.delete('/:id', cotizacionController.deleteCotizacion);
-router.post('/inteligente', cotizacionController.createCotizacionInteligente);
-router.post('/completa', cotizacionController.createCotizacionCompleta);
-router.post('/:cotizacionID/convertir-a-venta', cotizacionController.convertirCotizacionAVenta);
-router.put('/:cotizacionID/cancelar', cotizacionController.cancelarCotizacion);
+router.get('/', admin, cotizacionController.getAllCotizaciones);
+router.get('/usuario/:documentoID', verificarToken, propioOAdmin('documentoID'), cotizacionController.getCotizacionesByUsuario);
+router.get('/:id', verificarToken, cotizacionPropiaOAdmin, cotizacionController.getCotizacionById);
+router.put('/detalle/:id', admin, require('../controllers/detallecotizacionController').updateDetalleCotizacion);
+router.put('/:id', admin, cotizacionController.updateCotizacion);
+router.delete('/:id', admin, cotizacionController.deleteCotizacion);
+router.post('/inteligente', verificarToken, cotizacionDelCliente, cotizacionController.createCotizacionInteligente);
+router.post('/completa', admin, cotizacionController.createCotizacionCompleta);
+router.post('/:cotizacionID/convertir-a-venta', admin, cotizacionController.convertirCotizacionAVenta);
+router.put('/:cotizacionID/cancelar', admin, cotizacionController.cancelarCotizacion);
 
 module.exports = router;

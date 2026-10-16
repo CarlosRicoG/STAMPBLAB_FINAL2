@@ -14,6 +14,7 @@ const {
     sequelize
 } = require('../models');
 
+const log = require('../utils/log');
 const { Op } = require('sequelize');
 
 // Obtener todas las ventas
@@ -311,29 +312,29 @@ exports.updateEstadoVenta = async (req, res) => {
             return res.status(400).json({ message: 'La venta está cancelada y no puede cambiar de estado' });
         }
 
-        console.log('\n' + '='.repeat(60));
-        console.log('CAMBIO DE ESTADO DE VENTA');
-        console.log('='.repeat(60));
-        console.log(`Venta ID: ${ventaId}`);
-        console.log(`Estado anterior: ${estadoAnterior}`);
-        console.log(`Estado nuevo: ${estadoNuevo}`);
+        log('\n' + '='.repeat(60));
+        log('CAMBIO DE ESTADO DE VENTA');
+        log('='.repeat(60));
+        log(`Venta ID: ${ventaId}`);
+        log(`Estado anterior: ${estadoAnterior}`);
+        log(`Estado nuevo: ${estadoNuevo}`);
 
         // LÓGICA: Si se cancela una venta pendiente, DEVOLVER el stock
         // EstadoID 12 = Cancelada
         if (estadoAnterior === 8 && estadoNuevo === 12) {
-            console.log('\nDEVOLVIENDO STOCK (venta cancelada)...');
+            log('\nDEVOLVIENDO STOCK (venta cancelada)...');
 
             for (const detalle of venta.detalles) {
                 { const v = await resolverVariante(detalle); if (v) await v.increment('Stock', { by: detalle.Cantidad }); }
 
-                console.log(`   ✓ Devuelto ${detalle.Cantidad} unidades de Producto ${detalle.ProductoID}`);
+                log(`   ✓ Devuelto ${detalle.Cantidad} unidades de Producto ${detalle.ProductoID}`);
             }
         }
 
         // Actualizar el estado
         await venta.update({ EstadoID: estadoNuevo });
 
-        console.log('='.repeat(60) + '\n');
+        log('='.repeat(60) + '\n');
 
         res.json({
             message: 'Estado actualizado exitosamente',
@@ -454,13 +455,13 @@ exports.deleteVenta = async (req, res) => {
             return res.status(404).json({ message: 'Venta no encontrada' });
         }
 
-        console.log('\n🗑️ ELIMINANDO VENTA Y DEVOLVIENDO STOCK...');
+        log('\n🗑️ ELIMINANDO VENTA Y DEVOLVIENDO STOCK...');
 
         // DEVOLVER STOCK si la venta estaba pendiente
         if (venta.EstadoID === 8) {
             for (const detalle of venta.detalles) {
                 { const v = await resolverVariante(detalle); if (v) await v.increment('Stock', { by: detalle.Cantidad }); }
-                console.log(`   ✓ Stock devuelto: ${detalle.Cantidad} unidades`);
+                log(`   ✓ Stock devuelto: ${detalle.Cantidad} unidades`);
             }
         }
 

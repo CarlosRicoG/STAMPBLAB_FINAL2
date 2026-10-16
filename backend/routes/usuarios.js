@@ -3,9 +3,16 @@ const express = require('express');
 const router = express.Router();
 const usuarioController = require('../controllers/usuarioController');
 const verificarToken = require('../middleware/authMiddleware');
+const { admin, esAdmin, propioOAdmin } = require('../middleware/authMiddleware');
+
+// Un cliente no puede cambiarse el rol ni el documento al editar su perfil.
+const sinCambiarRol = (req, res, next) => {
+    if (!esAdmin(req)) { delete req.body.RolID; delete req.body.DocumentoID; }
+    next();
+};
 
 // Ruta para obtener roles (útil para el formulario) - DEBE IR ANTES de las rutas con :id
-router.get('/util/roles', verificarToken, async (req, res) => {
+router.get('/util/roles', admin, async (req, res) => {
     try {
         const db = require('../models');
         const roles = await db.Rol.findAll({
@@ -29,18 +36,18 @@ router.get('/util/roles', verificarToken, async (req, res) => {
 router.post('/login', usuarioController.login);
 
 // GET /api/usuarios - Obtener todos los usuarios
-router.get('/', verificarToken, usuarioController.getAllUsuarios);
+router.get('/', admin, usuarioController.getAllUsuarios);
 
 // GET /api/usuarios/:id - Obtener un usuario por ID
-router.get('/:id', verificarToken, usuarioController.getUsuarioById);
+router.get('/:id', verificarToken, propioOAdmin('id'), usuarioController.getUsuarioById);
 
 // POST /api/usuarios - Crear un nuevo usuario (sin token para permitir registro)
-router.post('/', usuarioController.createUsuario);
+router.post('/', admin, usuarioController.createUsuario);
 
 // PUT /api/usuarios/:id - Actualizar un usuario
-router.put('/:id', verificarToken, usuarioController.updateUsuario);
+router.put('/:id', verificarToken, propioOAdmin('id'), sinCambiarRol, usuarioController.updateUsuario);
 
 // DELETE /api/usuarios/:id - Eliminar un usuario
-router.delete('/:id', verificarToken, usuarioController.deleteUsuario);
+router.delete('/:id', admin, usuarioController.deleteUsuario);
 
 module.exports = router;

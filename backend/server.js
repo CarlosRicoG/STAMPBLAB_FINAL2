@@ -2,6 +2,9 @@ const db = require('./models');
 
 const express = require("express");
 const cors = require("cors");
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const { admin, adminParaEscritura } = require('./middleware/authMiddleware');
 const app = express();
 
 
@@ -12,6 +15,8 @@ const PORT = process.env.PORT || 3000;
 // Orígenes permitidos (CORS_ORIGIN, separados por coma)
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,https://stamp-lab-proyecto.vercel.app')
     .split(',').map(o => o.trim());
+// Cabeceras de seguridad (las imagenes de diseños se sirven a otro origen: el frontend)
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
     origin: allowedOrigins,
     credentials: true
@@ -126,48 +131,61 @@ const ventasRoutes = require('./routes/ventas');
 const detalleventasRoutes = require('./routes/detalleventas');
 const estadosRoutes = require('./routes/estados');
 
+// Limite de intentos FALLIDOS por IP en login/registro/recuperacion (frena fuerza bruta)
+const limiteAuth = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: Number(process.env.AUTH_MAX_FALLOS) || 15,
+    skipSuccessfulRequests: true,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { mensaje: 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.', estado: false }
+});
+app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password', '/api/usuarios/login'], limiteAuth);
+
 // ==================== USAR RUTAS ====================
+// admin = token valido + rol Administrador. adminParaEscritura = lectura publica (catalogo de la tienda),
+// pero crear/editar/borrar solo administradores.
 
 // Gestión de Usuarios y Permisos
 app.use('/api', authRoutes);
-app.use('/api/roles', rolesRoutes);
-app.use('/api/permisos', permisosRoutes);
-app.use('/api/privilegios', privilegiosRoutes);
+app.use('/api/roles', admin, rolesRoutes);
+app.use('/api/permisos', admin, permisosRoutes);
+app.use('/api/privilegios', admin, privilegiosRoutes);
 app.use('/api/usuarios', usuariosRoutes);
-app.use('/api/rolpermisos', rolpermisosRoutes);
-app.use('/api/permisoprivilegios', permisoprivilegiosRoutes);
+app.use('/api/rolpermisos', admin, rolpermisosRoutes);
+app.use('/api/permisoprivilegios', admin, permisoprivilegiosRoutes);
 
 // Catálogo de Productos
-app.use('/api/productos', productosRoutes);
-app.use('/api/colores', coloresRoutes);
-app.use('/api/tallas', tallasRoutes);
-app.use('/api/insumos', insumosRoutes);
-app.use('/api/tecnicas', tecnicasRoutes);
-app.use('/api/partes', partesRoutes);
+app.use('/api/productos', adminParaEscritura, productosRoutes);
+app.use('/api/colores', adminParaEscritura, coloresRoutes);
+app.use('/api/tallas', adminParaEscritura, tallasRoutes);
+app.use('/api/insumos', adminParaEscritura, insumosRoutes);
+app.use('/api/tecnicas', adminParaEscritura, tecnicasRoutes);
+app.use('/api/partes', adminParaEscritura, partesRoutes);
 
 // Relaciones de Productos
-app.use('/api/inventarioproducto', inventarioproductoRoutes);
+app.use('/api/inventarioproducto', adminParaEscritura, inventarioproductoRoutes);
 
 // Proveedores y Compras
-app.use('/api/proveedores', proveedoresRoutes);
-app.use('/api/compras', comprasRoutes);
-app.use('/api/detallecompras', detallecomprasRoutes);
+app.use('/api/proveedores', admin, proveedoresRoutes);
+app.use('/api/compras', admin, comprasRoutes);
+app.use('/api/detallecompras', admin, detallecomprasRoutes);
 
 // Cotizaciones
 app.use('/api/cotizaciones', cotizacionesRoutes);
-app.use('/api/detallecotizaciones', detallecotizacionesRoutes);
-app.use('/api/cotizaciontecnicas', cotizaciontecnicasRoutes);
-app.use('/api/cotizaciontallas', cotizaciontallasRoutes);
-app.use('/api/cotizacioncolores', cotizacioncoloresRoutes);
-app.use('/api/cotizacioninsumos', cotizacioninsumosRoutes);
+app.use('/api/detallecotizaciones', admin, detallecotizacionesRoutes);
+app.use('/api/cotizaciontecnicas', admin, cotizaciontecnicasRoutes);
+app.use('/api/cotizaciontallas', admin, cotizaciontallasRoutes);
+app.use('/api/cotizacioncolores', admin, cotizacioncoloresRoutes);
+app.use('/api/cotizacioninsumos', admin, cotizacioninsumosRoutes);
 
 // Agrega esta línea después del bloque de cotizaciones
-app.get('/api/cotizaciones/:cotizacionID/pdf', cotizacionPdfController.descargarPdfCotizacion);
+app.get('/api/cotizaciones/:cotizacionID/pdf', admin, cotizacionPdfController.descargarPdfCotizacion);
 
 // Ventas
 app.use('/api/ventas', ventasRoutes);
-app.use('/api/detalleventas', detalleventasRoutes);
-app.use('/api/estados', estadosRoutes);
+app.use('/api/detalleventas', admin, detalleventasRoutes);
+app.use('/api/estados', adminParaEscritura, estadosRoutes);
 
 // ==================== MANEJO DE ERRORES ====================
 

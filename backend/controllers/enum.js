@@ -1,3 +1,4 @@
+const log = require('../utils/log');
 const fs = require('fs');
 
 const filepath = 'c:\\Users\\sebas\\Downloads\\NUEVA BD_STAMPLAB\\controllers\\cotizacionController.js';
@@ -41,4 +42,4 @@ e(680, 1); e(684, 2); e(691, 3); e(694, 5); e(697, 6); e(698, 7); e(699, 8); e(7
 e(762, 1); e(764, 2); e(775, 3); e(776, 5); e(779, 7); e(780, 8); e(781, 9); e(785, 10); e(792, 11); e(799, 12);
 
 fs.writeFileSync(outpath, lines.join('\n'));
-console.log('Archivo enumerado generado con éxito.');
+log('Archivo enumerado generado con éxito.');

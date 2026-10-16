@@ -1,3 +1,4 @@
+const log = require('../utils/log');
 const { Usuario, Rol } = require('../models');
 const JWT_SECRET = require('../config/jwt');
 const bcrypt = require('bcryptjs');
@@ -99,10 +100,10 @@ exports.createUsuario = async (req, res) => {
     try {
         const { DocumentoID, Nombre, Correo, Direccion, Telefono, Contraseña, RolID } = req.body;
 
-        console.log('\n' + '='.repeat(60));
-        console.log('CREAR USUARIO - INICIO');
-        console.log('='.repeat(60));
-        console.log('Body:', JSON.stringify(req.body, null, 2));
+        log('\n' + '='.repeat(60));
+        log('CREAR USUARIO - INICIO');
+        log('='.repeat(60));
+        log('Body:', JSON.stringify(req.body, null, 2));
 
         // Validación de datos obligatorios
         if (!DocumentoID || !Nombre || !Correo || !Contraseña || !RolID) {
@@ -116,7 +117,7 @@ exports.createUsuario = async (req, res) => {
         if (RolID == 1) { // RolID 1 = Administrador
             const adminExistente = await Usuario.findOne({ where: { RolID: 1 } });
             if (adminExistente) {
-                console.log('Ya existe un usuario administrador');
+                log('Ya existe un usuario administrador');
                 return res.status(400).json({
                     estado: false,
                     mensaje: 'Ya existe un usuario con rol de Administrador. Solo puede haber uno en el sistema.'
@@ -156,13 +157,13 @@ exports.createUsuario = async (req, res) => {
             RolID
         };
 
-        console.log('Guardando usuario...');
+        log('Guardando usuario...');
 
         // Crear el usuario
         const nuevoUsuario = await Usuario.create(datosUsuario);
 
-        console.log('Usuario creado exitosamente');
-        console.log('='.repeat(60) + '\n');
+        log('Usuario creado exitosamente');
+        log('='.repeat(60) + '\n');
 
         // No enviar la contraseña en la respuesta
         const usuarioRespuesta = nuevoUsuario.toJSON();
@@ -189,10 +190,10 @@ exports.updateUsuario = async (req, res) => {
     try {
         const { Nombre, Correo, Direccion, Telefono, RolID, Contraseña } = req.body;
 
-        console.log('\n' + '='.repeat(60));
-        console.log('ACTUALIZAR USUARIO');
-        console.log('='.repeat(60));
-        console.log('ID:', req.params.id);
+        log('\n' + '='.repeat(60));
+        log('ACTUALIZAR USUARIO');
+        log('='.repeat(60));
+        log('ID:', req.params.id);
 
         const usuario = await Usuario.findByPk(req.params.id);
 
@@ -205,7 +206,7 @@ exports.updateUsuario = async (req, res) => {
 
         // Validacion: Si el usuario actual es Admin, no se puede cambiar su rol
         if (usuario.RolID == 1 && RolID && RolID != 1) {
-            console.log('❌ Intento de cambiar rol de administrador');
+            log('❌ Intento de cambiar rol de administrador');
             return res.status(400).json({
                 estado: false,
                 mensaje: 'No se puede cambiar el rol del Administrador'
@@ -216,7 +217,7 @@ exports.updateUsuario = async (req, res) => {
         if (RolID == 1 && usuario.RolID != 1) {
             const adminExistente = await Usuario.findOne({ where: { RolID: 1 } });
             if (adminExistente && adminExistente.DocumentoID != usuario.DocumentoID) {
-                console.log('Ya existe otro administrador');
+                log('Ya existe otro administrador');
                 return res.status(400).json({
                     estado: false,
                     mensaje: 'Ya existe un usuario con rol de Administrador. Solo puede haber uno en el sistema.'
@@ -269,8 +270,8 @@ exports.updateUsuario = async (req, res) => {
             RolNombre: usuarioJSON.rol ? usuarioJSON.rol.Nombre : null
         };
 
-        console.log('Usuario actualizado');
-        console.log('='.repeat(60) + '\n');
+        log('Usuario actualizado');
+        log('='.repeat(60) + '\n');
 
         res.json({
             estado: true,
@@ -301,7 +302,7 @@ exports.deleteUsuario = async (req, res) => {
 
         // No se puede eliminar al administrador
         if (usuario.RolID == 1) {
-            console.log('Intento de eliminar al administrador');
+            log('Intento de eliminar al administrador');
             return res.status(400).json({
                 estado: false,
                 mensaje: 'No se puede eliminar al usuario Administrador'
@@ -369,7 +370,7 @@ exports.deleteUsuario = async (req, res) => {
 // ==================== LOGIN ====================
 exports.login = async (req, res) => {
     try {
-        console.log('🔑 Login - req.body:', req.body);
+        log('🔑 Login - req.body:', req.body);
 
         const Correo = req.body.Correo || req.body.correo;
         const Contraseña = req.body.Contraseña || req.body.contraseña;

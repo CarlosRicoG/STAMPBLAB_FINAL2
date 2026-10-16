@@ -35,6 +35,18 @@ docker compose exec backend node sync.js && docker compose exec backend node scr
 
 Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_DOC`.
 
+## Seguridad (quién puede qué)
+| Quién | Puede |
+|---|---|
+| Visitante (sin sesión) | Ver catálogo de la tienda (productos, colores, tallas, insumos, técnicas, partes). Login, registro y recuperar contraseña |
+| Cliente (rol 2) | Lo anterior + crear sus pedidos y cotizaciones, ver **solo lo suyo** y editar su perfil (no puede cambiarse el rol) |
+| Administrador (rol 1) | Todo: panel `/dashboard`, crear/editar/borrar y ver ventas, compras, cotizaciones, usuarios |
+
+- El registro público **siempre** crea clientes (se ignora cualquier `RolID`).
+- Máximo de intentos **fallidos** de login por IP cada 15 min: `AUTH_MAX_FALLOS` (por defecto 15) → respuesta 429.
+- El frontend adjunta el token automáticamente a todas las llamadas (`src/utils/authInterceptors.js`) y cierra la sesión si vence.
+- Cabeceras de seguridad con `helmet`. Los `console.log` de depuración se silencian con `NODE_ENV=production`.
+
 ## Notas
 - Los IDs de `estados` estan fijados en el codigo (cotizacion 1-7, venta 8-13); por eso existe `seed-base.js`.
 - El panel `/dashboard` solo abre con rol Administrador.

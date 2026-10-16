@@ -1,3 +1,4 @@
+const log = require('../utils/log');
 const { Tecnica } = require('../models');
 
 exports.getAllTecnicas = async (req, res) => {
@@ -36,8 +37,8 @@ exports.getTecnicaById = async (req, res) => {
 
 exports.createTecnica = async (req, res) => {
     try {
-        console.log('=== CREAR TÉCNICA ===');
-        console.log('Body recibido:', JSON.stringify(req.body).substring(0, 200) + '...');
+        log('=== CREAR TÉCNICA ===');
+        log('Body recibido:', JSON.stringify(req.body).substring(0, 200) + '...');
         
         const { Nombre, Descripcion, imagenTecnica, Estado } = req.body;
 
@@ -64,7 +65,7 @@ exports.createTecnica = async (req, res) => {
             Estado: Estado !== undefined ? Boolean(Estado) : true
         });
 
-        console.log('Técnica creada con ID:', nuevaTecnica.TecnicaID);
+        log('Técnica creada con ID:', nuevaTecnica.TecnicaID);
 
         res.status(201).json({ 
             estado: true, 
@@ -90,9 +91,9 @@ exports.createTecnica = async (req, res) => {
 
 exports.updateTecnica = async (req, res) => {
     try {
-        console.log('=== ACTUALIZAR TÉCNICA ===');
-        console.log('ID:', req.params.id);
-        console.log('Body recibido:', JSON.stringify(req.body).substring(0, 200) + '...');
+        log('=== ACTUALIZAR TÉCNICA ===');
+        log('ID:', req.params.id);
+        log('Body recibido:', JSON.stringify(req.body).substring(0, 200) + '...');
         
         const tecnica = await Tecnica.findByPk(req.params.id);
         
@@ -124,11 +125,11 @@ exports.updateTecnica = async (req, res) => {
             updateData.Estado = Boolean(Estado);
         }
 
-        console.log('Datos a actualizar:', Object.keys(updateData));
+        log('Datos a actualizar:', Object.keys(updateData));
 
         await tecnica.update(updateData);
 
-        console.log('Técnica actualizada exitosamente');
+        log('Técnica actualizada exitosamente');
 
         res.json({ 
             estado: true, 

@@ -1,4 +1,5 @@
 // routes/auth.js
+const log = require('../utils/log');
 const express = require('express');
 const JWT_SECRET = require('../config/jwt');
 const router = express.Router();
@@ -13,7 +14,7 @@ router.post('/login', async (req, res) => {
         const Correo = req.body.Correo || req.body.correo;
         const Contraseña = req.body.Contraseña || req.body.contraseña;
 
-        console.log('Login intento:', { Correo, Contraseña: '***' });
+        log('Login intento:', { Correo, Contraseña: '***' });
 
         if (!Correo || !Contraseña) {
             return res.status(400).json({
@@ -27,19 +28,19 @@ router.post('/login', async (req, res) => {
         });
 
         if (!usuario) {
-            console.log('Usuario no encontrado:', Correo);
+            log('Usuario no encontrado:', Correo);
             return res.status(404).json({
                 mensaje: 'Usuario no encontrado'
             });
         }
 
-        console.log('Usuario encontrado:', usuario.Correo);
+        log('Usuario encontrado:', usuario.Correo);
 
         // Comparar contraseñas
         const passwordValida = await bcrypt.compare(Contraseña, usuario.Contraseña);
 
         if (!passwordValida) {
-            console.log('Contraseña incorrecta para:', Correo);
+            log('Contraseña incorrecta para:', Correo);
             return res.status(401).json({
                 mensaje: 'Contraseña incorrecta'
             });
@@ -52,7 +53,7 @@ router.post('/login', async (req, res) => {
             { expiresIn: '2h' }
         );
 
-        console.log('Login exitoso:', usuario.Nombre);
+        log('Login exitoso:', usuario.Nombre);
 
         // Usar DocumentoID con mayúscula
         res.json({
@@ -120,10 +121,10 @@ router.post('/registro', async (req, res) => {
             Telefono: Telefono || '',
             Direccion: Direccion || '',
             Contraseña: hashedPassword,
-            RolID: RolID || 2 // Por defecto, rol Cliente
+            RolID: 2 // El registro publico SIEMPRE crea clientes (ignora cualquier RolID recibido)
         });
 
-        console.log('Usuario registrado:', nuevoUsuario.Correo);
+        log('Usuario registrado:', nuevoUsuario.Correo);
 
         // Crear token automáticamente después del registro
         const token = jwt.sign(
@@ -238,7 +239,7 @@ router.post('/recuperar-password', async (req, res) => {
 
         await transporter.sendMail(mailOptions);
 
-        console.log('Email de recuperación enviado a:', usuario.Correo);
+        log('Email de recuperación enviado a:', usuario.Correo);
 
         res.json({
             mensaje: 'Si el correo existe, recibirás un enlace de recuperación',
@@ -307,7 +308,7 @@ router.post('/restablecer-password', async (req, res) => {
             Contraseña: hashedPassword 
         });
 
-        console.log('Contraseña actualizada para:', usuario.Correo);
+        log('Contraseña actualizada para:', usuario.Correo);
 
         res.json({ 
             mensaje: 'Contraseña restablecida correctamente',
