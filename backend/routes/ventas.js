@@ -21,6 +21,18 @@ const ventaPropiaOAdmin = async (req, res, next) => {
         next();
     } catch (e) { next(e); }
 };
+
+// Un cliente solo puede cancelar SU pedido mientras siga Pendiente (el admin puede en cualquier momento).
+const soloPendienteSiCliente = async (req, res, next) => {
+    try {
+        if (esAdmin(req)) return next();
+        const venta = await Venta.findByPk(req.params.id, { attributes: ['VentaID', 'EstadoID'] });
+        if (venta && venta.EstadoID !== ESTADO_VENTA.PENDIENTE) {
+            return res.status(400).json({ message: 'Solo puedes cancelar pedidos que aún estén pendientes. Contáctanos si ya está en proceso.' });
+        }
+        next();
+    } catch (e) { next(e); }
+};
 // Cliente: la venta queda a su nombre y siempre en estado Pendiente (8); no puede darse un estado a si mismo.
 const ventaDelCliente = (req, res, next) => {
     if (!esAdmin(req)) { req.body.DocumentoID = String(req.usuario.id); req.body.EstadoID = ESTADO_VENTA.PENDIENTE; }
@@ -49,6 +61,12 @@ router.delete('/:id', admin, ventaController.deleteVenta);
 
 // Actualizar solo el estado (con lógica de devolución de stock)
 router.patch('/:id/estado', admin, ventaController.updateEstadoVenta);
+
+// PATCH /api/ventas/:id/cancelar - cancelar un pedido (devuelve el stock si estaba pendiente)
+router.patch('/:id/cancelar', verificarToken, ventaPropiaOAdmin, soloPendienteSiCliente, (req, res) => {
+    req.body = { EstadoID: ESTADO_VENTA.CANCELADA };
+    return ventaController.updateEstadoVenta(req, res);
+});
 
 
 module.exports = router;

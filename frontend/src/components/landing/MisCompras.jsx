@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import FooterComponent from "./footer";
 import NavbarComponent from "./NavBarLanding";
 import { FaBoxOpen, FaEye, FaCreditCard, FaTruck, FaStore, FaReceipt, FaCalendarAlt, FaShoppingBag, FaWallet, FaCheckCircle, FaClock, FaChevronRight, FaArrowRight } from "react-icons/fa";
+import Swal from "sweetalert2";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
 
@@ -161,6 +162,30 @@ const MisCompras = () => {
         }
     };
 
+    // Cancelar un pedido propio (solo si sigue Pendiente): el servidor devuelve el stock
+    const cancelarPedido = async (venta) => {
+        const r = await Swal.fire({
+            icon: "warning",
+            title: "¿Cancelar este pedido?",
+            html: `<p style="margin:0">Pedido <b>#${venta.VentaID}</b> por <b>$${formatPrecio(venta.Total)}</b>.<br/>Esta acción no se puede deshacer.</p>`,
+            showCancelButton: true,
+            confirmButtonText: "Sí, cancelar pedido",
+            cancelButtonText: "No, conservarlo",
+            confirmButtonColor: "#dc2626",
+            cancelButtonColor: "#64748b",
+        });
+        if (!r.isConfirmed) return;
+        try {
+            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas/${venta.VentaID}/cancelar`, { method: "PATCH" });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.message || data.mensaje || "No se pudo cancelar el pedido");
+            await Swal.fire({ icon: "success", title: "Pedido cancelado", text: "Tu pedido fue cancelado.", timer: 1800, showConfirmButton: false });
+            await cargarVentas();
+        } catch (err) {
+            Swal.fire({ icon: "error", title: "No se pudo cancelar", text: err.message, confirmButtonColor: "#1a2540" });
+        }
+    };
+
     const nomEstado = (v) => v.estado?.Nombre || "Pendiente";
     const estados = ["Todos", ...new Set(ventas.map(nomEstado))];
     const visibles = filtro === "Todos" ? ventas : ventas.filter(v => nomEstado(v) === filtro);
@@ -171,7 +196,10 @@ const MisCompras = () => {
 
     return (
         <>
-            <style>{MC_CSS}</style>
+            <style>{MC_CSS + `
+.mc-cancel { margin-top: 10px; width: 100%; padding: 11px 16px; border-radius: 10px; border: 1.5px solid #fecaca; background: #fff; color: #dc2626; font: 700 13px "Outfit", sans-serif; cursor: pointer; transition: background .25s, color .25s, transform .25s, box-shadow .25s; }
+.mc-cancel:hover { background: #dc2626; color: #fff; transform: translateY(-2px); box-shadow: 0 10px 24px rgba(220,38,38,.28); }
+`}</style>
             <NavbarComponent />
 
             <div className="mc-page">
@@ -241,6 +269,11 @@ const MisCompras = () => {
                                                 <button type="button" className="mc-btn" onClick={() => verDetalle(venta.VentaID)}>
                                                     <FaEye size={14} /> Ver detalle <FaChevronRight size={10} />
                                                 </button>
+                                                {estadoNombre === "Pendiente" && (
+                                                    <button type="button" className="mc-cancel" onClick={() => cancelarPedido(venta)}>
+                                                        Cancelar pedido
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                     );
