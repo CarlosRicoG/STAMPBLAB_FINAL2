@@ -28,6 +28,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       CORS_ORIGIN: ${CORS_ORIGIN}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@stamplab.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123*}
       MAIL_USER: ${MAIL_USER}
       MAIL_PASS: ${MAIL_PASS}
       FRONTEND_URL: ${FRONTEND_URL}
@@ -40,7 +42,7 @@ services:
       - /app/node_modules
     networks:
       - app-network
-    command: npm run dev
+    command: sh -c "npx sequelize-cli db:migrate && node scripts/seed-base.js && npm run dev"
 
   frontend:
     build:

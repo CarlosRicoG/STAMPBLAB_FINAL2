@@ -9,6 +9,7 @@ import FooterComponent from "../landing/footer";
 import { crearVenta } from '../../Services/api-ventas/ventas';
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, leerUsuario, MiCuentaHero } from "./miCuentaKit";
+import { ESTADO_VENTA } from "../../config/estados";
 
 /* ── Tokens de color ── */
 const C = {
@@ -250,7 +251,7 @@ const FormularioCompra = () => {
             }
             const ventaData = {
                 DocumentoID: usuario.DocumentoID,
-                Subtotal: precios.subtotal, Total: precios.subtotal, EstadoID: 8,
+                Subtotal: precios.subtotal, Total: precios.subtotal, EstadoID: ESTADO_VENTA.PENDIENTE,
                 detalles: [{ ProductoID: producto.ProductoID, ColorID: colorID ? parseInt(colorID) : null, TallaID: tallaID ? parseInt(tallaID) : null, Cantidad: parseInt(cantidad), PrecioUnitario: precios.precioUnitario }],
                 metodoPago,
                 ...(metodoPago === "transferencia" && { comprobanteTransferencia: comprobanteBase64, fechaTransferencia: new Date().toISOString() }),

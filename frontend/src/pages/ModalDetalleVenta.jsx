@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { FaCreditCard, FaTruck, FaInfoCircle, FaTimes, FaUser, FaReceipt, FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaIdCard, FaCheck, FaBan, FaSearchPlus, FaDownload, FaBoxOpen, FaStore } from 'react-icons/fa';
+import { ESTADO_VENTA } from "../config/estados";
 
 /* ══════════════════════════════════════════════════════════
    Utilidades compartidas del módulo de Ventas (Pedidos / Pendientes)
@@ -377,14 +378,14 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                         })}
                     </div>
                     {selID === 12 && (
-                        <div style={{ marginTop: 12, background: venta.EstadoID === 8 ? VT.successSoft : "#fef2f2", border: `1px solid ${venta.EstadoID === 8 ? VT.successBorder : "#fecaca"}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: venta.EstadoID === 8 ? "#166534" : "#991b1b", fontWeight: 600 }}>
-                            {venta.EstadoID === 8
+                        <div style={{ marginTop: 12, background: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successSoft : "#fef2f2", border: `1px solid ${venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successBorder : "#fecaca"}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? "#166534" : "#991b1b", fontWeight: 600 }}>
+                            {venta.EstadoID === ESTADO_VENTA.PENDIENTE
                                 ? `Se devolverán ${unidades} unidad(es) al inventario. `
                                 : "La venta ya no está pendiente: el stock NO se devuelve al inventario. "}
                             Una venta cancelada no se puede reactivar.
                         </div>
                     )}
-                    {selID === 8 && venta.EstadoID !== 8 && (
+                    {selID === ESTADO_VENTA.PENDIENTE && venta.EstadoID !== ESTADO_VENTA.PENDIENTE && (
                         <div style={{ marginTop: 12, background: VT.warningSoft, border: `1px solid ${VT.warningBorder}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#92400e", fontWeight: 600 }}>
                             La venta volverá al módulo de Pedidos Pendientes.
                         </div>

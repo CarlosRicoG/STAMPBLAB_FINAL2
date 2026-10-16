@@ -26,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
   
   Usuario.init({
     DocumentoID: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.BIGINT,
       primaryKey: true
     },
     Nombre: {

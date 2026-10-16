@@ -5,6 +5,7 @@ import NuevaVenta from "./formularios_dash/NuevaVenta";
 import { getVentas, getVentaById, updateEstadoVenta, deleteVenta } from "../Services/api-ventas/ventas";
 import { getEstadosVenta } from "../Services/api-ventas/estados";
 import ModalDetalleVenta, { VT, VT_CSS, EstadoBadge, EstadoVentaModal, Paginacion, SkeletonRows, MetodoPagoMini, fmtCOP, fmtFecha, fmtHora, iniciales } from "./ModalDetalleVenta";
+import { ESTADO_VENTA } from "../config/estados";
 
 const C = VT;
 
@@ -108,7 +109,7 @@ const Ventas = () => {
     };
 
     const handleEliminar = async (venta) => {
-        const pendiente = venta.EstadoID === 8;
+        const pendiente = venta.EstadoID === ESTADO_VENTA.PENDIENTE;
         const result = await Swal.fire({
             title: `¿Eliminar venta #${venta.VentaID}?`,
             html: `<p style="margin:0 0 6px">Esta acción no se puede deshacer.</p><p style="margin:0;font-size:13px;color:#64748b">${pendiente ? "El stock de los productos se devolverá al inventario." : "La venta no está pendiente: el stock <b>no</b> se devolverá al inventario."}</p>`,
@@ -206,8 +207,8 @@ const Ventas = () => {
                                     </td></tr>
                                 ) : (
                                     ventas.map((venta, idx) => {
-                                        const cancelada = venta.EstadoID === 12;
-                                        const entregada = venta.EstadoID === 11;
+                                        const cancelada = venta.EstadoID === ESTADO_VENTA.CANCELADA;
+                                        const entregada = venta.EstadoID === ESTADO_VENTA.ENTREGADA;
                                         return (
                                             <tr key={venta.VentaID} className="vt-row" style={{ animationDelay: `${Math.min(idx, 10) * 25}ms`, opacity: loading ? 0.55 : 1 }}>
                                                 <td><span className="vt-id">#{venta.VentaID}</span></td>

@@ -2,28 +2,15 @@
 // Uso: node scripts/seed-base.js   (opcional: ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_DOC)
 const bcrypt = require('bcryptjs');
 const db = require('../models');
+const { ESTADOS_SEED } = require('../config/estados');
 
 const ROLES = [
     { RolID: 1, Nombre: 'Administrador', Descripcion: 'Acceso total al dashboard', Estado: true },
     { RolID: 2, Nombre: 'Cliente', Descripcion: 'Usuario de la tienda', Estado: true },
 ];
 
-// Los IDs estan fijados en controllers/frontend: cotizacion 1-7, venta 8-13 (11 = Entregada, 12 = Cancelada: los usan ventaController y el front).
-const ESTADOS = [
-    { EstadoID: 1, Nombre: 'Pendiente', Tipo: 'cotizacion', Descripcion: 'Cotizacion recibida, esperando revision' },
-    { EstadoID: 2, Nombre: 'Aprobada', Tipo: 'cotizacion', Descripcion: 'Cotizacion aprobada (stock reservado)' },
-    { EstadoID: 3, Nombre: 'Rechazada', Tipo: 'cotizacion', Descripcion: 'Cotizacion rechazada' },
-    { EstadoID: 4, Nombre: 'Cancelada', Tipo: 'cotizacion', Descripcion: 'Cotizacion cancelada' },
-    { EstadoID: 5, Nombre: 'Procesada', Tipo: 'cotizacion', Descripcion: 'Cotizacion convertida a venta' },
-    { EstadoID: 6, Nombre: 'En revision', Tipo: 'cotizacion', Descripcion: 'Cotizacion en revision' },
-    { EstadoID: 7, Nombre: 'Vencida', Tipo: 'cotizacion', Descripcion: 'Cotizacion vencida' },
-        { EstadoID: 8, Nombre: 'Pendiente', Tipo: 'venta', Descripcion: 'Venta registrada, pendiente de procesar' },
-    { EstadoID: 9, Nombre: 'Pagada', Tipo: 'venta', Descripcion: 'Pago confirmado' },
-    { EstadoID: 10, Nombre: 'En Producción', Tipo: 'venta', Descripcion: 'Pedido en proceso de producción' },
-    { EstadoID: 11, Nombre: 'Entregada', Tipo: 'venta', Descripcion: 'Pedido entregado al cliente' },
-    { EstadoID: 12, Nombre: 'Cancelada', Tipo: 'venta', Descripcion: 'Venta cancelada (devuelve stock si estaba pendiente)' },
-    { EstadoID: 13, Nombre: 'Lista para Entrega', Tipo: 'venta', Descripcion: 'Pedido listo para entregar' },
-];
+// Los IDs viven en config/estados.js (fuente unica)
+const ESTADOS = ESTADOS_SEED;
 
 (async () => {
     try {
@@ -32,6 +19,11 @@ const ESTADOS = [
 
         const Correo = process.env.ADMIN_EMAIL || 'admin@stamplab.com';
         const pass = process.env.ADMIN_PASSWORD || 'Admin123*';
+        if (process.env.NODE_ENV === 'production' && (!process.env.ADMIN_PASSWORD || pass === 'Admin123*')) {
+            console.error('Seed cancelado: en produccion define ADMIN_PASSWORD (distinta a la clave de ejemplo).');
+            process.exit(1);
+        }
+        if (pass.length < 8) { console.error('ADMIN_PASSWORD debe tener al menos 8 caracteres.'); process.exit(1); }
         const [u] = await db.Usuario.findOrCreate({
             where: { Correo },
             defaults: {

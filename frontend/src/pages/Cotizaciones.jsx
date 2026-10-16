@@ -10,6 +10,7 @@ import axios from "axios";
 import API_BASE from "../config/api";
 import FormularioCotizacion from './formularios_dash/FormularioCotizacion';
 import "../styles/plus.css";
+import { ESTADO_COTIZACION } from "../config/estados";
 
 /* ── Tokens ── */
 const C = {
@@ -738,7 +739,7 @@ const Cotizaciones = () => {
     });
     if (!ok.isConfirmed) return;
     try {
-      await updateCotizacion(cotizacionID, { EstadoID: 2 });
+      await updateCotizacion(cotizacionID, { EstadoID: ESTADO_COTIZACION.APROBADA });
       Swal.fire({ icon: "success", title: "¡Cotización aprobada!", timer: 1500, showConfirmButton: false });
       if (cotizacionSeleccionada?.CotizacionID === cotizacionID) await recargarDetalle(cotizacionID);
       recargar();

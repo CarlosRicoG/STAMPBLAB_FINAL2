@@ -14,6 +14,7 @@ const {
     sequelize
 } = require('../models');
 
+const { ESTADO_VENTA } = require('../config/estados');
 const log = require('../utils/log');
 const { Op } = require('sequelize');
 
@@ -42,9 +43,9 @@ exports.getAllVentas = async (req, res) => {
         const whereVenta = {};
         if (req.query.documentoID) whereVenta.DocumentoID = req.query.documentoID; // ventas de un cliente
         if (estado === "pendientes") {
-            whereVenta.EstadoID = 8;
+            whereVenta.EstadoID = ESTADO_VENTA.PENDIENTE;
         } else if (estado === "procesadas") {
-            whereVenta.EstadoID = { [Op.ne]: 8 };
+            whereVenta.EstadoID = { [Op.ne]: ESTADO_VENTA.PENDIENTE };
         }
 
         // ── Filtro de búsqueda ──
@@ -231,7 +232,7 @@ exports.crearVenta = async (req, res) => {
             DocumentoID,
             Subtotal,
             Total,
-            EstadoID: EstadoID || 8, // 8 = Pendiente por defecto
+            EstadoID: EstadoID || ESTADO_VENTA.PENDIENTE, // Pendiente por defecto
             // Solo incluir si se proporciona
             MetodoPago: metodoPago || null,
             ComprobanteTransferencia: metodoPago === 'transferencia' ? comprobanteTransferencia : null,
@@ -308,7 +309,7 @@ exports.updateEstadoVenta = async (req, res) => {
         }
 
         // Una venta cancelada ya liberó (o no) su stock: reactivarla dejaría el inventario descuadrado
-        if (estadoAnterior === 12) {
+        if (estadoAnterior === ESTADO_VENTA.CANCELADA) {
             return res.status(400).json({ message: 'La venta está cancelada y no puede cambiar de estado' });
         }
 
@@ -321,7 +322,7 @@ exports.updateEstadoVenta = async (req, res) => {
 
         // LÓGICA: Si se cancela una venta pendiente, DEVOLVER el stock
         // EstadoID 12 = Cancelada
-        if (estadoAnterior === 8 && estadoNuevo === 12) {
+        if (estadoAnterior === ESTADO_VENTA.PENDIENTE && estadoNuevo === ESTADO_VENTA.CANCELADA) {
             log('\nDEVOLVIENDO STOCK (venta cancelada)...');
 
             for (const detalle of venta.detalles) {
@@ -339,7 +340,7 @@ exports.updateEstadoVenta = async (req, res) => {
         res.json({
             message: 'Estado actualizado exitosamente',
             venta,
-            stockDevuelto: estadoAnterior === 8 && estadoNuevo === 12
+            stockDevuelto: estadoAnterior === ESTADO_VENTA.PENDIENTE && estadoNuevo === ESTADO_VENTA.CANCELADA
         });
 
     } catch (error) {
@@ -368,7 +369,7 @@ exports.updateVenta = async (req, res) => {
             return exports.updateEstadoVenta(req, res);
         }
 
-        if (venta.EstadoID === 12) {
+        if (venta.EstadoID === ESTADO_VENTA.CANCELADA) {
             return res.status(400).json({ message: 'No se puede editar una venta cancelada' });
         }
 
@@ -376,7 +377,7 @@ exports.updateVenta = async (req, res) => {
         if (detalles && detalles.length > 0) {
             // Ajuste de stock: devolver lo de los detalles antiguos y descontar lo nuevo
             const antiguos = await DetalleVenta.findAll({ where: { VentaID: ventaId } });
-            const ajustar = venta.EstadoID !== 12; // una venta cancelada ya devolvió su stock
+            const ajustar = venta.EstadoID !== ESTADO_VENTA.CANCELADA; // una venta cancelada ya devolvió su stock
             if (ajustar) {
                 const devueltas = [];
                 for (const d of antiguos) {
@@ -458,7 +459,7 @@ exports.deleteVenta = async (req, res) => {
         log('\n🗑️ ELIMINANDO VENTA Y DEVOLVIENDO STOCK...');
 
         // DEVOLVER STOCK si la venta estaba pendiente
-        if (venta.EstadoID === 8) {
+        if (venta.EstadoID === ESTADO_VENTA.PENDIENTE) {
             for (const detalle of venta.detalles) {
                 { const v = await resolverVariante(detalle); if (v) await v.increment('Stock', { by: detalle.Cantidad }); }
                 log(`   ✓ Stock devuelto: ${detalle.Cantidad} unidades`);
@@ -475,7 +476,7 @@ exports.deleteVenta = async (req, res) => {
 
         res.json({
             message: 'Venta eliminada exitosamente',
-            stockDevuelto: venta.EstadoID === 8
+            stockDevuelto: venta.EstadoID === ESTADO_VENTA.PENDIENTE
         });
     } catch (error) {
         res.status(500).json({

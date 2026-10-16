@@ -1,3 +1,4 @@
+const { ESTADO_VENTA } = require('../config/estados');
 const log = require('../utils/log');
 const { Usuario, Rol } = require('../models');
 const JWT_SECRET = require('../config/jwt');
@@ -323,7 +324,7 @@ exports.deleteUsuario = async (req, res) => {
                     mensaje: `No se puede eliminar: el usuario tiene ${ventasActivas} pedido(s) activo(s).`
                 });
             }
-            const ventasEntregadas = await db.Venta.count({ where: { DocumentoID: docID, EstadoID: 11 } });
+            const ventasEntregadas = await db.Venta.count({ where: { DocumentoID: docID, EstadoID: ESTADO_VENTA.ENTREGADA } });
             if (ventasEntregadas > 0) {
                 return res.status(400).json({
                     estado: false,

@@ -3,6 +3,7 @@ import { FaPlusCircle, FaEye, FaEdit, FaTrash, FaSearch, FaChevronLeft, FaChevro
 import ClientesForm from "./formularios_dash/ClientesForm";
 import { getUsuarios, deleteUsuario } from "../Services/api-usuarios/usuarios";
 import Swal from "sweetalert2";
+import { ventaEstaActiva } from "../config/estados";
 
 const C = {
     navy: "#1a2540",
@@ -246,7 +247,7 @@ const Clientes = () => {
             const ventasResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas?limit=1000&page=1`);
             const ventasData = await ventasResponse.json();
             const todasLasVentas = ventasData.datos || [];
-            const ventasActivas = todasLasVentas.filter(v => v.DocumentoID === documentoID && v.EstadoID !== 11);
+            const ventasActivas = todasLasVentas.filter(v => v.DocumentoID === documentoID && ventaEstaActiva(v.EstadoID));
 
             if (ventasActivas.length > 0) {
                 await Swal.fire({ icon: "warning", title: "No se puede eliminar", html: `Este cliente tiene <strong>${ventasActivas.length} venta(s) registrada(s)</strong>.`, confirmButtonText: "Entendido", confirmButtonColor: C.warning });

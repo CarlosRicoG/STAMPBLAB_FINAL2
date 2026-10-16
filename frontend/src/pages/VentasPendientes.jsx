@@ -3,6 +3,7 @@ import { FaEye, FaSyncAlt, FaCreditCard, FaTruck, FaChevronLeft, FaChevronRight 
 import Swal from "sweetalert2";
 import { getVentas, getVentaById, updateEstadoVenta } from "../Services/api-ventas/ventas";
 import { getEstadosVenta } from "../Services/api-ventas/estados";
+import { ESTADO_VENTA } from "../config/estados";
 
 /* ── Tokens ── */
 const C = {
@@ -334,7 +335,7 @@ const VentasPendientes = () => {
     const loadEstadosVenta = async () => {
         try {
             const estados = await getEstadosVenta();
-            setEstadosVenta((estados || []).filter(e => e.EstadoID !== 8));
+            setEstadosVenta((estados || []).filter(e => e.EstadoID !== ESTADO_VENTA.PENDIENTE));
         } catch (e) { console.error(e); }
     };
 

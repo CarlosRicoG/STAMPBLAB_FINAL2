@@ -10,8 +10,7 @@ Monorepo: tienda + panel administrativo para estampados.
 ```
 # 1) Base de datos MySQL vacia (ej. stamplab_unificado) y credenciales en backend/.env
 cd backend && cp .env.example .env && npm install
-node sync.js                      # crea las tablas (SOLO la primera vez: borra datos)
-node scripts/seed-base.js         # roles, estados (IDs fijos) y usuario administrador
+npm run db:setup                  # migraciones (crean las 27 tablas) + roles, estados y administrador
 node scripts/seed-demo.js         # catalogos, productos con variantes y stock, cliente demo
 npm run dev                       # API en http://localhost:3000
 node scripts/seed-demo-flujo.js   # (opcional, con la API arriba) compras, ventas y cotizaciones de ejemplo
@@ -24,7 +23,8 @@ cd ../frontend && cp .env.example .env && npm install && npm run dev   # http://
 ```
 cp .env.example .env              # completar valores
 docker compose up --build
-docker compose exec backend node sync.js && docker compose exec backend node scripts/seed-base.js && docker compose exec backend node scripts/seed-demo.js
+# el contenedor del backend ya corre las migraciones y crea el administrador al arrancar
+docker compose exec backend node scripts/seed-demo.js   # (opcional) datos de demostracion
 ```
 
 ## Cuentas iniciales
@@ -48,6 +48,6 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 - Cabeceras de seguridad con `helmet`. Los `console.log` de depuración se silencian con `NODE_ENV=production`.
 
 ## Notas
-- Los IDs de `estados` estan fijados en el codigo (cotizacion 1-7, venta 8-13); por eso existe `seed-base.js`.
+- Los IDs de `estados` estan centralizados en `backend/config/estados.js` (y `frontend/src/config/estados.js`); `seed-base.js` los carga desde ahi.
 - El panel `/dashboard` solo abre con rol Administrador.
 - `JWT_SECRET` y `MAIL_USER`/`MAIL_PASS` van en variables de entorno (nunca en el codigo).

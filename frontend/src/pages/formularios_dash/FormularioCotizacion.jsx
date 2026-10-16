@@ -11,6 +11,7 @@ import {
 import { getUsuarios } from "../../Services/api-usuarios/usuarios";
 import { getProductos } from "../../Services/api-productos/productos";
 import { getVariantesByProducto } from "../../Services/api-productos/variantes";
+import { ESTADO_COTIZACION } from "../../config/estados";
 
 /* ── Tokens ── */
 const C = {
@@ -645,7 +646,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
 
             await createCotizacionCompleta({
                 DocumentoID: parseInt(documentoID), FechaCotizacion: new Date().toISOString(),
-                ValorTotal: calcularTotalCarrito(), EstadoID: 1, detalles
+                ValorTotal: calcularTotalCarrito(), EstadoID: ESTADO_COTIZACION.PENDIENTE, detalles
             });
 
             if (onActualizar) await onActualizar();

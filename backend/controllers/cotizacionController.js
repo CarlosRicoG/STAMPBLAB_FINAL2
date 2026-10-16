@@ -3,6 +3,7 @@ const {
     CotizacionTalla, CotizacionColor, CotizacionInsumo, Tecnica, Talla,
     Color, Insumo, Producto, Parte, Venta, DetalleVenta, InventarioProducto, sequelize
 } = require('../models');
+const { ESTADO_COTIZACION, ESTADO_VENTA } = require('../config/estados');
 const { Op } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
@@ -100,7 +101,7 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
         const nuevaVenta = await Venta.create({
             DocumentoID,
             FechaVenta: FechaCotizacion || new Date(), Subtotal:
-                subtotal, Total: subtotal, EstadoID: 8
+                subtotal, Total: subtotal, EstadoID: ESTADO_VENTA.PENDIENTE
         }); // 32
         for (const detalle of detallesCalculados) {                                     // 33
             await DetalleVenta.create({
@@ -140,7 +141,7 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
     try {                                                                               // 1
         const nuevaCotizacion = await Cotizacion.create({                               // 2
             DocumentoID, FechaCotizacion: FechaCotizacion || new Date(),                // 3
-            ValorTotal: 0, EstadoID: 1                                                  // 4
+            ValorTotal: 0, EstadoID: ESTADO_COTIZACION.PENDIENTE                                                  // 4
         });                                                                             // 5
         for (let i = 0; i < detalles.length; i++) {                                     // 6
             const detalle = detalles[i];                                                // 7
@@ -264,8 +265,8 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             ]                                                                           // 13
         });                                                                             // 14
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada', cotizacionID }); // 15
-        if (cotizacion.EstadoID === 5) return res.status(400).json({ message: 'Esta cotización ya fue convertida a venta' });
-        if (cotizacion.EstadoID !== 2) return res.status(400).json({
+        if (cotizacion.EstadoID === ESTADO_COTIZACION.PROCESADA) return res.status(400).json({ message: 'Esta cotización ya fue convertida a venta' });
+        if (cotizacion.EstadoID !== ESTADO_COTIZACION.APROBADA) return res.status(400).json({
             message: `Solo se pueden convertir cotizaciones aprobadas (estado actual: ${cotizacion.estado?.Nombre || cotizacion.EstadoID})`
         });
         if (!cotizacion.detalles || cotizacion.detalles.length === 0) return res.status(400).json({
@@ -310,7 +311,7 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             const total = lineas.reduce((s, l) => s + l.precioUnitario * (parseInt(l.detalle.Cantidad) || 0), 0);
             const venta = await Venta.create({
                 DocumentoID: cotizacion.DocumentoID, FechaVenta: new Date(),
-                Subtotal: total, Total: total, EstadoID: 8
+                Subtotal: total, Total: total, EstadoID: ESTADO_VENTA.PENDIENTE
             }, { transaction: t });
             for (const l of lineas) {
                 await DetalleVenta.create({
@@ -319,7 +320,7 @@ exports.convertirCotizacionAVenta = async (req, res) => {
                     Cantidad: l.detalle.Cantidad, PrecioUnitario: l.precioUnitario
                 }, { transaction: t });
             }
-            await cotizacion.update({ EstadoID: 5, ValorTotal: total }, { transaction: t });
+            await cotizacion.update({ EstadoID: ESTADO_COTIZACION.PROCESADA, ValorTotal: total }, { transaction: t });
             return venta;
         });
 
@@ -374,7 +375,7 @@ exports.createCotizacionCompleta = async (req, res) => {
         }
         const nuevaCotizacion = await Cotizacion.create({                               // 7
             DocumentoID, FechaCotizacion: FechaCotizacion || new Date(),                // 8
-            ValorTotal: ValorTotal || 0, EstadoID: 1                                    // 9
+            ValorTotal: ValorTotal || 0, EstadoID: ESTADO_COTIZACION.PENDIENTE                                    // 9
         });                                                                             // 10
         for (const detalle of detalles) {                                               // 11
             const nuevoDetalle = await DetalleCotizacion.create({                       // 12
@@ -553,13 +554,13 @@ exports.updateCotizacion = async (req, res) => {
         const estadoAnterior = cotizacion.EstadoID;                                     // 11
         const estadoNuevo = EstadoID ? parseInt(EstadoID) : estadoAnterior;             // 12
         if (estadoNuevo !== estadoAnterior) {
-            if ([4, 5].includes(estadoAnterior)) {
-                return res.status(400).json({ message: `No se puede cambiar el estado de una cotización ${estadoAnterior === 5 ? 'procesada' : 'cancelada'}` });
+            if ([ESTADO_COTIZACION.CANCELADA, ESTADO_COTIZACION.PROCESADA].includes(estadoAnterior)) {
+                return res.status(400).json({ message: `No se puede cambiar el estado de una cotización ${estadoAnterior === ESTADO_COTIZACION.PROCESADA ? 'procesada' : 'cancelada'}` });
             }
-            if (estadoNuevo === 5) {
+            if (estadoNuevo === ESTADO_COTIZACION.PROCESADA) {
                 return res.status(400).json({ message: 'Para procesar la cotización usa "Convertir a venta"' });
             }
-            if (estadoNuevo === 2) {
+            if (estadoNuevo === ESTADO_COTIZACION.APROBADA) {
                 const sinCosto = await CotizacionTecnica.count({
                     include: [{ model: DetalleCotizacion, as: 'detalleCotizacion', where: { CotizacionID: cotizacionID }, attributes: [] }],
                     where: { [Op.or]: [{ CostoTecnica: null }, { CostoTecnica: { [Op.lte]: 0 } }] }
@@ -637,13 +638,13 @@ exports.cancelarCotizacion = async (req, res) => {
             ]                                                                           // 7
         });                                                                             // 8
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada', cotizacionID }); // 9
-        if (cotizacion.EstadoID === 5) return res.status(400).json({
+        if (cotizacion.EstadoID === ESTADO_COTIZACION.PROCESADA) return res.status(400).json({
             message: 'No se puede cancelar una cotización ya convertida a venta'
         }); // 10
-        if (cotizacion.EstadoID === 4) return res.status(400).json({ message: 'La cotización ya está cancelada' });
+        if (cotizacion.EstadoID === ESTADO_COTIZACION.CANCELADA) return res.status(400).json({ message: 'La cotización ya está cancelada' });
         // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
         const stockDevuelto = false;
-        await cotizacion.update({ EstadoID: 4 });                                       // 24
+        await cotizacion.update({ EstadoID: ESTADO_COTIZACION.CANCELADA });                                       // 24
         return res.status(200).json({                                                   // 25
             message: 'Cotización cancelada exitosamente',                               // 26
             cotizacionID: cotizacion.CotizacionID, estadoNuevo: 'Cancelada', stockDevuelto // 27

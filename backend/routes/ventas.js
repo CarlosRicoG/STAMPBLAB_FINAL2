@@ -1,3 +1,4 @@
+const { ESTADO_VENTA } = require('../config/estados');
 const express = require('express');
 const router = express.Router();
 const ventaController = require('../controllers/ventaController');
@@ -22,7 +23,7 @@ const ventaPropiaOAdmin = async (req, res, next) => {
 };
 // Cliente: la venta queda a su nombre y siempre en estado Pendiente (8); no puede darse un estado a si mismo.
 const ventaDelCliente = (req, res, next) => {
-    if (!esAdmin(req)) { req.body.DocumentoID = String(req.usuario.id); req.body.EstadoID = 8; }
+    if (!esAdmin(req)) { req.body.DocumentoID = String(req.usuario.id); req.body.EstadoID = ESTADO_VENTA.PENDIENTE; }
     next();
 };
 

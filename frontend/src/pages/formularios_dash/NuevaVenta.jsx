@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
 import axios from "axios";
 import { crearVenta, updateVenta, getVentaById } from "../../Services/api-ventas/ventas";
 import Swal from "sweetalert2";
+import { ESTADO_VENTA } from "../../config/estados";
 
 /* ── Tokens de color (mismos que AgregarProducto) ── */
 const C = {
@@ -348,7 +349,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
             DocumentoID: clienteSeleccionado,
             Subtotal: parseFloat(subtotal.toFixed(2)),
             Total: parseFloat(total.toFixed(2)),
-            EstadoID: modoEdicion ? ventaEdit.EstadoID : 9,
+            EstadoID: modoEdicion ? ventaEdit.EstadoID : ESTADO_VENTA.PAGADA,
             detalles,
         };
 

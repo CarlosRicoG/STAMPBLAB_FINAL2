@@ -2,6 +2,8 @@ require('dotenv').config();
 
 const common = {
   dialect: 'mysql',
+  // BIGINT (documentos de identidad de hasta 15 digitos) como numero JS, no como texto
+  dialectOptions: { supportBigNumbers: true, bigNumberStrings: false },
   define: {
     timestamps: false,
     freezeTableName: true,
