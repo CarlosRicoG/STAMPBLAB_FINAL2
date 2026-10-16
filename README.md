@@ -47,6 +47,16 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 - El frontend adjunta el token automáticamente a todas las llamadas (`src/utils/authInterceptors.js`) y cierra la sesión si vence.
 - Cabeceras de seguridad con `helmet`. Los `console.log` de depuración se silencian con `NODE_ENV=production`.
 
+## Pruebas
+| Que | Como | Cuantas |
+|---|---|---|
+| Backend (unitarias, sin BD) | `cd backend && npm test` | 158 |
+| Backend (integracion: stock, seguridad, validaciones, cancelar) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba) | 4 conjuntos |
+| Frontend (token automatico, roles, estados, efectos) | `cd frontend && npm test` | 22 |
+| E2E con navegador real (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
+
+Para dejar la BD en el estado que esperan las pruebas: `cd backend && npm run db:reset && node scripts/seed-demo-flujo.js`.
+
 ## Imagenes
 - Las fotos de productos y tecnicas se guardan como **archivos** en `backend/uploads/` (la BD solo guarda la ruta) y la API devuelve `PUBLIC_URL/uploads/...`. Maximo 5 MB por imagen (png/jpg/webp/gif).
 - Para convertir imagenes antiguas que estaban en base64: `node scripts/migrar-imagenes.js` (seguro de repetir).
