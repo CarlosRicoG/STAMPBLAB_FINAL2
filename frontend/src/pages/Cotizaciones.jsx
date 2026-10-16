@@ -1,9 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { FaEye, FaCheck, FaTimes, FaSearch, FaPlus, FaDollarSign, FaImage, FaExchangeAlt, FaBan, FaFilePdf, FaPlusCircle, FaBoxOpen, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  FaEye, FaCheck, FaSearch, FaDollarSign, FaImage, FaExchangeAlt, FaBan, FaFilePdf,
+  FaPlusCircle, FaBoxOpen, FaChevronLeft, FaChevronRight, FaUser, FaTshirt, FaMagic,
+  FaEnvelope, FaPhone, FaIdCard, FaTimes, FaSave, FaPalette, FaRulerHorizontal, FaLayerGroup,
+} from "react-icons/fa";
 import Swal from "sweetalert2";
 import { getCotizaciones, updateCotizacion, getCotizacionById, cancelarCotizacion } from "../Services/api-cotizaciones/cotizaciones";
 import axios from "axios";
+import API_BASE from "../config/api";
 import FormularioCotizacion from './formularios_dash/FormularioCotizacion';
+import "../styles/plus.css";
 
 /* ── Tokens ── */
 const C = {
@@ -18,6 +24,7 @@ const C = {
   warningSoft: "#fffbeb",
   danger: "#dc2626",
   dangerSoft: "#fef2f2",
+  violet: "#7c3aed",
   muted: "#64748b",
   text: "#0f172a",
   border: "#e2e8f0",
@@ -26,54 +33,211 @@ const C = {
   infoSoft: "#e0f2fe",
 };
 
+/* Estados de cotización (tabla estados, Tipo = cotizacion) */
+const ESTADOS = {
+  1: { nombre: "Pendiente", type: "pending" },
+  2: { nombre: "Aprobada", type: "approved" },
+  3: { nombre: "Rechazada", type: "rejected" },
+  4: { nombre: "Cancelada", type: "canceled" },
+  5: { nombre: "Procesada", type: "processed" },
+};
+const TYPE_POR_NOMBRE = Object.fromEntries(Object.values(ESTADOS).map(e => [e.nombre, e.type]));
+const estadoDe = (c) => {
+  const nombre = c?.estado?.Nombre || ESTADOS[c?.EstadoID]?.nombre || "Pendiente";
+  return { nombre, type: TYPE_POR_NOMBRE[nombre] || "pending" };
+};
 
 const formatPrecio = (valor) =>
-  (parseFloat(valor) || 0).toLocaleString('es-CO', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  });
+  (parseFloat(valor) || 0).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
+const urlDiseno = (tec) => tec?.ImagenUrl || (tec?.["ImagenDiseño"] ? `${API_BASE}/api/cotizaciones/imagen/${tec["ImagenDiseño"]}` : null);
 
-const TH = {
-  background: C.navyGrad, color: "#fff", fontSize: 12, fontWeight: 700,
-  padding: "13px 16px", whiteSpace: "nowrap", letterSpacing: "0.04em", textAlign: "left",
+/* "[PERSONALIZADO] Buso - detalle" -> { nombre: "Buso", desc: "detalle" } */
+const parsePersonalizado = (texto) => {
+  const m = /^\[PERSONALIZADO\]\s*(.+?)(?:\s+-\s+([\s\S]*))?$/.exec(texto || "");
+  return m ? { nombre: m[1], desc: m[2] || "" } : null;
+};
+const infoDetalle = (d) => {
+  if (d.TraePrenda) return { nombre: "Prenda del cliente", tipo: "prenda", desc: d.PrendaDescripcion || "" };
+  if (d.producto) return { nombre: d.producto.Nombre, tipo: "catalogo", imagen: d.producto.ImagenProducto };
+  const p = parsePersonalizado(d.PrendaDescripcion);
+  return { nombre: p?.nombre || "Producto personalizado", tipo: "personalizado", desc: p?.desc || "" };
 };
 
-const Badge = ({ type, children }) => {
-  const map = {
-    success: { bg: C.successSoft, color: C.success, border: "#bbf7d0" },
-    warning: { bg: C.warningSoft, color: C.warning, border: "#fde68a" },
-    danger: { bg: C.dangerSoft, color: C.danger, border: "#fecaca" },
-    accent: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-    navy: { bg: C.navy, color: "#fff", border: C.navy },
-    info: { bg: C.infoSoft, color: C.info, border: "#bae6fd" },
-    muted: { bg: "#f1f5f9", color: C.muted, border: C.border },
-    pending: { bg: "#fffbeb", color: "#92400e", border: "#fde68a" },
-    approved: { bg: C.successSoft, color: C.success, border: "#bbf7d0" },
-    canceled: { bg: C.dangerSoft, color: C.danger, border: "#fecaca" },
-    processed: { bg: C.infoSoft, color: C.info, border: "#bae6fd" },
-  };
-  const s = map[type] || map.muted;
-  return (
-    <span style={{
-      background: s.bg, color: s.color, border: `1px solid ${s.border}`,
-      borderRadius: 20, padding: "3px 11px", fontSize: 11, fontWeight: 700,
-      fontFamily: "'Outfit',sans-serif", display: "inline-flex", alignItems: "center", gap: 5,
-    }}>{children}</span>
-  );
+/* Misma regla que el backend (calcularValorTotalCotizacion) para mostrar subtotales por producto */
+const precioUnitarioDetalle = (d) => {
+  let unit;
+  if (parseFloat(d.PrecioUnitario) > 0) unit = parseFloat(d.PrecioUnitario);
+  else unit = (parseFloat(d.producto?.PrecioBase) || 0) + (parseFloat(d.tallas?.[0]?.talla?.Precio) || 0) + (parseFloat(d.insumos?.[0]?.insumo?.PrecioTela) || 0);
+  return unit + (d.tecnicas || []).reduce((s, t) => s + (parseFloat(t.CostoTecnica) || 0), 0);
 };
+
+const sinCosto = (t) => !t.CostoTecnica || parseFloat(t.CostoTecnica) <= 0;
+
+const validarCosto = (value) => {
+  const v = String(value ?? "").trim();
+  if (!v) return "Ingresa un valor.";
+  if (!/^[0-9]+([.,][0-9]{1,2})?$/.test(v)) return "Solo números (sin letras ni símbolos).";
+  const n = parseFloat(v.replace(",", "."));
+  if (isNaN(n)) return "Valor inválido.";
+  if (n <= 0) return "El costo debe ser mayor a $0.";
+  if (n > 99_999_999) return "El valor es demasiado alto.";
+  return "";
+};
+
+const swalTop = (opts) => Swal.fire({ ...opts, didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; } });
+
+/* ── CSS propio del módulo (prefijo cz-) ── */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+.cz-page, .cz-page *, .cz-modal, .cz-modal * { box-sizing: border-box; font-family: 'Outfit', sans-serif; }
+@keyframes cz-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes cz-pop { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes cz-shimmer { 0% { background-position: -400px 0; } 100% { background-position: 400px 0; } }
+@keyframes cz-spin { to { transform: rotate(360deg); } }
+@keyframes cz-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(217,119,6,.45); } 70% { box-shadow: 0 0 0 7px rgba(217,119,6,0); } }
+
+.cz-head { display:flex; justify-content:space-between; align-items:center; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+.cz-title { margin:0; font-weight:800; font-size:22px; color:#1a2540; letter-spacing:-.02em; }
+.cz-filters { display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; gap:12px; flex-wrap:wrap; }
+.cz-input { padding:9px 14px; border-radius:10px; border:1.5px solid #e2e8f0; font-size:13px; outline:none; color:#0f172a; background:#fff; transition:border-color .2s, box-shadow .2s; }
+.cz-input:focus { border-color:#4f8ef7; box-shadow:0 0 0 3px rgba(79,142,247,.15); }
+.cz-search { position:relative; width:300px; max-width:100%; }
+.cz-search svg { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:#64748b; font-size:13px; }
+.cz-search input { width:100%; padding-left:36px; }
+
+.cz-tablewrap { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 1px 2px rgba(15,23,42,.05), 0 8px 24px rgba(15,23,42,.06); border:1px solid #eef2f7; }
+.cz-table { width:100%; border-collapse:collapse; font-size:13px; }
+.cz-table th { background:linear-gradient(90deg,#1a2540 0%,#2d3f6e 100%); color:#fff; font-size:12px; font-weight:700; padding:13px 16px; white-space:nowrap; letter-spacing:.04em; text-align:left; }
+.cz-table td { padding:12px 16px; border-bottom:1px solid #f1f5f9; vertical-align:middle; }
+.cz-row { transition:background .18s, box-shadow .18s; animation:cz-fade .35s ease both; }
+.cz-row:hover { background:#f5f8ff !important; box-shadow:inset 3px 0 0 #4f8ef7; }
+.cz-row:hover .cz-thumb { transform:scale(1.08); box-shadow:0 6px 16px rgba(26,37,64,.18); }
+.cz-thumb { width:48px; height:48px; border-radius:10px; object-fit:cover; border:2px solid #e2e8f0; transition:transform .25s, box-shadow .25s; cursor:pointer; display:flex; align-items:center; justify-content:center; background:#f0f4ff; }
+
+.cz-badge { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 11px; font-size:11px; font-weight:700; border:1px solid; white-space:nowrap; }
+.cz-badge .cz-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+.cz-badge.pending { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+.cz-badge.pending .cz-dot { background:#d97706; animation:cz-pulse 2s infinite; }
+.cz-badge.approved { background:#f0fdf4; color:#16a34a; border-color:#bbf7d0; }
+.cz-badge.processed { background:#f5f3ff; color:#7c3aed; border-color:#ddd6fe; }
+.cz-badge.canceled { background:#fef2f2; color:#dc2626; border-color:#fecaca; }
+.cz-badge.rejected { background:#f1f5f9; color:#475569; border-color:#cbd5e1; }
+.cz-badge.navy { background:#1a2540; color:#fff; border-color:#1a2540; }
+.cz-badge.money { background:#f0fdf4; color:#15803d; border-color:#bbf7d0; font-size:12px; }
+.cz-badge.money.zero { background:#f8fafc; color:#94a3b8; border-color:#e2e8f0; }
+
+.cz-act { width:32px; height:32px; border-radius:9px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; transition:transform .18s, background .18s, box-shadow .18s; border:1.5px solid; }
+.cz-act:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 6px 14px rgba(15,23,42,.12); }
+.cz-act:disabled { opacity:.45; cursor:not-allowed; }
+
+.cz-skel { height:14px; border-radius:7px; background:linear-gradient(90deg,#eef2f7 0px,#f8fafc 120px,#eef2f7 240px); background-size:800px 100%; animation:cz-shimmer 1.2s linear infinite; }
+.cz-empty { text-align:center; padding:56px 20px; color:#64748b; }
+.cz-empty-ico { width:72px; height:72px; border-radius:22px; margin:0 auto 14px; display:grid; place-items:center; background:linear-gradient(135deg,rgba(79,142,247,.14),rgba(124,58,237,.14)); color:#4f8ef7; font-size:28px; }
+
+/* ── Modal detalle ── */
+.cz-overlay { position:fixed; inset:0; background:rgba(15,24,36,.6); backdrop-filter:blur(3px); z-index:1050; display:flex; align-items:center; justify-content:center; padding:20px; animation:cz-fade .2s ease; }
+.cz-modal { background:#f8fafc; border-radius:22px; width:100%; max-width:1100px; max-height:94vh; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 30px 80px rgba(15,24,36,.45); animation:cz-pop .32s cubic-bezier(.22,1,.36,1); }
+.cz-mhead { flex-shrink:0; position:relative; padding:22px 28px 20px; color:#fff; background:radial-gradient(600px 200px at 85% -40%, rgba(124,58,237,.55), transparent 60%), linear-gradient(120deg,#0f1824 0%,#1a2540 45%,#2d3f6e 100%); overflow:hidden; }
+.cz-mhead::after { content:""; position:absolute; inset:0; pointer-events:none; opacity:.35; background-image:radial-gradient(rgba(255,255,255,.18) 1px, transparent 1px); background-size:22px 22px; mask-image:linear-gradient(90deg,transparent,#000 70%); -webkit-mask-image:linear-gradient(90deg,transparent,#000 70%); }
+.cz-mhead-row { position:relative; z-index:1; display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+.cz-close { background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); border-radius:10px; width:36px; height:36px; color:#fff; cursor:pointer; display:grid; place-items:center; transition:background .2s, transform .2s; }
+.cz-close:hover { background:rgba(255,255,255,.24); transform:rotate(90deg); }
+.cz-total-head { text-align:right; }
+.cz-total-head small { display:block; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:rgba(255,255,255,.6); font-weight:700; }
+.cz-total-head strong { font-size:30px; font-weight:900; letter-spacing:-.02em; background:linear-gradient(90deg,#fff,#c7d9ff); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+
+.cz-timeline { position:relative; z-index:1; display:flex; align-items:center; margin-top:18px; max-width:620px; }
+.cz-step { display:flex; align-items:center; gap:8px; color:rgba(255,255,255,.5); font-size:12px; font-weight:700; white-space:nowrap; }
+.cz-step i { width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-style:normal; font-size:11px; background:rgba(255,255,255,.1); border:1.5px solid rgba(255,255,255,.25); transition:all .3s; }
+.cz-step.done { color:#fff; } .cz-step.done i { background:#16a34a; border-color:#16a34a; }
+.cz-step.now { color:#fff; } .cz-step.now i { background:#4f8ef7; border-color:#4f8ef7; box-shadow:0 0 0 5px rgba(79,142,247,.3); }
+.cz-step.bad { color:#fecaca; } .cz-step.bad i { background:#dc2626; border-color:#dc2626; }
+.cz-line { flex:1; height:2px; min-width:24px; margin:0 10px; background:rgba(255,255,255,.18); border-radius:2px; }
+.cz-line.done { background:linear-gradient(90deg,#16a34a,#4f8ef7); }
+
+.cz-mbody { min-height:0; overflow-y:auto; padding:22px 28px; flex:1; }
+.cz-grid2 { display:grid; grid-template-columns:1fr 300px; gap:16px; margin-bottom:22px; }
+.cz-card { background:#fff; border:1px solid #e2e8f0; border-radius:16px; padding:18px 20px; box-shadow:0 1px 2px rgba(15,23,42,.04); }
+.cz-label { margin:0 0 12px; font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:.1em; }
+.cz-client { display:flex; gap:16px; align-items:center; }
+.cz-avatar { width:54px; height:54px; border-radius:16px; flex-shrink:0; display:grid; place-items:center; color:#fff; font-weight:800; font-size:19px; background:linear-gradient(135deg,#4f8ef7,#7c3aed); box-shadow:0 8px 20px rgba(79,142,247,.35); }
+.cz-client-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px 18px; flex:1; }
+.cz-client-grid div { display:flex; align-items:center; gap:7px; font-size:13px; color:#0f172a; min-width:0; }
+.cz-client-grid svg { color:#4f8ef7; flex-shrink:0; }
+.cz-client-grid span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+.cz-prod { background:#fff; border:1px solid #e2e8f0; border-radius:18px; margin-bottom:16px; overflow:hidden; animation:cz-fade .35s ease both; transition:box-shadow .25s, border-color .25s; }
+.cz-prod:hover { box-shadow:0 10px 30px rgba(26,37,64,.08); border-color:#c7d9ff; }
+.cz-prod-head { display:flex; gap:16px; align-items:center; padding:16px 20px; background:linear-gradient(90deg,#f5f8ff,#fff); border-bottom:1px solid #eef2f7; }
+.cz-prod-img { width:76px; height:76px; border-radius:14px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0; cursor:zoom-in; transition:transform .25s; background:#f0f4ff; display:grid; place-items:center; }
+.cz-prod-img:hover { transform:scale(1.05); }
+.cz-chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:700; background:#f0f4ff; color:#3b6fe0; border:1px solid #dbe6ff; }
+.cz-chip.violet { background:#f5f3ff; color:#7c3aed; border-color:#e4dcff; }
+.cz-chip.amber { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+.cz-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.cz-sub { margin-left:auto; text-align:right; flex-shrink:0; }
+.cz-sub small { display:block; font-size:10px; color:#64748b; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+.cz-sub strong { font-size:17px; color:#1a2540; font-weight:800; }
+
+.cz-designs { padding:16px 20px 18px; }
+.cz-dgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:14px; }
+.cz-design { border:1px solid #ece7fb; border-radius:16px; overflow:hidden; background:#fff; display:flex; flex-direction:column; transition:transform .25s, box-shadow .25s, border-color .25s; }
+.cz-design:hover { transform:translateY(-3px); box-shadow:0 12px 26px rgba(124,58,237,.12); border-color:#d9ccff; }
+.cz-design.missing { border-color:#fecaca; box-shadow:inset 0 3px 0 #dc2626; }
+.cz-dimg { height:170px; background:repeating-conic-gradient(#f5f3ff 0% 25%, #fff 0% 50%) 50%/18px 18px; display:grid; place-items:center; overflow:hidden; cursor:zoom-in; position:relative; }
+.cz-dimg img { max-width:100%; max-height:100%; object-fit:contain; transition:transform .5s cubic-bezier(.22,1,.36,1); }
+.cz-dimg:hover img { transform:scale(1.07); }
+.cz-dimg .cz-zoomhint { position:absolute; bottom:8px; right:8px; background:rgba(26,37,64,.75); color:#fff; font-size:10px; font-weight:700; padding:3px 8px; border-radius:999px; opacity:0; transition:opacity .2s; }
+.cz-dimg:hover .cz-zoomhint { opacity:1; }
+.cz-dinfo { padding:12px 14px 14px; display:flex; flex-direction:column; gap:6px; flex:1; }
+.cz-dinfo p { margin:0; font-size:12.5px; color:#0f172a; }
+.cz-dinfo b { color:#7c3aed; }
+.cz-cost { margin-top:auto; padding-top:10px; border-top:1px dashed #e2e8f0; display:flex; align-items:center; gap:8px; }
+.cz-cost .cz-val { font-size:16px; font-weight:800; }
+.cz-cost input { width:100%; min-width:0; padding:8px 10px 8px 24px; border:1.5px solid #e2e8f0; border-radius:9px; font-size:13px; font-weight:700; outline:none; transition:border-color .2s, box-shadow .2s; }
+.cz-cost input:focus { border-color:#4f8ef7; box-shadow:0 0 0 3px rgba(79,142,247,.15); }
+.cz-cost input.err { border-color:#dc2626; }
+.cz-money { position:relative; flex:1; }
+.cz-money::before { content:"$"; position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#64748b; font-weight:700; font-size:13px; }
+.cz-btn { border:none; border-radius:10px; padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:7px; transition:transform .18s, box-shadow .18s, opacity .18s; color:#fff; white-space:nowrap; }
+.cz-btn:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 8px 18px rgba(15,23,42,.18); }
+.cz-btn:disabled { opacity:.55; cursor:not-allowed; }
+.cz-btn.sm { padding:8px 12px; font-size:12px; border-radius:9px; }
+.cz-btn.navy { background:linear-gradient(135deg,#1a2540,#2d3f6e); }
+.cz-btn.green { background:#16a34a; } .cz-btn.blue { background:linear-gradient(135deg,#4f8ef7,#7c3aed); }
+.cz-btn.red { background:#dc2626; } .cz-btn.ghost { background:#fff; color:#475569; border:1.5px solid #e2e8f0; }
+.cz-btn.outline-red { background:#fff; color:#dc2626; border:1.5px solid #fecaca; }
+.cz-alert { display:flex; gap:10px; align-items:center; padding:10px 14px; border-radius:12px; font-size:12.5px; font-weight:600; margin-bottom:16px; }
+.cz-alert.warn { background:#fffbeb; color:#92400e; border:1px solid #fde68a; }
+.cz-alert.info { background:#f0f4ff; color:#1e40af; border:1px solid #c7d9ff; }
+.cz-mfoot { flex-shrink:0; padding:14px 28px; border-top:1px solid #e2e8f0; background:#fff; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+.cz-mfoot > div { display:flex; gap:8px; flex-wrap:wrap; }
+.cz-summary { display:flex; justify-content:flex-end; }
+.cz-summary-box { min-width:280px; border-radius:16px; padding:16px 20px; color:#fff; background:linear-gradient(135deg,#1a2540,#2d3f6e 60%,#4c3a9e); box-shadow:0 14px 34px rgba(26,37,64,.3); }
+.cz-summary-box div { display:flex; justify-content:space-between; font-size:12.5px; color:rgba(255,255,255,.75); margin-bottom:6px; gap:18px; }
+.cz-summary-box .tot { border-top:1px solid rgba(255,255,255,.18); padding-top:10px; margin:10px 0 0; color:#fff; font-size:15px; font-weight:700; align-items:baseline; }
+.cz-summary-box .tot strong { font-size:24px; font-weight:900; }
+
+@media (max-width: 860px) {
+  .cz-grid2 { grid-template-columns:1fr; }
+  .cz-client-grid { grid-template-columns:1fr; }
+  .cz-prod-head { flex-wrap:wrap; }
+  .cz-sub { margin-left:0; text-align:left; }
+  .cz-timeline { overflow-x:auto; }
+  .cz-mhead, .cz-mbody, .cz-mfoot { padding-left:16px; padding-right:16px; }
+  .cz-page { padding:20px 16px !important; }
+  .cz-search { width:100%; }
+}
+`;
+
+const Badge = ({ type, children, dot }) => (
+  <span className={`cz-badge ${type}`}>{dot && <span className="cz-dot" />}{children}</span>
+);
 
 const ActionBtn = ({ onClick, title, color, children, disabled }) => (
-  <button onClick={onClick} title={title} disabled={disabled} style={{
-    width: 32, height: 32, borderRadius: 8,
-    border: `1.5px solid ${color}20`, background: `${color}0d`,
-    color, cursor: disabled ? "not-allowed" : "pointer",
-    display: "inline-flex", alignItems: "center", justifyContent: "center",
-    transition: "all 0.18s", opacity: disabled ? 0.5 : 1,
-  }}
-    onMouseEnter={e => { if (!disabled) { e.currentTarget.style.background = `${color}22`; e.currentTarget.style.transform = "translateY(-1px)"; } }}
-    onMouseLeave={e => { e.currentTarget.style.background = `${color}0d`; e.currentTarget.style.transform = "none"; }}
-  >{children}</button>
+  <button className="cz-act" onClick={onClick} title={title} aria-label={title} disabled={disabled}
+    style={{ borderColor: `${color}33`, background: `${color}10`, color }}>{children}</button>
 );
 
 /* ── Paginación ── */
@@ -99,39 +263,32 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
     minWidth: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`,
     background: "#fff", color: C.muted, fontSize: 13, fontWeight: 600,
     cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center",
-    fontFamily: "'Outfit',sans-serif", transition: "all 0.18s", padding: "0 8px",
+    transition: "all 0.18s", padding: "0 8px",
   };
 
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${C.border}`, background: "#fff", flexWrap: "wrap", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <span style={{ fontSize: 13, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 13, color: C.muted }}>
           Mostrando <strong style={{ color: C.navy }}>{desde}–{hasta}</strong> de <strong style={{ color: C.navy }}>{totalItems}</strong> cotizaciones
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Por página:</span>
-          <select value={itemsPorPagina} onChange={e => onCambiarItemsPorPagina(Number(e.target.value))}
-            style={{ border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontFamily: "'Outfit',sans-serif", outline: "none", color: C.navy, cursor: "pointer", background: "#fff" }}
-            onFocus={e => e.target.style.borderColor = C.accent}
-            onBlur={e => e.target.style.borderColor = C.border}>
+          <span style={{ fontSize: 12, color: C.muted }}>Por página:</span>
+          <select className="cz-input" value={itemsPorPagina} onChange={e => onCambiarItemsPorPagina(Number(e.target.value))}
+            style={{ padding: "4px 10px", fontSize: 12, borderRadius: 8, cursor: "pointer" }}>
             {ITEMS_POR_PAGINA_OPCIONES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
         </div>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-        <button
-          onClick={() => onCambiarPagina(paginaActual - 1)}
-          disabled={paginaActual === 1}
-          style={{ ...btnBase, opacity: paginaActual === 1 ? 0.4 : 1, cursor: paginaActual === 1 ? "not-allowed" : "pointer" }}
-          onMouseEnter={e => { if (paginaActual !== 1) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+        <button aria-label="Página anterior" onClick={() => onCambiarPagina(paginaActual - 1)} disabled={paginaActual === 1}
+          style={{ ...btnBase, opacity: paginaActual === 1 ? 0.4 : 1, cursor: paginaActual === 1 ? "not-allowed" : "pointer" }}>
           <FaChevronLeft size={11} />
         </button>
-
         {generarPaginas().map((p, i) => (
           p === "..." ? (
-            <span key={`e-${i}`} style={{ padding: "0 4px", color: C.muted, fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>…</span>
+            <span key={`e-${i}`} style={{ padding: "0 4px", color: C.muted, fontSize: 13 }}>…</span>
           ) : (
             <button key={p} onClick={() => onCambiarPagina(p)}
               style={{
@@ -141,20 +298,13 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                 borderColor: p === paginaActual ? C.navy : C.border,
                 fontWeight: p === paginaActual ? 700 : 600,
                 cursor: p === paginaActual ? "default" : "pointer",
-              }}
-              onMouseEnter={e => { if (p !== paginaActual) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-              onMouseLeave={e => { if (p !== paginaActual) { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}>
+              }}>
               {p}
             </button>
           )
         ))}
-
-        <button
-          onClick={() => onCambiarPagina(paginaActual + 1)}
-          disabled={paginaActual === totalPaginas}
-          style={{ ...btnBase, opacity: paginaActual === totalPaginas ? 0.4 : 1, cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer" }}
-          onMouseEnter={e => { if (paginaActual !== totalPaginas) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+        <button aria-label="Página siguiente" onClick={() => onCambiarPagina(paginaActual + 1)} disabled={paginaActual === totalPaginas}
+          style={{ ...btnBase, opacity: paginaActual === totalPaginas ? 0.4 : 1, cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer" }}>
           <FaChevronRight size={11} />
         </button>
       </div>
@@ -166,116 +316,134 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
 const ImagenModal = ({ src, onClose }) => {
   if (!src) return null;
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 1060, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-      onClick={onClose}>
-      <div style={{ animation: "fadeIn 0.25s ease" }} onClick={e => e.stopPropagation()}>
+    <div className="cz-overlay" style={{ zIndex: 1070, background: "rgba(0,0,0,0.85)" }} onClick={onClose}>
+      <div style={{ animation: "cz-pop .3s ease" }} onClick={e => e.stopPropagation()}>
         <img src={src} alt="Vista ampliada"
-          style={{ maxWidth: "90vw", maxHeight: "80vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
+          style={{ maxWidth: "90vw", maxHeight: "80vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", background: "#fff" }} />
         <div style={{ textAlign: "center", marginTop: 16 }}>
-          <button onClick={onClose}
-            style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 24, padding: "9px 24px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-            Cerrar
-          </button>
+          <button className="cz-btn red" onClick={onClose} style={{ borderRadius: 24, padding: "9px 24px" }}>Cerrar</button>
         </div>
       </div>
     </div>
   );
 };
 
+/* ── Línea de tiempo del estado ── */
+const Timeline = ({ estado }) => {
+  const terminalMalo = estado === "Cancelada" || estado === "Rechazada";
+  const orden = ["Pendiente", "Aprobada", "Procesada"];
+  const idx = orden.indexOf(estado);
+  const pasos = terminalMalo ? ["Pendiente", estado] : orden;
+  return (
+    <div className="cz-timeline">
+      {pasos.map((p, i) => {
+        let cls = "";
+        if (terminalMalo) cls = i === 0 ? "done" : "bad";
+        else if (i < idx || (estado === "Procesada" && i === idx)) cls = "done";
+        else if (i === idx) cls = "now";
+        const icon = cls === "done" ? "✓" : cls === "bad" ? "✕" : i + 1;
+        return (
+          <React.Fragment key={p}>
+            {i > 0 && <span className={`cz-line ${cls === "done" || (cls === "now") || cls === "bad" ? "done" : ""}`} />}
+            <span className={`cz-step ${cls}`}><i>{icon}</i>{p === "Procesada" ? "Procesada (venta)" : p}</span>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+
+/* ── Tarjeta de diseño con costo editable ── */
+const DisenoCard = ({ tec, editable, onGuardar, onVerImagen }) => {
+  const [valor, setValor] = useState(tec.CostoTecnica && parseFloat(tec.CostoTecnica) > 0 ? String(parseFloat(tec.CostoTecnica)) : "");
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const img = urlDiseno(tec);
+  const falta = sinCosto(tec);
+  const cambiado = valor !== (falta ? "" : String(parseFloat(tec.CostoTecnica)));
+
+  const guardar = async () => {
+    const e = validarCosto(valor);
+    setError(e);
+    if (e) return;
+    setGuardando(true);
+    try { await onGuardar(tec.CotizacionTecnicaID, parseFloat(valor.trim().replace(",", "."))); }
+    finally { setGuardando(false); }
+  };
+
+  return (
+    <div className={`cz-design ${falta ? "missing" : ""}`}>
+      <div className="cz-dimg" onClick={() => img && onVerImagen(img)} style={{ cursor: img ? "zoom-in" : "default" }}>
+        {img
+          ? <><img src={img} alt="Diseño" onError={e => { e.currentTarget.style.display = "none"; }} /><span className="cz-zoomhint">Ampliar</span></>
+          : <div style={{ textAlign: "center", color: C.violet, opacity: .45 }}><FaImage size={34} /><p style={{ margin: "6px 0 0", fontSize: 11, fontWeight: 700 }}>Sin imagen</p></div>}
+      </div>
+      <div className="cz-dinfo">
+        <p><b>Técnica:</b> {tec.tecnica?.Nombre || "N/A"}</p>
+        <p><b>Parte:</b> {tec.parte?.Nombre || "N/A"}</p>
+        {tec.Observaciones && <p style={{ color: C.muted, fontSize: 12 }}><b style={{ color: C.text }}>Obs.:</b> {tec.Observaciones}</p>}
+        <div className="cz-cost">
+          {editable ? (
+            <>
+              <div className="cz-money">
+                <input aria-label="Costo del diseño" inputMode="numeric" placeholder="Costo por unidad" value={valor}
+                  className={error ? "err" : ""}
+                  onChange={e => { setValor(e.target.value); if (error) setError(""); }}
+                  onKeyDown={e => { if (e.key === "Enter") guardar(); }} />
+              </div>
+              <button className={`cz-btn sm ${cambiado ? "green" : "ghost"}`} onClick={guardar} disabled={guardando || !cambiado} title="Guardar costo">
+                {guardando ? <span style={{ width: 12, height: 12, border: "2px solid #fff6", borderTopColor: "#fff", borderRadius: "50%", animation: "cz-spin .7s linear infinite" }} /> : <FaSave size={11} />}
+                {falta ? "Asignar" : "Guardar"}
+              </button>
+            </>
+          ) : (
+            <span className="cz-val" style={{ color: falta ? C.danger : C.success }}>
+              {falta ? "Sin precio" : `$${formatPrecio(tec.CostoTecnica)}`}
+              <span style={{ fontSize: 11, color: C.muted, fontWeight: 600 }}>{falta ? "" : " / unidad"}</span>
+            </span>
+          )}
+        </div>
+        {error && <p style={{ color: C.danger, fontSize: 11, fontWeight: 600 }}>{error}</p>}
+        {editable && falta && !error && <p style={{ color: C.danger, fontSize: 11, fontWeight: 600 }}>Falta asignar el costo</p>}
+      </div>
+    </div>
+  );
+};
+
 /* ── Modal Detalle Cotización ── */
-const ModalDetalleCotizacion = ({ cotizacion, onClose, onActualizar, onConvertirAVenta }) => {
+const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, onConvertirAVenta, onCancelar }) => {
   const [imagenModal, setImagenModal] = useState(null);
+  const [descargando, setDescargando] = useState(false);
 
-  const handleAsignarCostoTecnica = async (tecnicaID) => {
-    const estadoNombre = cotizacion.estado?.Nombre || "Pendiente";
-    if (estadoNombre === "Aprobada" || estadoNombre === "Cancelada" || estadoNombre === "Procesada") {
-      Swal.fire({
-        icon: "warning",
-        title: "Acción no permitida",
-        text: `No se puede modificar el costo de técnicas en cotizaciones con estado: ${estadoNombre}`,
-      });
-      return;
-    }
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !imagenModal) onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [imagenModal, onClose]);
 
-    const tecnicaActual = cotizacion.detalles
-      .flatMap((d) => d.tecnicas || [])
-      .find((t) => t.CotizacionTecnicaID === tecnicaID);
+  const { nombre: estadoNombre, type: estadoType } = estadoDe(cotizacion);
+  const puedeEditarCostos = estadoNombre === "Pendiente";
+  const todasTecnicas = cotizacion.detalles?.flatMap(d => d.tecnicas || []) || [];
+  const faltantes = todasTecnicas.filter(sinCosto).length;
 
-    const { value: costo, isConfirmed } = await Swal.fire({
-      title: "Asignar Costo de Técnica",
-      input: "text",                          // "text" para interceptar letras antes de parsear
-      inputLabel: "Costo en pesos (COP)",
-      inputPlaceholder: "Ej: 25000",
-      inputValue: tecnicaActual?.CostoTecnica
-        ? String(tecnicaActual.CostoTecnica)
-        : "",
-      showCancelButton: true,
-      confirmButtonText: "Guardar",
-      cancelButtonText: "Cancelar",
-      inputAttributes: { inputmode: "numeric" },
-      inputValidator: (value) => {
-        // 1. Campo vacío
-        if (!value || value.trim() === "") {
-          return "Debes ingresar un valor. No puedes dejar este campo vacío.";
-        }
-        // 2. Contiene letras u otros caracteres no numéricos (permite punto y coma como decimal)
-        if (!/^[0-9]+([.,][0-9]{1,2})?$/.test(value.trim())) {
-          return "Solo se permiten números. No uses letras ni símbolos especiales.";
-        }
-        // 3. Valor negativo (no aplica con la regex de arriba, pero por si acaso)
-        const parsed = parseFloat(value.trim().replace(",", "."));
-        if (isNaN(parsed)) {
-          return "El valor ingresado no es un número válido.";
-        }
-        if (parsed < 0) {
-          return "El costo no puede ser negativo.";
-        }
-        // 4. Cero
-        if (parsed === 0) {
-          return "El costo debe ser mayor a $0. Si deseas cancelar, usa el botón Cancelar.";
-        }
-        // 5. Límite razonable (opcional, ajusta según tu negocio)
-        if (parsed > 99_999_999) {
-          return "El valor es demasiado alto. Verifica que sea correcto.";
-        }
-      },
-    });
-
-    // Si el usuario cerró el modal o canceló — isConfirmed es false
-    if (!isConfirmed) return;
-
-    // Parsear (acepta tanto punto como coma decimal)
-    const costoFinal = parseFloat(String(costo).trim().replace(",", "."));
-
+  const handleGuardarCosto = async (tecnicaID, costo) => {
     try {
-      await axios.put(
-        `${import.meta.env.VITE_API_URL}/api/cotizaciontecnicas/${tecnicaID}`,
-        { CostoTecnica: costoFinal }
-      );
-      Swal.fire({
-        icon: "success",
-        title: "Costo asignado",
-        text: "Total recalculado",
-        timer: 2000,
-        showConfirmButton: false,
-      });
-      onActualizar();
-      onClose();
-    } catch {
-      Swal.fire("Error", "No se pudo asignar el costo", "error");
+      await axios.put(`${API_BASE}/api/cotizaciontecnicas/${tecnicaID}`, { CostoTecnica: costo });
+      await onRecargar(cotizacion.CotizacionID);
+      Swal.fire({ icon: "success", title: "Costo guardado", text: "Total recalculado", toast: true, position: "top-end", timer: 1800, showConfirmButton: false });
+    } catch (error) {
+      swalTop({ icon: "error", title: "No se pudo asignar el costo", text: error.response?.data?.message || error.message });
     }
   };
 
   const handleDescargarPdf = async () => {
-    const todasLasTecnicas = cotizacion.detalles?.flatMap(d => d.tecnicas || []) || [];
-    const tecnicasSinCosto = todasLasTecnicas.filter(t => !t.CostoTecnica || parseFloat(t.CostoTecnica) === 0);
-    if (tecnicasSinCosto.length > 0) {
-      await Swal.fire({ icon: 'warning', title: 'No se puede descargar el PDF', html: `<p>Hay <strong>${tecnicasSinCosto.length}</strong> diseño(s) sin precio asignado.</p>`, confirmButtonText: 'Entendido', confirmButtonColor: '#ffc107' });
+    if (faltantes > 0) {
+      await swalTop({ icon: 'warning', title: 'No se puede descargar el PDF', html: `<p>Hay <strong>${faltantes}</strong> diseño(s) sin precio asignado.</p>`, confirmButtonText: 'Entendido', confirmButtonColor: C.warning });
       return;
     }
+    setDescargando(true);
     try {
-      const url = `${import.meta.env.VITE_API_URL}/api/cotizaciones/${cotizacion.CotizacionID}/pdf`;
-      const response = await axios.get(url, { responseType: 'blob' });
+      const response = await axios.get(`${API_BASE}/api/cotizaciones/${cotizacion.CotizacionID}/pdf`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -287,150 +455,164 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onActualizar, onConvertir
       if (error.response?.data instanceof Blob) {
         try { const texto = await error.response.data.text(); msg = JSON.parse(texto).message || msg; } catch (_) { }
       } else { msg = error.response?.data?.message || error.message || msg; }
-      Swal.fire({ icon: 'error', title: 'Error al generar el PDF', text: msg, confirmButtonColor: '#d33' });
-    }
+      swalTop({ icon: 'error', title: 'Error al generar el PDF', text: msg, confirmButtonColor: C.danger });
+    } finally { setDescargando(false); }
   };
 
-  const estadoNombre = cotizacion.estado?.Nombre || "Pendiente";
-  const puedeEditarCostos = estadoNombre === "Pendiente";
-  const esAprobada = estadoNombre === "Aprobada";
-  const esProcesada = estadoNombre === "Procesada";
-  const esCancelada = estadoNombre === "Cancelada";
-  const hayTecnicasSinCosto = cotizacion.detalles?.flatMap(d => d.tecnicas || []).some(t => !t.CostoTecnica || parseFloat(t.CostoTecnica) === 0);
-
-  const estadoBadgeType = esAprobada ? "approved" : esCancelada ? "canceled" : esProcesada ? "processed" : "pending";
-  const estadoBgColor = esAprobada ? C.successSoft : esCancelada ? C.dangerSoft : esProcesada ? C.infoSoft : C.warningSoft;
-  const estadoBorderColor = esAprobada ? C.success : esCancelada ? C.danger : esProcesada ? C.info : C.warning;
+  const u = cotizacion.usuario || {};
+  const iniciales = (u.Nombre || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join("");
+  const subtotalCalc = (cotizacion.detalles || []).reduce((s, d) => s + precioUnitarioDetalle(d) * (d.Cantidad || 0), 0);
+  const totalUnidades = (cotizacion.detalles || []).reduce((s, d) => s + (d.Cantidad || 0), 0);
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-      onClick={onClose}>
-      <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 1100, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column", animation: "fadeIn 0.25s ease" }}
-        onClick={e => e.stopPropagation()}>
-        <div style={{ background: C.navyGrad, padding: "18px 26px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h5 style={{ margin: 0, color: "#fff", fontWeight: 800, fontSize: 18 }}>Cotización #{cotizacion.CotizacionID}</h5>
-            <p style={{ margin: "3px 0 0", color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
-              {new Date(cotizacion.FechaCotizacion).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-            </p>
+    <div className="cz-overlay" onClick={onClose}>
+      <div className="cz-modal" role="dialog" aria-modal="true" aria-label={`Cotización ${cotizacion.CotizacionID}`} onClick={e => e.stopPropagation()}>
+        {/* Cabecera */}
+        <div className="cz-mhead">
+          <div className="cz-mhead-row">
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <h5 style={{ margin: 0, fontWeight: 800, fontSize: 21, letterSpacing: "-.02em" }}>Cotización #{cotizacion.CotizacionID}</h5>
+                <Badge type={estadoType} dot>{estadoNombre}</Badge>
+              </div>
+              <p style={{ margin: "4px 0 0", color: "rgba(255,255,255,0.65)", fontSize: 12.5 }}>
+                {new Date(cotizacion.FechaCotizacion).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                {" · "}{cotizacion.detalles?.length || 0} producto(s) · {totalUnidades} unidad(es)
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+              <div className="cz-total-head">
+                <small>Valor total</small>
+                <strong>${formatPrecio(cotizacion.ValorTotal)}</strong>
+              </div>
+              <button className="cz-close" onClick={onClose} aria-label="Cerrar"><FaTimes size={14} /></button>
+            </div>
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 32, height: 32, color: "#fff", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+          <Timeline estado={estadoNombre} />
         </div>
-        <div style={{ overflowY: "auto", padding: "24px 26px", flex: 1 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16, marginBottom: 20 }}>
-            <div style={{ background: C.accentSoft, borderRadius: 14, padding: "18px 20px", border: `1px solid ${C.border}` }}>
-              <p style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 1 }}>Información del Cliente</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                {[["Nombre", cotizacion.usuario?.Nombre || "N/A"], ["Documento", cotizacion.usuario?.DocumentoID || "N/A"], ["Correo", cotizacion.usuario?.Correo || "N/A"], ["Teléfono", cotizacion.usuario?.Telefono || "N/A"]].map(([label, val]) => (
-                  <div key={label}>
-                    <p style={{ margin: 0, color: C.muted, fontSize: 11 }}>{label}</p>
-                    <p style={{ margin: 0, fontWeight: 700, color: C.navy, fontSize: 13 }}>{val}</p>
+
+        {/* Cuerpo */}
+        <div className="cz-mbody">
+          {puedeEditarCostos && faltantes > 0 && (
+            <div className="cz-alert warn"><FaDollarSign /> Faltan {faltantes} diseño(s) por costear. Asigna el costo por unidad de cada diseño para poder aprobar y descargar el PDF.</div>
+          )}
+          {estadoNombre === "Aprobada" && (
+            <div className="cz-alert info"><FaExchangeAlt /> Cotización aprobada: ya puedes convertirla a venta (se descontará el stock de cada variante).</div>
+          )}
+
+          <div className="cz-grid2">
+            <div className="cz-card">
+              <p className="cz-label">Cliente</p>
+              <div className="cz-client">
+                <div className="cz-avatar">{iniciales || <FaUser />}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ margin: "0 0 8px", fontWeight: 800, color: C.navy, fontSize: 16 }}>{u.Nombre || "N/A"}</p>
+                  <div className="cz-client-grid">
+                    <div><FaIdCard /><span>{u.DocumentoID || "N/A"}</span></div>
+                    <div><FaPhone /><span>{u.Telefono || "Sin teléfono"}</span></div>
+                    <div style={{ gridColumn: "1 / -1" }}><FaEnvelope /><span>{u.Correo || "Sin correo"}</span></div>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
-            <div style={{ background: estadoBgColor, borderRadius: 14, padding: "18px 20px", border: `2px solid ${estadoBorderColor}`, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+            <div className="cz-card" style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12 }}>
               <div>
-                <p style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: 1 }}>Estado</p>
-                <Badge type={estadoBadgeType}>{estadoNombre}</Badge>
-                {esAprobada && (
-                  <button onClick={() => onConvertirAVenta(cotizacion.CotizacionID)}
-                    style={{ marginTop: 10, padding: "7px 14px", background: C.info, color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, fontFamily: "'Outfit',sans-serif" }}>
-                    <FaExchangeAlt size={11} /> Convertir a Venta
-                  </button>
-                )}
+                <p className="cz-label">Resumen</p>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <span className="cz-chip">{cotizacion.detalles?.length || 0} producto(s)</span>
+                  <span className="cz-chip violet">{todasTecnicas.length} diseño(s)</span>
+                  {faltantes > 0 && <span className="cz-chip amber">{faltantes} sin costo</span>}
+                </div>
               </div>
-              <div>
-                <p style={{ margin: "0 0 2px", fontSize: 11, fontWeight: 600, color: C.muted }}>VALOR TOTAL</p>
-                <p style={{ margin: 0, fontSize: 22, fontWeight: 800, color: C.navy }}>${formatPrecio(cotizacion.ValorTotal)}</p>
-              </div>
+              {estadoNombre === "Aprobada" && (
+                <button className="cz-btn blue" onClick={() => onConvertirAVenta(cotizacion.CotizacionID)} style={{ justifyContent: "center" }}>
+                  <FaExchangeAlt size={12} /> Convertir a Venta
+                </button>
+              )}
+              {estadoNombre === "Pendiente" && (
+                <button className="cz-btn green" onClick={() => onAprobar(cotizacion.CotizacionID)} style={{ justifyContent: "center" }}>
+                  <FaCheck size={12} /> Aprobar cotización
+                </button>
+              )}
             </div>
           </div>
 
-          <h6 style={{ fontWeight: 700, color: C.navy, marginBottom: 14, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.05em" }}>Detalles de Productos</h6>
+          <p className="cz-label" style={{ fontSize: 12, color: C.navy }}>Productos y diseños</p>
 
-          {cotizacion.detalles?.length > 0 ? cotizacion.detalles.map((detalle, index) => (
-            <div key={detalle.DetalleCotizacionID} style={{ border: `1px solid ${C.border}`, borderRadius: 14, padding: "18px 20px", marginBottom: 16, background: "#fafcff" }}>
-              <div style={{ display: "flex", gap: 16, marginBottom: 14, alignItems: "flex-start" }}>
-                <img
-                  src={detalle.TraePrenda ? "https://via.placeholder.com/90?text=Prenda" : (detalle.producto?.ImagenProducto || "https://via.placeholder.com/90")}
-                  alt={detalle.producto?.Nombre}
-                  onClick={() => { const src = !detalle.TraePrenda && detalle.producto?.ImagenProducto; if (src) setImagenModal(src); }}
-                  style={{ width: 90, height: 90, objectFit: "cover", borderRadius: 10, border: `1px solid ${C.border}`, cursor: (!detalle.TraePrenda && detalle.producto?.ImagenProducto) ? "pointer" : "default", transition: "transform 0.2s" }}
-                  onMouseEnter={e => { if (!detalle.TraePrenda && detalle.producto?.ImagenProducto) e.target.style.transform = "scale(1.08)"; }}
-                  onMouseLeave={e => e.target.style.transform = "none"}
-                />
-                <div style={{ flex: 1 }}>
-                  <h6 style={{ color: C.navy, fontWeight: 800, marginBottom: 6, fontSize: 14 }}>
-                    Producto {index + 1}: {detalle.TraePrenda ? "Prenda del cliente" : (detalle.producto?.Nombre || "Sin nombre")}
-                  </h6>
-                  {detalle.TraePrenda && (
-                    <div style={{ background: C.warningSoft, padding: "8px 12px", borderRadius: 8, border: `1px solid #fde68a`, marginBottom: 8 }}>
-                      <p style={{ margin: 0, color: "#92400e", fontSize: 12 }}><strong>Descripción:</strong> {detalle.PrendaDescripcion || "Sin descripción"}</p>
+          {cotizacion.detalles?.length > 0 ? cotizacion.detalles.map((detalle, index) => {
+            const info = infoDetalle(detalle);
+            const unit = precioUnitarioDetalle(detalle);
+            return (
+              <div key={detalle.DetalleCotizacionID} className="cz-prod" style={{ animationDelay: `${index * 0.06}s` }}>
+                <div className="cz-prod-head">
+                  {info.imagen ? (
+                    <img className="cz-prod-img" src={info.imagen} alt={info.nombre} onClick={() => setImagenModal(info.imagen)} />
+                  ) : (
+                    <div className="cz-prod-img" style={{ cursor: "default", background: info.tipo === "personalizado" ? "#f5f3ff" : "#fffbeb" }}>
+                      {info.tipo === "personalizado" ? <FaMagic size={24} color={C.violet} /> : <FaTshirt size={24} color={C.warning} />}
                     </div>
                   )}
-                  <p style={{ margin: 0, color: C.muted, fontSize: 13 }}><strong style={{ color: C.navy }}>Cantidad:</strong> {detalle.Cantidad} unidades</p>
-                </div>
-              </div>
-              {detalle.tecnicas?.length > 0 && (
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 14 }}>
-                  <p style={{ margin: "0 0 10px", fontWeight: 700, color: "#7c3aed", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em" }}>Diseños Aplicados ({detalle.tecnicas.length})</p>
-                  {detalle.tecnicas.map(tec => (
-                    <div key={tec.CotizacionTecnicaID} style={{ background: "#fff", border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 16px", marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14 }}>
-                      {tec.ImagenUrl ? (
-                        <div style={{ flexShrink: 0 }}>
-                          <img src={tec.ImagenUrl} alt="Diseño" onClick={() => setImagenModal(tec.ImagenUrl)}
-                            style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, border: `2px solid ${C.border}`, cursor: "pointer", transition: "transform 0.2s" }}
-                            onMouseEnter={e => e.target.style.transform = "scale(1.08)"}
-                            onMouseLeave={e => e.target.style.transform = "none"} />
-                          <p style={{ margin: "4px 0 0", fontSize: 10, color: C.muted, textAlign: "center" }}>Click para ampliar</p>
-                        </div>
-                      ) : (
-                        <div style={{ width: 80, height: 80, borderRadius: 8, background: "#f5f3ff", border: `2px dashed #ddd6fe`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <FaImage style={{ color: "#7c3aed", opacity: 0.3, fontSize: 24 }} />
-                        </div>
-                      )}
-                      <div style={{ flex: 1 }}>
-                        <p style={{ margin: "0 0 3px", fontSize: 13 }}><strong style={{ color: "#7c3aed" }}>Técnica:</strong> {tec.tecnica?.Nombre || "N/A"}</p>
-                        <p style={{ margin: "0 0 3px", fontSize: 13 }}><strong style={{ color: "#7c3aed" }}>Parte:</strong> {tec.parte?.Nombre || "N/A"}</p>
-                        {tec.Observaciones && <p style={{ margin: "0 0 3px", fontSize: 12, color: C.muted }}><strong style={{ color: C.text }}>Observaciones:</strong> {tec.Observaciones}</p>}
-                      </div>
-                      <div style={{ textAlign: "right", minWidth: 140 }}>
-                        <p style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 800, color: (!tec.CostoTecnica || parseFloat(tec.CostoTecnica) === 0) ? C.danger : C.success }}>
-                          {(!tec.CostoTecnica || parseFloat(tec.CostoTecnica) === 0) ? "Sin precio" : `$${formatPrecio(tec.CostoTecnica)}`}
-                        </p>
-                        <button onClick={() => handleAsignarCostoTecnica(tec.CotizacionTecnicaID)} disabled={!puedeEditarCostos}
-                          style={{ padding: "5px 12px", background: puedeEditarCostos ? C.warning : C.muted, color: puedeEditarCostos ? "#000" : "#fff", border: "none", borderRadius: 7, cursor: puedeEditarCostos ? "pointer" : "not-allowed", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 5, fontFamily: "'Outfit',sans-serif" }}>
-                          <FaDollarSign size={11} />{puedeEditarCostos ? "Asignar" : "Bloqueado"}
-                        </button>
-                      </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>Producto {index + 1}</p>
+                    <h6 style={{ color: C.navy, fontWeight: 800, margin: "2px 0 0", fontSize: 16 }}>{info.nombre}</h6>
+                    <div className="cz-chips">
+                      <span className="cz-chip" style={{ background: C.navy, color: "#fff", borderColor: C.navy }}>{detalle.Cantidad} unidad(es)</span>
+                      {info.tipo === "personalizado" && <span className="cz-chip violet"><FaMagic size={9} /> Personalizado</span>}
+                      {info.tipo === "prenda" && <span className="cz-chip amber"><FaTshirt size={9} /> Prenda propia</span>}
+                      {detalle.colores?.map(c => <span key={`c${c.CotizacionColorID || c.ColorID}`} className="cz-chip"><FaPalette size={9} /> {c.color?.Nombre}</span>)}
+                      {detalle.tallas?.map(t => <span key={`t${t.CotizacionTallaID || t.TallaID}`} className="cz-chip"><FaRulerHorizontal size={9} /> Talla {t.talla?.Nombre}</span>)}
+                      {detalle.insumos?.map(i => <span key={`i${i.CotizacionInsumoID || i.InsumoID}`} className="cz-chip"><FaLayerGroup size={9} /> {i.insumo?.Nombre}</span>)}
                     </div>
-                  ))}
-                </div>
-              )}
-              {!detalle.TraePrenda && (detalle.tallas?.length > 0 || detalle.colores?.length > 0 || detalle.insumos?.length > 0) && (
-                <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 12, marginTop: 4 }}>
-                  <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-                    {detalle.tallas?.length > 0 && <p style={{ margin: 0, fontSize: 12 }}><strong>Tallas:</strong> {detalle.tallas.map(t => `${t.talla?.Nombre} (${t.Cantidad})`).join(", ")}</p>}
-                    {detalle.colores?.length > 0 && <p style={{ margin: 0, fontSize: 12 }}><strong>Colores:</strong> {detalle.colores.map(c => `${c.color?.Nombre} (${c.Cantidad})`).join(", ")}</p>}
-                    {detalle.insumos?.length > 0 && <p style={{ margin: 0, fontSize: 12 }}><strong>Telas:</strong> {detalle.insumos.map(i => `${i.insumo?.Nombre} × ${i.CantidadRequerida}`).join(", ")}</p>}
+                    {info.desc && <p style={{ margin: "8px 0 0", fontSize: 12.5, color: "#92400e", background: C.warningSoft, border: "1px solid #fde68a", borderRadius: 8, padding: "6px 10px" }}><strong>Descripción:</strong> {info.desc}</p>}
+                  </div>
+                  <div className="cz-sub">
+                    <small>Subtotal</small>
+                    <strong>${formatPrecio(unit * (detalle.Cantidad || 0))}</strong>
+                    <div style={{ fontSize: 11, color: C.muted }}>{detalle.Cantidad} × ${formatPrecio(unit)}</div>
                   </div>
                 </div>
-              )}
-            </div>
-          )) : (
-            <div style={{ textAlign: "center", padding: 40, color: C.muted }}>No hay detalles</div>
+                <div className="cz-designs">
+                  <p style={{ margin: "0 0 12px", fontWeight: 800, color: C.violet, fontSize: 11.5, textTransform: "uppercase", letterSpacing: ".08em" }}>
+                    Diseños aplicados ({detalle.tecnicas?.length || 0})
+                  </p>
+                  {detalle.tecnicas?.length > 0 ? (
+                    <div className="cz-dgrid">
+                      {detalle.tecnicas.map(tec => (
+                        <DisenoCard key={`${tec.CotizacionTecnicaID}-${tec.CostoTecnica}`} tec={tec} editable={puedeEditarCostos}
+                          onGuardar={handleGuardarCosto} onVerImagen={setImagenModal} />
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 12.5, color: C.muted }}>Este producto no lleva diseños.</p>
+                  )}
+                </div>
+              </div>
+            );
+          }) : (
+            <div className="cz-empty"><div className="cz-empty-ico"><FaBoxOpen /></div>No hay productos en esta cotización</div>
           )}
+
+          <div className="cz-summary">
+            <div className="cz-summary-box">
+              <div><span>Productos (con diseños)</span><span>${formatPrecio(subtotalCalc)}</span></div>
+              <div><span>Unidades</span><span>{totalUnidades}</span></div>
+              <div className="tot"><span>Total cotización</span><strong>${formatPrecio(cotizacion.ValorTotal)}</strong></div>
+            </div>
+          </div>
         </div>
-        <div style={{ padding: "14px 26px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <button onClick={handleDescargarPdf} title={hayTecnicasSinCosto ? "Hay diseños sin precio" : "Descargar PDF"}
-            style={{ padding: "9px 20px", background: hayTecnicasSinCosto ? C.muted : C.danger, color: "white", border: "none", borderRadius: 9, cursor: "pointer", fontWeight: 700, display: "flex", alignItems: "center", gap: 7, fontSize: 13, opacity: hayTecnicasSinCosto ? 0.7 : 1, fontFamily: "'Outfit',sans-serif" }}>
-            <FaFilePdf /> Descargar PDF
-          </button>
-          <button onClick={onClose}
-            style={{ padding: "9px 22px", background: C.navy, color: "#fff", border: "none", borderRadius: 9, cursor: "pointer", fontWeight: 700, fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>
-            Cerrar
-          </button>
+
+        {/* Pie */}
+        <div className="cz-mfoot">
+          <div>
+            <button className="cz-btn red" onClick={handleDescargarPdf} disabled={descargando}
+              title={faltantes > 0 ? "Hay diseños sin precio" : "Descargar PDF"} style={faltantes > 0 ? { background: C.muted } : undefined}>
+              <FaFilePdf /> {descargando ? "Generando..." : "Descargar PDF"}
+            </button>
+            {(estadoNombre === "Pendiente" || estadoNombre === "Aprobada") && (
+              <button className="cz-btn outline-red" onClick={() => onCancelar(cotizacion)}><FaBan size={12} /> Cancelar cotización</button>
+            )}
+          </div>
+          <button className="cz-btn navy" onClick={onClose}>Cerrar</button>
         </div>
       </div>
       <ImagenModal src={imagenModal} onClose={() => setImagenModal(null)} />
@@ -442,70 +624,54 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onActualizar, onConvertir
    COMPONENTE PRINCIPAL
 ══════════════════════════════════════════════════════════ */
 const Cotizaciones = () => {
-
-  // AGREGA estos dos estados junto a los demás:
   const [totalItems, setTotalItems] = useState(0);
   const [totalPaginas, setTotalPaginas] = useState(1);
-
   const [cotizaciones, setCotizaciones] = useState([]);
   const [busqueda, setBusqueda] = useState("");
   const [filtroEstado, setFiltroEstado] = useState("Todos");
   const [cargando, setCargando] = useState(true);
-  const [mostrarDetalle, setMostrarDetalle] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [cotizacionSeleccionada, setCotizacionSeleccionada] = useState(null);
   const [imagenModal, setImagenModal] = useState(null);
   const [modalKey, setModalKey] = useState(0);
-
-  /* ── Paginación ── */
   const [paginaActual, setPaginaActual] = useState(1);
   const [itemsPorPagina, setItemsPorPagina] = useState(10);
+  const reqId = useRef(0);
 
+  const cargarCotizaciones = async (page, limit, search, estado) => {
+    const id = ++reqId.current;
+    setCargando(true);
+    try {
+      const response = await getCotizaciones({ page, limit, search, estado });
+      if (id !== reqId.current) return; // respuesta vieja: la ignoramos
+      setTotalItems(response.total || 0);
+      setTotalPaginas(Math.max(1, response.totalPaginas || 1));
+      setCotizaciones(response.datos || []);
+    } catch {
+      if (id === reqId.current) Swal.fire("Error", "No se pudieron cargar las cotizaciones", "error");
+    } finally { if (id === reqId.current) setCargando(false); }
+  };
 
-  // Carga inicial
-  useEffect(() => { cargarCotizaciones(1, itemsPorPagina, "", "Todos"); }, []);
+  // Recarga respetando la página, búsqueda y filtro actuales
+  const recargar = () => cargarCotizaciones(paginaActual, itemsPorPagina, busqueda, filtroEstado);
 
-  // Debounce en búsqueda
+  // Carga inicial + cambios de búsqueda (con debounce) y de filtro
   useEffect(() => {
     const timeout = setTimeout(() => {
       setPaginaActual(1);
       cargarCotizaciones(1, itemsPorPagina, busqueda, filtroEstado);
-    }, 350);
+    }, busqueda ? 350 : 0);
     return () => clearTimeout(timeout);
-  }, [busqueda]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busqueda, filtroEstado]);
 
-  // Cambio de filtro de estado
-  useEffect(() => {
-    setPaginaActual(1);
-    cargarCotizaciones(1, itemsPorPagina, busqueda, filtroEstado);
-  }, [filtroEstado]);
+  const handleCerrarFormulario = () => { setMostrarFormulario(false); setModalKey(prev => prev + 1); };
+  const handleCotizacionCreada = () => { setPaginaActual(1); return cargarCotizaciones(1, itemsPorPagina, busqueda, filtroEstado); };
+  const handleCerrarDetalle = () => { setCotizacionSeleccionada(null); recargar(); };
 
-
-  const mapeoEstados = { 1: "Pendiente", 2: "Aprobada", 3: "Rechazada", 4: "Cancelada", 5: "Convertir a venta" };
-
-  const cargarCotizaciones = async (page, limit, search, estado) => {
-    setCargando(true);
-    try {
-      const response = await getCotizaciones({ page, limit, search, estado });
-      const data = response.datos || [];
-      setTotalItems(response.total || 0);
-      setTotalPaginas(response.totalPaginas || 1);
-      setCotizaciones(data);
-    } catch { Swal.fire("Error", "No se pudieron cargar las cotizaciones", "error"); }
-    finally { setCargando(false); }
-  };
-
-  const handleCerrarFormulario = () => { setMostrarFormulario(false); setModalKey(prev => prev + 1); cargarCotizaciones(1, itemsPorPagina, busqueda, filtroEstado); };
-  const handleCerrarDetalle = async () => { setMostrarDetalle(false); setCotizacionSeleccionada(null); await cargarCotizaciones(paginaActual, itemsPorPagina, busqueda, filtroEstado); };
-
-  const cotizacionesFiltradas = cotizaciones;
-
-  /* ── Paginado ── */
   const paginaSegura = Math.min(paginaActual, totalPaginas);
   const desde = totalItems === 0 ? 0 : (paginaSegura - 1) * itemsPorPagina + 1;
   const hasta = Math.min(paginaSegura * itemsPorPagina, totalItems);
-  const cotizacionesPagina = cotizaciones;      // el backend ya pagina
-
 
   const handleCambiarPagina = (nuevaPagina) => {
     if (nuevaPagina >= 1 && nuevaPagina <= totalPaginas) {
@@ -520,215 +686,216 @@ const Cotizaciones = () => {
     cargarCotizaciones(1, n, busqueda, filtroEstado);
   };
 
+  const recargarDetalle = async (cotizacionID) => {
+    const response = await getCotizacionById(cotizacionID);
+    setCotizacionSeleccionada(response);
+    return response;
+  };
+
   const handleVerDetalle = async (cotizacionID) => {
-    try {
-      const response = await getCotizacionById(cotizacionID);
-      setCotizacionSeleccionada(response); setMostrarDetalle(true);
-    } catch { Swal.fire("Error", "No se pudo cargar el detalle", "error"); }
+    try { await recargarDetalle(cotizacionID); }
+    catch { Swal.fire("Error", "No se pudo cargar el detalle", "error"); }
   };
 
   const handleCancelarCotizacion = async (cotizacion) => {
-    const estadoNombre = cotizacion.estado?.Nombre || mapeoEstados[cotizacion.EstadoID] || "Pendiente";
-    const result = await Swal.fire({
+    const { nombre: estadoNombre } = estadoDe(cotizacion);
+    const result = await swalTop({
       title: '¿Cancelar esta cotización?',
-      html: `<p><strong>Cotización #${cotizacion.CotizacionID}</strong></p><p>Cliente: ${cotizacion.usuario?.Nombre || 'N/A'}</p><p>Estado actual: <strong>${estadoNombre}</strong></p>`,
+      html: `<p><strong>Cotización #${cotizacion.CotizacionID}</strong></p><p>Cliente: ${cotizacion.usuario?.Nombre || 'N/A'}</p><p>Estado actual: <strong>${estadoNombre}</strong></p><p style="color:#64748b;font-size:13px">Esta acción no se puede deshacer.</p>`,
       icon: 'warning', showCancelButton: true,
       confirmButtonColor: C.danger, cancelButtonColor: C.navy,
       confirmButtonText: 'Sí, cancelar', cancelButtonText: 'No, mantener'
     });
-    if (result.isConfirmed) {
-      try {
-        setCargando(true);
-        await cancelarCotizacion(cotizacion.CotizacionID);
-        Swal.fire({ icon: 'success', title: '¡Cotización cancelada!', timer: 2000, showConfirmButton: false });
-        cargarCotizaciones();
-      } catch (error) {
-        Swal.fire({ icon: 'error', title: 'Error al cancelar', text: error.response?.data?.message || error.message });
-      } finally { setCargando(false); }
+    if (!result.isConfirmed) return;
+    try {
+      await cancelarCotizacion(cotizacion.CotizacionID);
+      setCotizacionSeleccionada(null);
+      Swal.fire({ icon: 'success', title: '¡Cotización cancelada!', timer: 2000, showConfirmButton: false });
+      recargar();
+    } catch (error) {
+      swalTop({ icon: 'error', title: 'Error al cancelar', text: error.response?.data?.message || error.message });
     }
   };
 
-  const handleCambiarEstado = async (cotizacionID, nuevoEstado) => {
-    if (nuevoEstado === "Aprobada") {
-      const response = await getCotizacionById(cotizacionID);
-      const tecnicasSinCosto = response.detalles?.flatMap(d => d.tecnicas || []).filter(t => !t.CostoTecnica || parseFloat(t.CostoTecnica) === 0) || [];
-      if (tecnicasSinCosto.length > 0) {
-        await Swal.fire({ icon: "warning", title: "No se puede aprobar", html: `<p>Hay ${tecnicasSinCosto.length} técnica(s) sin costo asignado.</p>`, confirmButtonText: "Entendido", confirmButtonColor: C.warning });
-        return;
-      }
+  const handleAprobar = async (cotizacionID) => {
+    let response;
+    try { response = await getCotizacionById(cotizacionID); }
+    catch { Swal.fire("Error", "No se pudo cargar la cotización", "error"); return; }
+    const faltan = response.detalles?.flatMap(d => d.tecnicas || []).filter(sinCosto) || [];
+    if (faltan.length > 0) {
+      await swalTop({
+        icon: "warning", title: "No se puede aprobar",
+        html: `<p>Hay <strong>${faltan.length}</strong> diseño(s) sin costo asignado.</p><p style="color:#64748b;font-size:13px">Abre el detalle y asigna el costo de cada diseño.</p>`,
+        showCancelButton: true, confirmButtonText: "Asignar costos", cancelButtonText: "Cerrar", confirmButtonColor: C.accent, cancelButtonColor: C.muted,
+      }).then(r => { if (r.isConfirmed) setCotizacionSeleccionada(response); });
+      return;
     }
-    const estadoID = nuevoEstado === "Aprobada" ? 2 : nuevoEstado === "Cancelada" ? 4 : 1;
+    const ok = await swalTop({
+      title: `¿Aprobar la cotización #${cotizacionID}?`,
+      html: `<p>Total: <strong>$${formatPrecio(response.ValorTotal)}</strong></p><p style="color:#64748b;font-size:13px">Después de aprobarla ya no podrás modificar los costos.</p>`,
+      icon: "question", showCancelButton: true, confirmButtonText: "Sí, aprobar", cancelButtonText: "Cancelar",
+      confirmButtonColor: C.success, cancelButtonColor: C.muted,
+    });
+    if (!ok.isConfirmed) return;
     try {
-      await updateCotizacion(cotizacionID, { EstadoID: estadoID });
-      Swal.fire({ icon: "success", title: nuevoEstado === "Aprobada" ? "¡Cotización aprobada!" : "Estado actualizado", timer: 1500, showConfirmButton: false });
-      cargarCotizaciones();
-    } catch { Swal.fire("Error", "No se pudo actualizar el estado", "error"); }
+      await updateCotizacion(cotizacionID, { EstadoID: 2 });
+      Swal.fire({ icon: "success", title: "¡Cotización aprobada!", timer: 1500, showConfirmButton: false });
+      if (cotizacionSeleccionada?.CotizacionID === cotizacionID) await recargarDetalle(cotizacionID);
+      recargar();
+    } catch (error) {
+      swalTop({ icon: "error", title: "No se pudo aprobar", text: error.response?.data?.message || error.message });
+    }
   };
 
   const handleConvertirAVenta = async (cotizacionID) => {
-    const result = await Swal.fire({
-      title: '¿Convertir cotización a venta?', icon: 'question', showCancelButton: true,
+    const result = await swalTop({
+      title: '¿Convertir cotización a venta?',
+      html: `<p style="color:#64748b;font-size:13px">Se creará una venta pendiente y se descontará el stock de cada variante.</p>`,
+      icon: 'question', showCancelButton: true,
       confirmButtonText: 'Sí, convertir', cancelButtonText: 'Cancelar',
       confirmButtonColor: C.success, cancelButtonColor: C.muted
     });
-    if (result.isConfirmed) {
-      try {
-        const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/cotizaciones/${cotizacionID}/convertir-a-venta`);
-        Swal.fire({ icon: 'success', title: '¡Conversión exitosa!', text: `Venta ID: #${response.data.venta.VentaID}`, timer: 2500, showConfirmButton: false });
-        cargarCotizaciones();
-      } catch (error) {
-        Swal.fire({ icon: 'error', title: 'No se pudo convertir', text: error.response?.data?.message || error.message || 'Error desconocido' });
-      }
+    if (!result.isConfirmed) return;
+    try {
+      const response = await axios.post(`${API_BASE}/api/cotizaciones/${cotizacionID}/convertir-a-venta`);
+      setCotizacionSeleccionada(null);
+      Swal.fire({ icon: 'success', title: '¡Conversión exitosa!', text: `Venta #${response.data.venta.VentaID} creada`, timer: 2500, showConfirmButton: false });
+      recargar();
+    } catch (error) {
+      swalTop({ icon: 'error', title: 'No se pudo convertir', text: error.response?.data?.message || error.message || 'Error desconocido' });
     }
-  };
-
-  const getEstadoInfo = (c) => {
-    const nombre = c.estado?.Nombre || mapeoEstados[c.EstadoID] || mapeoEstados[c.estado?.EstadoID] || "Pendiente";
-    const map = {
-      Pendiente: { type: "pending", label: "Pendiente" },
-      Aprobada: { type: "approved", label: "Aprobada" },
-      Cancelada: { type: "canceled", label: "Cancelada" },
-      Procesada: { type: "processed", label: "Procesada" },
-    };
-    return { ...(map[nombre] || map.Pendiente), nombre };
   };
 
   const formatearFecha = (fecha) => fecha ? new Date(fecha).toLocaleDateString('es-CO', { year: 'numeric', month: 'short', day: 'numeric' }) : "—";
 
   const obtenerPrimerProducto = (detalles) => {
-    if (!Array.isArray(detalles) || detalles.length === 0) return { Nombre: "Sin producto", ImagenProducto: null, Cantidad: 0 };
-    const primerDetalle = detalles[0];
-    if (primerDetalle.TraePrenda) return { Nombre: "Prenda propia", ImagenProducto: null, Cantidad: primerDetalle.Cantidad || 0, esPrendaPropia: true };
-    const producto = primerDetalle.producto || {};
-    return { Nombre: producto.Nombre || "Producto", ImagenProducto: producto.ImagenProducto || null, Cantidad: primerDetalle.Cantidad || 0 };
+    if (!Array.isArray(detalles) || detalles.length === 0) return { Nombre: "Sin producto", Imagen: null, Cantidad: 0, extra: 0 };
+    const d = detalles[0];
+    const info = infoDetalle(d);
+    const primerDiseno = detalles.flatMap(x => x.tecnicas || []).map(urlDiseno).find(Boolean);
+    return { Nombre: info.nombre, Imagen: info.imagen || primerDiseno || null, Cantidad: d.Cantidad || 0, extra: detalles.length - 1, tipo: info.tipo };
   };
 
-  const pendientes = cotizaciones.filter(c => (c.estado?.Nombre || "Pendiente") === "Pendiente").length;
+  const pendientes = cotizaciones.filter(c => estadoDe(c).nombre === "Pendiente").length;
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-        * { box-sizing: border-box; }
-        .cot-row:hover { background: #f0f4ff !important; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-        @keyframes spin { to{transform:rotate(360deg)} }
-      `}</style>
+      <style>{CSS}</style>
 
-      <div style={{ minHeight: "100vh", background: C.bg, padding: "28px 32px", fontFamily: "'Outfit',sans-serif" }}>
+      <div className="cz-page sx-font" style={{ minHeight: "100vh", background: C.bg, padding: "28px 32px" }}>
 
         {/* HEADER */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div className="cz-head">
           <div>
-            <h4 style={{ margin: 0, fontWeight: 800, fontSize: 22, color: C.navy, letterSpacing: "-0.02em" }}>Gestión de Cotizaciones</h4>
+            <h4 className="cz-title">Gestión de Cotizaciones</h4>
             <p style={{ margin: "3px 0 0", color: C.muted, fontSize: 13 }}>
-              {totalItems} cotización{totalItems !== 1 ? "es" : ""} ·{" "}
-              <span style={{ color: C.warning, fontWeight: 700 }}>{pendientes} pendiente{pendientes !== 1 ? "s" : ""}</span>
+              {totalItems} cotizaci{totalItems !== 1 ? "ones" : "ón"} ·{" "}
+              <span style={{ color: C.warning, fontWeight: 700 }}>{pendientes} pendiente{pendientes !== 1 ? "s" : ""} en esta página</span>
             </p>
           </div>
-          <button onClick={() => setMostrarFormulario(true)}
-            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "'Outfit',sans-serif", boxShadow: `0 4px 12px ${C.navy}33`, transition: "all 0.2s" }}
-            onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "none"}>
+          <button className="sx-btn sx-btn-dark sx-btn-sm" onClick={() => setMostrarFormulario(true)}>
             <FaPlusCircle size={15} /> Agregar Cotización
           </button>
         </div>
 
         {/* FILTROS */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12 }}>
-          <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
-            style={{ padding: "9px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", cursor: "pointer", color: C.text, background: "#fff" }}
-            onFocus={e => e.target.style.borderColor = C.accent}
-            onBlur={e => e.target.style.borderColor = C.border}>
+        <div className="cz-filters">
+          <select className="cz-input" aria-label="Filtrar por estado" value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)} style={{ cursor: "pointer" }}>
             <option value="Todos">Todos los estados</option>
-            <option value="Pendiente">Pendiente</option>
-            <option value="Aprobada">Aprobada</option>
-            <option value="Cancelada">Cancelada</option>
+            {Object.values(ESTADOS).map(e => <option key={e.nombre} value={e.nombre}>{e.nombre}</option>)}
           </select>
-          <div style={{ position: "relative", width: 280 }}>
-            <FaSearch style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: C.muted, fontSize: 13 }} />
-            <input type="text" placeholder="Buscar cotización..." value={busqueda} onChange={e => setBusqueda(e.target.value)}
-              style={{ width: "100%", padding: "9px 12px 9px 36px", border: `1.5px solid ${C.border}`, borderRadius: 10, fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", transition: "border-color 0.2s" }}
-              onFocus={e => e.target.style.borderColor = C.accent}
-              onBlur={e => e.target.style.borderColor = C.border} />
+          <div className="cz-search">
+            <FaSearch />
+            <input className="cz-input" type="text" aria-label="Buscar cotización" placeholder="Buscar por #, cliente o documento..." value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           </div>
         </div>
 
         {/* TABLA */}
-        <div style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
+        <div className="cz-tablewrap">
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <table className="cz-table">
               <thead>
                 <tr>
                   {["ID", "Imagen", "Cliente", "Producto", "Fecha", "Estado", "Valor Total", "Acciones"].map((h, i) => (
-                    <th key={i} style={{ ...TH, textAlign: i >= 5 ? "center" : "left" }}>{h}</th>
+                    <th key={i} style={{ textAlign: i >= 5 ? "center" : "left" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {cargando ? (
-                  <tr><td colSpan={8} style={{ textAlign: "center", padding: 48 }}>
-                    <div style={{ width: 36, height: 36, border: `3px solid ${C.border}`, borderTop: `3px solid ${C.accent}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-                    <span style={{ color: C.muted, fontSize: 13 }}>Cargando cotizaciones...</span>
-                  </td></tr>
-                ) : cotizacionesFiltradas.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: "center", padding: 48, color: C.muted }}>
-                    <FaBoxOpen size={36} style={{ opacity: 0.2, marginBottom: 10, display: "block", margin: "0 auto 10px" }} />
-                    {cotizaciones.length === 0 ? "No hay cotizaciones registradas" : "No se encontraron cotizaciones"}
+                  Array.from({ length: Math.min(itemsPorPagina, 6) }).map((_, i) => (
+                    <tr key={`sk${i}`}>
+                      <td><div className="cz-skel" style={{ width: 38 }} /></td>
+                      <td><div className="cz-skel" style={{ width: 48, height: 48, borderRadius: 10 }} /></td>
+                      <td><div className="cz-skel" style={{ width: 130, marginBottom: 6 }} /><div className="cz-skel" style={{ width: 90, height: 10 }} /></td>
+                      <td><div className="cz-skel" style={{ width: 120 }} /></td>
+                      <td><div className="cz-skel" style={{ width: 80 }} /></td>
+                      <td><div className="cz-skel" style={{ width: 80, margin: "0 auto", height: 22, borderRadius: 11 }} /></td>
+                      <td><div className="cz-skel" style={{ width: 80, margin: "0 auto", height: 22, borderRadius: 11 }} /></td>
+                      <td><div className="cz-skel" style={{ width: 100, margin: "0 auto", height: 30 }} /></td>
+                    </tr>
+                  ))
+                ) : cotizaciones.length === 0 ? (
+                  <tr><td colSpan={8}>
+                    <div className="cz-empty">
+                      <div className="cz-empty-ico"><FaBoxOpen /></div>
+                      <p style={{ margin: 0, fontWeight: 700, color: C.navy, fontSize: 15 }}>
+                        {busqueda || filtroEstado !== "Todos" ? "No se encontraron cotizaciones" : "No hay cotizaciones registradas"}
+                      </p>
+                      <p style={{ margin: "4px 0 0", fontSize: 13 }}>
+                        {busqueda || filtroEstado !== "Todos" ? "Prueba con otra búsqueda o cambia el filtro de estado." : "Crea la primera con el botón «Agregar Cotización»."}
+                      </p>
+                    </div>
                   </td></tr>
                 ) : (
-                  cotizacionesPagina.map((cot, idx) => {
+                  cotizaciones.map((cot, idx) => {
                     const producto = obtenerPrimerProducto(cot.detalles);
-                    const { nombre: estadoNombre, type: estadoType } = getEstadoInfo(cot);
+                    const { nombre: estadoNombre, type: estadoType } = estadoDe(cot);
                     return (
-                      <tr key={cot.CotizacionID} className="cot-row"
-                        style={{ background: idx % 2 === 0 ? "#fff" : C.accentSoft, transition: "background 0.15s", animation: "fadeIn 0.3s ease both", animationDelay: `${idx * 0.03}s` }}>
-                        <td style={{ padding: "12px 16px" }}><Badge type="navy">#{cot.CotizacionID}</Badge></td>
-                        <td style={{ padding: "10px 16px" }}>
-                          {producto.ImagenProducto ? (
-                            <img src={producto.ImagenProducto} alt={producto.Nombre}
-                              onClick={() => setImagenModal(producto.ImagenProducto)}
-                              style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 9, cursor: "pointer", border: `2px solid ${C.border}`, transition: "transform 0.2s, box-shadow 0.2s" }}
-                              onMouseEnter={e => { e.target.style.transform = "scale(1.12)"; e.target.style.boxShadow = "0 4px 12px rgba(0,0,0,0.18)"; }}
-                              onMouseLeave={e => { e.target.style.transform = "none"; e.target.style.boxShadow = "none"; }}
-                            />
+                      <tr key={cot.CotizacionID} className="cz-row"
+                        style={{ background: idx % 2 === 0 ? "#fff" : "#fafcff", animationDelay: `${idx * 0.03}s` }}>
+                        <td><Badge type="navy">#{cot.CotizacionID}</Badge></td>
+                        <td>
+                          {producto.Imagen ? (
+                            <img className="cz-thumb" src={producto.Imagen} alt={producto.Nombre} onClick={() => setImagenModal(producto.Imagen)} />
                           ) : (
-                            <div style={{ width: 48, height: 48, borderRadius: 9, background: C.accentSoft, border: `2px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                              <FaBoxOpen style={{ color: C.muted, opacity: 0.4, fontSize: 18 }} />
+                            <div className="cz-thumb" style={{ cursor: "default" }}>
+                              {producto.tipo === "personalizado" ? <FaMagic style={{ color: C.violet, opacity: .6 }} /> : <FaBoxOpen style={{ color: C.muted, opacity: 0.45, fontSize: 18 }} />}
                             </div>
                           )}
                         </td>
-                        <td style={{ padding: "12px 16px" }}>
+                        <td>
                           <div style={{ fontWeight: 700, color: C.navy }}>{cot.usuario?.Nombre || "Sin nombre"}</div>
                           <div style={{ fontSize: 11, color: C.muted }}>CC: {cot.usuario?.DocumentoID || "N/A"}</div>
                         </td>
-                        <td style={{ padding: "12px 16px", fontWeight: 600, color: C.navy, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {producto.Nombre}
-                          <div style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>{producto.Cantidad} ud{producto.Cantidad !== 1 ? "s" : ""}</div>
+                        <td style={{ fontWeight: 600, color: C.navy, maxWidth: 200 }}>
+                          <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{producto.Nombre}</div>
+                          <div style={{ fontSize: 11, color: C.muted, fontWeight: 400 }}>
+                            {producto.Cantidad} ud{producto.Cantidad !== 1 ? "s" : ""}{producto.extra > 0 ? ` · +${producto.extra} producto${producto.extra > 1 ? "s" : ""} más` : ""}
+                          </div>
                         </td>
-                        <td style={{ padding: "12px 16px", color: C.muted, fontSize: 12 }}>{formatearFecha(cot.FechaCotizacion)}</td>
-                        <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                          <Badge type={estadoType}>{estadoNombre}</Badge>
+                        <td style={{ color: C.muted, fontSize: 12, whiteSpace: "nowrap" }}>{formatearFecha(cot.FechaCotizacion)}</td>
+                        <td style={{ textAlign: "center" }}><Badge type={estadoType} dot>{estadoNombre}</Badge></td>
+                        <td style={{ textAlign: "center" }}>
+                          {parseFloat(cot.ValorTotal) > 0
+                            ? <Badge type="money">${formatPrecio(cot.ValorTotal)}</Badge>
+                            : <span className="cz-badge money zero" title="Aún sin costear">Por costear</span>}
                         </td>
-                        <td style={{ padding: "12px 16px", textAlign: "center" }}>
-                          <Badge type="success">${formatPrecio(cot.ValorTotal)}</Badge>
-                        </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <div style={{ display: "flex", gap: 5, justifyContent: "center", flexWrap: "wrap" }}>
+                        <td>
+                          <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
                             <ActionBtn onClick={() => handleVerDetalle(cot.CotizacionID)} title="Ver detalle" color={C.accent}><FaEye size={12} /></ActionBtn>
                             {estadoNombre === "Pendiente" && (
                               <>
-                                <ActionBtn onClick={() => handleCambiarEstado(cot.CotizacionID, "Aprobada")} title="Aprobar" color={C.success}><FaCheck size={12} /></ActionBtn>
+                                <ActionBtn onClick={() => handleAprobar(cot.CotizacionID)} title="Aprobar" color={C.success}><FaCheck size={12} /></ActionBtn>
                                 <ActionBtn onClick={() => handleCancelarCotizacion(cot)} title="Cancelar" color={C.danger}><FaBan size={12} /></ActionBtn>
                               </>
                             )}
                             {estadoNombre === "Aprobada" && (
                               <>
-                                <ActionBtn onClick={() => handleConvertirAVenta(cot.CotizacionID)} title="Convertir a venta" color={C.info}><FaExchangeAlt size={12} /></ActionBtn>
-                                <ActionBtn onClick={() => handleCancelarCotizacion(cot)} title="Cancelar" color={C.warning}><FaBan size={12} /></ActionBtn>
+                                <ActionBtn onClick={() => handleConvertirAVenta(cot.CotizacionID)} title="Convertir a venta" color={C.violet}><FaExchangeAlt size={12} /></ActionBtn>
+                                <ActionBtn onClick={() => handleCancelarCotizacion(cot)} title="Cancelar" color={C.danger}><FaBan size={12} /></ActionBtn>
                               </>
                             )}
-                            {estadoNombre === "Cancelada" && <Badge type="canceled">Cancelada</Badge>}
                           </div>
                         </td>
                       </tr>
@@ -739,7 +906,6 @@ const Cotizaciones = () => {
             </table>
           </div>
 
-          {/* ── PAGINACIÓN ── */}
           {!cargando && (
             <Paginacion
               paginaActual={paginaSegura}
@@ -757,12 +923,14 @@ const Cotizaciones = () => {
 
       <ImagenModal src={imagenModal} onClose={() => setImagenModal(null)} />
 
-      {mostrarDetalle && cotizacionSeleccionada && (
+      {cotizacionSeleccionada && (
         <ModalDetalleCotizacion
           cotizacion={cotizacionSeleccionada}
           onClose={handleCerrarDetalle}
-          onActualizar={cargarCotizaciones}
+          onRecargar={recargarDetalle}
+          onAprobar={handleAprobar}
           onConvertirAVenta={handleConvertirAVenta}
+          onCancelar={handleCancelarCotizacion}
         />
       )}
 
@@ -770,7 +938,7 @@ const Cotizaciones = () => {
         <FormularioCotizacion
           key={modalKey}
           onClose={handleCerrarFormulario}
-          onActualizar={cargarCotizaciones}
+          onActualizar={handleCotizacionCreada}
         />
       )}
     </>

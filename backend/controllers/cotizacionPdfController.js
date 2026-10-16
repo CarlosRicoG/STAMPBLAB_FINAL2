@@ -37,6 +37,33 @@ function fetchImageBuffer(url) {
     });
 }
 
+
+// ─────────────────────────────────────────────────────────
+// Imágenes de diseño: el campo real del modelo es "ImagenDiseño" (con ñ) y
+// guarda el nombre del archivo subido a uploads/disenos. Se lee del disco;
+// solo PNG/JPEG (los formatos que pdfkit sabe dibujar).
+// ─────────────────────────────────────────────────────────
+const fs = require('fs');
+const path = require('path');
+function claveImagenDiseno(tec) {
+    return tec['ImagenDiseño'] || tec.ImagenDiseno || null;
+}
+// "[PERSONALIZADO] Buso - detalle" -> "Buso (personalizado)"
+function nombrePersonalizado(detalle) {
+    const m = /^\[PERSONALIZADO\]\s*(.+?)(\s+-\s+.*)?$/s.exec(detalle.PrendaDescripcion || '');
+    return m ? `${m[1]} (personalizado)` : null;
+}
+async function cargarImagenDiseno(clave) {
+    if (!clave) return null;
+    if (/^https?:\/\//i.test(clave)) return fetchImageBuffer(clave);
+    const archivo = path.join(__dirname, '..', 'uploads', 'disenos', path.basename(clave));
+    if (!fs.existsSync(archivo)) return null;
+    const buf = fs.readFileSync(archivo);
+    const esPng = buf[0] === 0x89 && buf[1] === 0x50;
+    const esJpg = buf[0] === 0xff && buf[1] === 0xd8;
+    return (esPng || esJpg) ? buf : null;
+}
+
 // ─────────────────────────────────────────────────────────
 // Paleta de colores (coherente con el design system)
 // ─────────────────────────────────────────────────────────
@@ -180,10 +207,10 @@ exports.descargarPdfCotizacion = async (req, res) => {
         const imagenesDisenos = {};
         for (const detalle of cotizacion.detalles || []) {
             for (const tec of detalle.tecnicas || []) {
-                const imgUrl = tec.ImagenDiseno || tec.tecnica?.ImagenURL || tec.ImagenURL || null;
+                const imgUrl = claveImagenDiseno(tec);
                 if (imgUrl && !imagenesDisenos[imgUrl]) {
                     try {
-                        imagenesDisenos[imgUrl] = await fetchImageBuffer(imgUrl);
+                        imagenesDisenos[imgUrl] = await cargarImagenDiseno(imgUrl);
                     } catch (e) {
                         console.warn('No se pudo cargar imagen:', imgUrl, e.message);
                         imagenesDisenos[imgUrl] = null;
@@ -295,7 +322,7 @@ exports.descargarPdfCotizacion = async (req, res) => {
             // Nombre del producto
             const nombreProducto = detalle.TraePrenda
                 ? 'Prenda llevada por el cliente'
-                : (detalle.producto?.Nombre || 'Producto sin especificar');
+                : (detalle.producto?.Nombre || nombrePersonalizado(detalle) || 'Producto sin especificar');
 
             doc.fillColor(idx % 2 === 0 ? P.accent : P.purple)
                 .font('Helvetica-Bold').fontSize(12)
@@ -375,7 +402,7 @@ exports.descargarPdfCotizacion = async (req, res) => {
                     }
 
                     // Imagen del diseño (si existe)
-                    const imgUrl    = tec.ImagenDiseno || tec.tecnica?.ImagenURL || tec.ImagenURL || null;
+                    const imgUrl    = claveImagenDiseno(tec);
                     const imgBuffer = imgUrl ? imagenesDisenos[imgUrl] : null;
 
                     const IMG_W  = 72;
@@ -460,9 +487,11 @@ exports.descargarPdfCotizacion = async (req, res) => {
         for (let idx = 0; idx < cotizacion.detalles.length; idx++) {
             const detalle = cotizacion.detalles[idx];
 
-            const precioBase    = parseFloat(detalle.producto?.PrecioBase || 0);
-            const precioTalla   = parseFloat(detalle.tallas?.[0]?.talla?.Precio || 0);
-            const precioTela    = parseFloat(detalle.insumos?.[0]?.insumo?.PrecioTela || 0);
+            // Producto personalizado: trae su propio precio unitario
+            const precioPropio  = parseFloat(detalle.PrecioUnitario || 0);
+            const precioBase    = precioPropio > 0 ? precioPropio : parseFloat(detalle.producto?.PrecioBase || 0);
+            const precioTalla   = precioPropio > 0 ? 0 : parseFloat(detalle.tallas?.[0]?.talla?.Precio || 0);
+            const precioTela    = precioPropio > 0 ? 0 : parseFloat(detalle.insumos?.[0]?.insumo?.PrecioTela || 0);
             const costoTecnicas = (detalle.tecnicas || []).reduce((s, t) => s + parseFloat(t.CostoTecnica || 0), 0);
             const precioUnit    = precioBase + precioTalla + precioTela + costoTecnicas;
             const subtotal      = precioUnit * detalle.Cantidad;
@@ -473,7 +502,7 @@ exports.descargarPdfCotizacion = async (req, res) => {
 
             const nombreProd = detalle.TraePrenda
                 ? 'Prenda propia'
-                : (detalle.producto?.Nombre || 'Producto');
+                : (detalle.producto?.Nombre || nombrePersonalizado(detalle) || 'Producto');
 
             doc.fillColor(P.navy).font('Helvetica-Bold').fontSize(9)
                 .text(`${idx + 1}. ${nombreProd}`, LEFT + 8, y, { width: pageW / 2 });
@@ -585,7 +614,7 @@ function estimarAltura(detalle, imagenesDisenos = {}) {
     if (detalle.tecnicas?.length) {
         h += 24; // header diseños
         for (const tec of detalle.tecnicas) {
-            const imgUrl = tec.ImagenDiseno || tec.tecnica?.ImagenURL || tec.ImagenURL || null;
+            const imgUrl = claveImagenDiseno(tec);
             const hasImg = imgUrl && !!imagenesDisenos[imgUrl];
             h += (hasImg ? 84 : 62) + 6;
         }

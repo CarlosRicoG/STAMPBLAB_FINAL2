@@ -211,6 +211,21 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
 }
 
 
+
+// Precio unitario de una línea de cotización (misma regla que calcularValorTotalCotizacion)
+function precioUnitarioDetalle(detalle) {
+    let unit;
+    if (detalle.PrecioUnitario && parseFloat(detalle.PrecioUnitario) > 0) {
+        unit = parseFloat(detalle.PrecioUnitario);
+    } else {
+        unit = parseFloat(detalle.producto?.PrecioBase || 0)
+            + parseFloat(detalle.tallas?.[0]?.talla?.Precio || 0)
+            + parseFloat(detalle.insumos?.[0]?.insumo?.PrecioTela || 0);
+    }
+    const tecnicas = (detalle.tecnicas || []).reduce((s, t) => s + (parseFloat(t.CostoTecnica) || 0), 0);
+    return unit + tecnicas;
+}
+
 // ============================================
 // CONVERTIR COTIZACIÓN A VENTA - CON FIX TraePrenda
 // ============================================
@@ -249,62 +264,71 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             ]                                                                           // 13
         });                                                                             // 14
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada', cotizacionID }); // 15
+        if (cotizacion.EstadoID === 5) return res.status(400).json({ message: 'Esta cotización ya fue convertida a venta' });
         if (cotizacion.EstadoID !== 2) return res.status(400).json({
-            message: 'Solo se pueden convertir cotizaciones aprobadas'
-        }); // 16
+            message: `Solo se pueden convertir cotizaciones aprobadas (estado actual: ${cotizacion.estado?.Nombre || cotizacion.EstadoID})`
+        });
         if (!cotizacion.detalles || cotizacion.detalles.length === 0) return res.status(400).json({
             message: 'La cotización no tiene productos asociados'
-        }); // 17
-        for (const detalle of cotizacion.detalles) {                                    // 18
-            const traePrenda = Boolean(detalle.TraePrenda);                             // 19
-            if (traePrenda) continue;                                                   // 20
-            const colorID = detalle.colores?.[0]?.ColorID;                              // 21
-            const tallaID = detalle.tallas?.[0]?.TallaID;                               // 22
-            if (!colorID || !tallaID) continue;                                         // 23
-            const telaID = detalle.insumos?.[0]?.InsumoID || null;                      // 24
-            const whereStock = { ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID }; // 25
-            if (telaID) whereStock.TelaID = telaID;                                     // 26
-            const variante = await InventarioProducto.findOne({ where: whereStock });   // 27
-            if (!variante || variante.Stock < detalle.Cantidad) {
-                const nombre = detalle.producto?.Nombre || `producto ${detalle.ProductoID}`;
-                return res.status(400).json({
-                    message: `Stock insuficiente para ${nombre}. Disponible: ${variante ? variante.Stock : 0}, requerido: ${detalle.Cantidad}`
-                });
+        });
+
+        // 1) Calcular lo que se necesita de cada variante (agrupado: dos líneas pueden usar la misma)
+        const lineas = [];
+        const requerido = new Map();
+        for (const detalle of cotizacion.detalles) {
+            const traePrenda = Boolean(detalle.TraePrenda);
+            const colorID = detalle.colores?.[0]?.ColorID || null;
+            const tallaID = detalle.tallas?.[0]?.TallaID || null;
+            const telaID = detalle.insumos?.[0]?.InsumoID || null;
+            const usaInventario = !traePrenda && detalle.ProductoID && colorID && tallaID;
+            lineas.push({ detalle, colorID, tallaID, telaID, usaInventario, precioUnitario: precioUnitarioDetalle(detalle) });
+            if (usaInventario) {
+                const key = `${detalle.ProductoID}|${colorID}|${tallaID}|${telaID || ''}`;
+                const r = requerido.get(key) || { ProductoID: detalle.ProductoID, colorID, tallaID, telaID, cantidad: 0, detalle };
+                r.cantidad += parseInt(detalle.Cantidad) || 0;
+                requerido.set(key, r);
             }
-        }                                                                               // 28
-        const nuevaVenta = await Venta.create({                                         // 29
-            DocumentoID: cotizacion.DocumentoID, FechaVenta: new Date(),                // 30
-            Subtotal: cotizacion.ValorTotal, Total: cotizacion.ValorTotal, EstadoID: 8  // 31
-        });                                                                             // 32
-        for (const detalle of cotizacion.detalles) {                                    // 33
-            const traePrenda = Boolean(detalle.TraePrenda);                             // 34
-            const tallaID = detalle.tallas?.[0]?.TallaID || null;                       // 35
-            const colorID = detalle.colores?.[0]?.ColorID || null;                      // 36
-            const telaID = detalle.insumos?.[0]?.InsumoID || null;                      // 37
-            const precioBase = parseFloat(detalle.producto?.PrecioBase) || 0;           // 38
-            const precioTalla = parseFloat(detalle.tallas?.[0]?.talla?.Precio) || 0;    // 39
-            const precioTela = parseFloat(detalle.insumos?.[0]?.insumo?.PrecioTela) || 0; // 40
-            const costoTecnicas = detalle.tecnicas?.reduce((sum, t) => sum + (parseFloat(t.CostoTecnica) || 0), 0) || 0; // 41
-            const precioUnitario = traePrenda ? 0 : (precioBase + precioTalla + precioTela + costoTecnicas); // 42
-            await DetalleVenta.create({                                                 // 43
-                VentaID: nuevaVenta.VentaID, ProductoID: detalle.ProductoID,            // 44
-                ColorID: colorID, TallaID: tallaID, Cantidad: detalle.Cantidad, PrecioUnitario: precioUnitario // 45
-            });                                                                         // 46
-            if (!traePrenda && colorID && tallaID) {                                    // 47
-                const whereDecrement = { ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID }; // 48
-                if (telaID) whereDecrement.TelaID = telaID;                             // 49
-                const variante = await InventarioProducto.findOne({ where: whereDecrement }); // 50
-                if (variante && variante.Stock >= detalle.Cantidad) {                   // 51
-                    await InventarioProducto.decrement('Stock', { by: detalle.Cantidad, where: whereDecrement }); // 52
-                }                                                                       // 53
-            }                                                                           // 54
-        }                                                                               // 55
-        await cotizacion.update({ EstadoID: 5 });                                       // 56
+        }
+
+        // 2) Todo dentro de una transacción: si algo falla no queda una venta a medias
+        const resultado = await sequelize.transaction(async (t) => {
+            for (const r of requerido.values()) {
+                const where = { ProductoID: r.ProductoID, ColorID: r.colorID, TallaID: r.tallaID };
+                if (r.telaID) where.TelaID = r.telaID;
+                const variante = await InventarioProducto.findOne({ where, transaction: t, lock: t.LOCK.UPDATE });
+                if (!variante || variante.Stock < r.cantidad) {
+                    const d = r.detalle;
+                    const desc = [d.producto?.Nombre || `Producto ${r.ProductoID}`, d.colores?.[0]?.color?.Nombre, d.tallas?.[0]?.talla?.Nombre].filter(Boolean).join(' / ');
+                    const err = new Error(variante
+                        ? `Stock insuficiente para ${desc}. Disponible: ${variante.Stock}, requerido: ${r.cantidad}`
+                        : `No existe en inventario la variante ${desc}`);
+                    err.status = 400;
+                    throw err;
+                }
+                await variante.decrement('Stock', { by: r.cantidad, transaction: t });
+            }
+            const total = lineas.reduce((s, l) => s + l.precioUnitario * (parseInt(l.detalle.Cantidad) || 0), 0);
+            const venta = await Venta.create({
+                DocumentoID: cotizacion.DocumentoID, FechaVenta: new Date(),
+                Subtotal: total, Total: total, EstadoID: 8
+            }, { transaction: t });
+            for (const l of lineas) {
+                await DetalleVenta.create({
+                    VentaID: venta.VentaID, ProductoID: l.detalle.ProductoID || null,
+                    ColorID: l.colorID, TallaID: l.tallaID,
+                    Cantidad: l.detalle.Cantidad, PrecioUnitario: l.precioUnitario
+                }, { transaction: t });
+            }
+            await cotizacion.update({ EstadoID: 5, ValorTotal: total }, { transaction: t });
+            return venta;
+        });
+
         return res.status(201).json({
-            message: 'Cotización convertida a venta exitosamente', venta: nuevaVenta,
+            message: 'Cotización convertida a venta exitosamente', venta: resultado,
             cotizacionID: cotizacion.CotizacionID
-        }); // 57
+        });
     } catch (error) {                                                                   // 58
+        if (error.status === 400) return res.status(400).json({ message: error.message });
         res.status(500).json({ message: 'Error al convertir cotización', error: error.message }); // 59
     }                                                                                   // 60
 };
@@ -341,15 +365,24 @@ exports.createCotizacionCompleta = async (req, res) => {
         if (!detalles || detalles.length === 0) return res.status(400).json({ message: 'Debe incluir al menos un producto' }); // 4
         const usuario = await Usuario.findByPk(DocumentoID);                            // 5
         if (!usuario) return res.status(404).json({ message: 'Usuario no encontrado', DocumentoID }); // 6
+        for (const [i, d] of detalles.entries()) {
+            if (!(parseInt(d.Cantidad) > 0)) return res.status(400).json({ message: `Producto ${i + 1}: la cantidad debe ser mayor a 0` });
+            if (!d.ProductoID && !d.TraePrenda && !(parseFloat(d.PrecioUnitario) > 0))
+                return res.status(400).json({ message: `Producto ${i + 1}: un producto personalizado necesita precio unitario` });
+            if (d.ProductoID && !(await Producto.findByPk(d.ProductoID)))
+                return res.status(400).json({ message: `Producto ${i + 1}: el producto ${d.ProductoID} no existe` });
+        }
         const nuevaCotizacion = await Cotizacion.create({                               // 7
             DocumentoID, FechaCotizacion: FechaCotizacion || new Date(),                // 8
             ValorTotal: ValorTotal || 0, EstadoID: 1                                    // 9
         });                                                                             // 10
         for (const detalle of detalles) {                                               // 11
             const nuevoDetalle = await DetalleCotizacion.create({                       // 12
-                CotizacionID: nuevaCotizacion.CotizacionID, ProductoID: detalle.ProductoID, // 13
+                CotizacionID: nuevaCotizacion.CotizacionID, ProductoID: detalle.ProductoID || null, // 13
                 Cantidad: detalle.Cantidad, TraePrenda: Boolean(detalle.TraePrenda),    // 14
-                PrendaDescripcion: detalle.PrendaDescripcion || null                    // 15
+                PrendaDescripcion: detalle.PrendaDescripcion || null,                   // 15
+                // Producto personalizado (sin catálogo): guarda su precio para que el total no se pierda al recalcular
+                PrecioUnitario: !detalle.ProductoID && parseFloat(detalle.PrecioUnitario) > 0 ? parseFloat(detalle.PrecioUnitario) : null
             });                                                                         // 16
             if (detalle.tallas?.length > 0) await CotizacionTalla.bulkCreate(detalle.tallas.map(t =>
             ({
@@ -370,6 +403,8 @@ exports.createCotizacionCompleta = async (req, res) => {
                 Observaciones: t.Observaciones || null, CostoTecnica: t.CostoTecnica || 0
             }))); // 20
         }                                                                               // 21
+        // El total se calcula en el servidor con la misma regla que al asignar costos
+        await calcularValorTotalCotizacion(nuevaCotizacion.CotizacionID);
         const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { // 22
             include: [                                                                  // 23
                 { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },     // 24
@@ -406,7 +441,7 @@ exports.getAllCotizaciones = async (req, res) => {
         const search = (req.query.search || "").trim();                                 // 4
         const estado = (req.query.estado || "Todos").trim();                            // 5
         const offset = (page - 1) * limit;                                              // 6
-        const whereCotizacion = { EstadoID: { [Op.ne]: 5 } };                           // 7
+        const whereCotizacion = {};                                                     // 7
         if (search) {                                                                   // 8
             if (!isNaN(search)) {                                                       // 9
                 whereCotizacion[Op.or] = [                                              // 10
@@ -517,6 +552,23 @@ exports.updateCotizacion = async (req, res) => {
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada' }); // 10
         const estadoAnterior = cotizacion.EstadoID;                                     // 11
         const estadoNuevo = EstadoID ? parseInt(EstadoID) : estadoAnterior;             // 12
+        if (estadoNuevo !== estadoAnterior) {
+            if ([4, 5].includes(estadoAnterior)) {
+                return res.status(400).json({ message: `No se puede cambiar el estado de una cotización ${estadoAnterior === 5 ? 'procesada' : 'cancelada'}` });
+            }
+            if (estadoNuevo === 5) {
+                return res.status(400).json({ message: 'Para procesar la cotización usa "Convertir a venta"' });
+            }
+            if (estadoNuevo === 2) {
+                const sinCosto = await CotizacionTecnica.count({
+                    include: [{ model: DetalleCotizacion, as: 'detalleCotizacion', where: { CotizacionID: cotizacionID }, attributes: [] }],
+                    where: { [Op.or]: [{ CostoTecnica: null }, { CostoTecnica: { [Op.lte]: 0 } }] }
+                });
+                if (sinCosto > 0) {
+                    return res.status(400).json({ message: `No se puede aprobar: hay ${sinCosto} diseño(s) sin costo asignado` });
+                }
+            }
+        }
         // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
         await cotizacion.update({                                                       // 27
             ValorTotal: ValorTotal !== undefined ? ValorTotal : cotizacion.ValorTotal,  // 28
@@ -588,6 +640,7 @@ exports.cancelarCotizacion = async (req, res) => {
         if (cotizacion.EstadoID === 5) return res.status(400).json({
             message: 'No se puede cancelar una cotización ya convertida a venta'
         }); // 10
+        if (cotizacion.EstadoID === 4) return res.status(400).json({ message: 'La cotización ya está cancelada' });
         // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
         const stockDevuelto = false;
         await cotizacion.update({ EstadoID: 4 });                                       // 24

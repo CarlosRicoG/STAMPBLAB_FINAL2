@@ -82,6 +82,12 @@ exports.getAllVentas = async (req, res) => {
         // no sobre las filas del JOIN con DetalleVenta.
         const rows = await Venta.findAll({
             where: whereVenta,
+            // El comprobante (imagen base64) puede pesar MB: en el listado solo se indica si existe;
+            // la imagen completa se obtiene con GET /api/ventas/:id
+            attributes: {
+                exclude: ['ComprobanteTransferencia'],
+                include: [[sequelize.literal('(`Venta`.`ComprobanteTransferencia` IS NOT NULL)'), 'TieneComprobante']]
+            },
             include: [
                 {
                     model: Usuario,
@@ -290,6 +296,21 @@ exports.updateEstadoVenta = async (req, res) => {
         const estadoAnterior = venta.EstadoID;
         const estadoNuevo = parseInt(EstadoID);
 
+        // El estado debe existir y ser de tipo 'venta'
+        const estadoDestino = await Estado.findByPk(estadoNuevo);
+        if (!estadoDestino || estadoDestino.Tipo !== 'venta') {
+            return res.status(400).json({ message: 'Estado de venta no válido' });
+        }
+
+        if (estadoAnterior === estadoNuevo) {
+            return res.json({ message: 'La venta ya se encuentra en ese estado', venta, stockDevuelto: false });
+        }
+
+        // Una venta cancelada ya liberó (o no) su stock: reactivarla dejaría el inventario descuadrado
+        if (estadoAnterior === 12) {
+            return res.status(400).json({ message: 'La venta está cancelada y no puede cambiar de estado' });
+        }
+
         console.log('\n' + '='.repeat(60));
         console.log('CAMBIO DE ESTADO DE VENTA');
         console.log('='.repeat(60));
@@ -298,7 +319,7 @@ exports.updateEstadoVenta = async (req, res) => {
         console.log(`Estado nuevo: ${estadoNuevo}`);
 
         // LÓGICA: Si se cancela una venta pendiente, DEVOLVER el stock
-        // EstadoID 13 = Cancelada 
+        // EstadoID 12 = Cancelada
         if (estadoAnterior === 8 && estadoNuevo === 12) {
             console.log('\nDEVOLVIENDO STOCK (venta cancelada)...');
 
@@ -341,13 +362,13 @@ exports.updateVenta = async (req, res) => {
             return res.status(404).json({ message: 'Venta no encontrada' });
         }
 
-        // Si solo se actualiza el estado (cambio de estado desde el modal)
+        // Si solo se actualiza el estado: misma lógica (y devolución de stock) que PATCH /:id/estado
         if (EstadoID && !detalles) {
-            await venta.update({ EstadoID });
-            return res.json({
-                message: 'Estado actualizado exitosamente',
-                venta
-            });
+            return exports.updateEstadoVenta(req, res);
+        }
+
+        if (venta.EstadoID === 12) {
+            return res.status(400).json({ message: 'No se puede editar una venta cancelada' });
         }
 
         // Si se actualizan los detalles (edición completa)

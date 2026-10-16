@@ -308,6 +308,40 @@ exports.deleteUsuario = async (req, res) => {
             });
         }
 
+        // La FK ventas.DocumentoID es ON DELETE CASCADE: borrar el usuario borraría
+        // también sus pedidos. Se bloquea si tiene pedidos (salvo cancelados) o
+        // cotizaciones activas (Pendiente, Aprobada, En revisión).
+        const docID = usuario.DocumentoID ?? req.params.id;
+        if (db.Venta?.count) {
+            const ventasActivas = await db.Venta.count({
+                where: { DocumentoID: docID, EstadoID: { [Op.notIn]: [11, 12] } }
+            });
+            if (ventasActivas > 0) {
+                return res.status(400).json({
+                    estado: false,
+                    mensaje: `No se puede eliminar: el usuario tiene ${ventasActivas} pedido(s) activo(s).`
+                });
+            }
+            const ventasEntregadas = await db.Venta.count({ where: { DocumentoID: docID, EstadoID: 11 } });
+            if (ventasEntregadas > 0) {
+                return res.status(400).json({
+                    estado: false,
+                    mensaje: `No se puede eliminar: el usuario tiene ${ventasEntregadas} pedido(s) entregado(s) en su historial.`
+                });
+            }
+        }
+        if (db.Cotizacion?.count) {
+            const cotizacionesActivas = await db.Cotizacion.count({
+                where: { DocumentoID: docID, EstadoID: { [Op.in]: [1, 2, 6] } }
+            });
+            if (cotizacionesActivas > 0) {
+                return res.status(400).json({
+                    estado: false,
+                    mensaje: `No se puede eliminar: el usuario tiene ${cotizacionesActivas} cotización(es) activa(s).`
+                });
+            }
+        }
+
         await usuario.destroy();
 
         res.json({
@@ -318,7 +352,7 @@ exports.deleteUsuario = async (req, res) => {
         if (error.name === 'SequelizeForeignKeyConstraintError') {
             return res.status(400).json({
                 estado: false,
-                mensaje: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)',
+                mensaje: 'No se puede eliminar: el usuario tiene cotizaciones u otros registros asociados en el sistema.',
                 message: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)'
             });
         }

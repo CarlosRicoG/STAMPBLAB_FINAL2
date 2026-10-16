@@ -14,7 +14,7 @@ const {
 } = require('../models');
 
 // Obtener todos los detalles de cotización
-exports.getAllDetalleCotizaciones = async (req, rpes) => {
+exports.getAllDetalleCotizaciones = async (req, res) => {
     try {
         const detalleCotizaciones = await DetalleCotizacion.findAll({
             include: [

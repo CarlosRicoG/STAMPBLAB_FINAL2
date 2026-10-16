@@ -130,7 +130,7 @@ describe('CotizacionController - Pruebas Unitarias', () => {
             const res = mockRes();
             await controller.convertirCotizacionAVenta(req, res);
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Solo se pueden convertir cotizaciones aprobadas' }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Solo se pueden convertir cotizaciones aprobadas') }));
         });
     });
 

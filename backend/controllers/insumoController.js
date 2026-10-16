@@ -1,4 +1,4 @@
-const { Insumo, Producto, DetalleCompra } = require('../models');
+const { Insumo, Producto, DetalleCompra, InventarioProducto } = require('../models');
 
 // =========================================================
 // Obtener todos los insumos (Nodos: 1 al 4)
@@ -51,14 +51,22 @@ exports.createInsumo = async (req, res) => {
       return res.status(400).json({ message: 'El Tipo de insumo es obligatorio.' });    // 6
     }
 
+
+    if (Stock !== undefined && Stock !== null && Stock !== '') {
+      const st = Number(Stock);
+      if (!Number.isInteger(st) || st < 0) {
+        return res.status(400).json({ message: 'El Stock debe ser un número entero mayor o igual a 0.' });
+      }
+    }
+
     // Si es tela, PrecioTela es obligatorio y debe ser número >= 0
     if (String(Tipo).toLowerCase() === 'tela') {                                        // 7
       if (PrecioTela === undefined || PrecioTela === null || PrecioTela === '') {       // 8
-        return res.status(400).json({ message: 'PrecioTela es obligatorio...' });       // 9
+        return res.status(400).json({ message: 'El precio de la tela es obligatorio para insumos de tipo Tela.' });       // 9
       }
       const p = parseFloat(PrecioTela);
       if (Number.isNaN(p) || p < 0) {                                                   // 10
-        return res.status(400).json({ message: 'PrecioTela debe ser numero >= 0.' });   // 11
+        return res.status(400).json({ message: 'El precio de la tela debe ser un número mayor o igual a 0.' });   // 11
       }
     }
 
@@ -70,7 +78,7 @@ exports.createInsumo = async (req, res) => {
 
     const nuevoInsumo = await Insumo.create({                                           // 14
       Nombre: Nombre.trim(),
-      Stock: Stock || 0,
+      Stock: parseInt(Stock, 10) || 0,
       Estado: Estado !== undefined ? Estado : true,
       Tipo: Tipo,
       ...(precioTelaProcessed !== undefined ? { PrecioTela: precioTelaProcessed } : {})
@@ -101,14 +109,21 @@ exports.updateInsumo = async (req, res) => {
       return res.status(404).json({ message: 'Insumo no encontrado' });                 // 4
     }
 
+    if (Stock !== undefined && Stock !== null && Stock !== '') {
+      const st = Number(Stock);
+      if (!Number.isInteger(st) || st < 0) {
+        return res.status(400).json({ message: 'El Stock debe ser un número entero mayor o igual a 0.' });
+      }
+    }
+
     // Si el tipo se cambia a 'Tela', entonces precio debe ser válido
     if (Tipo && String(Tipo).toLowerCase() === 'tela') {                                // 5
       if (PrecioTela === undefined || PrecioTela === null || PrecioTela === '') {       // 6
-        return res.status(400).json({ message: 'PrecioTela es obligatorio...' });       // 7
+        return res.status(400).json({ message: 'El precio de la tela es obligatorio para insumos de tipo Tela.' });       // 7
       }
       const p = parseFloat(PrecioTela);
       if (Number.isNaN(p) || p < 0) {                                                   // 8
-        return res.status(400).json({ message: 'PrecioTela numérico >= 0.' });          // 9
+        return res.status(400).json({ message: 'El precio de la tela debe ser un número mayor o igual a 0.' });          // 9
       }
     }
 
@@ -124,7 +139,7 @@ exports.updateInsumo = async (req, res) => {
 
     await insumo.update({                                                               // 14
       Nombre: Nombre || insumo.Nombre,
-      Stock: Stock !== undefined ? Stock : insumo.Stock,
+      Stock: Stock !== undefined && Stock !== null && Stock !== '' ? parseInt(Stock, 10) : insumo.Stock,
       Estado: Estado !== undefined ? Estado : insumo.Estado,
       Tipo: Tipo || insumo.Tipo,
       ...(precioTelaProcessed !== undefined ? { PrecioTela: precioTelaProcessed } : {})
@@ -160,23 +175,12 @@ exports.cambiarEstadoInsumo = async (req, res) => {
       return res.status(404).json({ message: 'Insumo no encontrado' });           // 7
     }
 
-    // VALIDACIÓN: Si intentan desactivar, verificar si tiene compras asociadas
-    if (Estado === false || Estado === 0) {                                         // 8
-      const comprasCount = await DetalleCompra.count({                              // 9
-        where: { InsumoID: id }
-      });
-
-      if (comprasCount > 0) {                                                       // 10
-        return res.status(400).json({                                             // 11
-          message: `No se puede desactivar el insumo porque tiene ${comprasCount} compra(s) asociada(s).`,
-          comprasAsociadas: comprasCount,
-          permitido: false
-        });
-      }
-    }
+    // Nota: desactivar SIEMPRE está permitido (es la alternativa a eliminar un insumo
+    // con compras asociadas). Un insumo inactivo deja de ofrecerse en nuevas compras.
+    const nuevoEstado = Estado === true || Estado === 1 || Estado === '1' || String(Estado).toLowerCase() === 'true';
 
     // Cambiar el estado
-    await insumo.update({ Estado });                                                // 12
+    await insumo.update({ Estado: nuevoEstado });                                                // 12
 
     res.json({                                                                        // 13
       message: 'Estado del insumo actualizado correctamente',
@@ -209,8 +213,18 @@ exports.deleteInsumo = async (req, res) => {
 
     if (comprasCount > 0) {                                                         // 6
       return res.status(400).json({                                               // 7
-        message: `No se puede eliminar el insumo porque tiene ${comprasCount} compras asociadas.`,
+        message: `No se puede eliminar el insumo porque tiene ${comprasCount} compra(s) asociada(s). Puede desactivarlo en su lugar.`,
         comprasAsociadas: comprasCount
+      });
+    }
+
+    // Una tela usada en variantes de producto tampoco se puede eliminar
+    // (la BD pondría TelaID en NULL y las variantes quedarían sin tela).
+    const variantesCount = await InventarioProducto.count({ where: { TelaID: req.params.id } });
+    if (variantesCount > 0) {
+      return res.status(400).json({
+        message: `No se puede eliminar el insumo porque está usado como tela en ${variantesCount} variante(s) de producto. Puede desactivarlo en su lugar.`,
+        variantesAsociadas: variantesCount
       });
     }
 

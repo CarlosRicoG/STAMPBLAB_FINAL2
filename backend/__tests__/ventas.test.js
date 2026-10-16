@@ -10,7 +10,7 @@ jest.mock('../models', () => ({
     Color: {},
     Talla: {},
     Estado: {},
-    sequelize: { fn: jest.fn(), col: jest.fn(), where: jest.fn() },
+    sequelize: { fn: jest.fn(), col: jest.fn(), where: jest.fn(), literal: jest.fn() },
 }));
 
 const { Venta, DetalleVenta, InventarioProducto } = require('../models');

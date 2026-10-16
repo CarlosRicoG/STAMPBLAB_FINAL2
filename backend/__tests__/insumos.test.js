@@ -2,6 +2,7 @@ jest.mock('../models', () => ({
     Insumo: { findAll: jest.fn(), findByPk: jest.fn(), create: jest.fn() },
     Producto: {},
     DetalleCompra: { count: jest.fn() },
+    InventarioProducto: { count: jest.fn().mockResolvedValue(0) },
 }));
 
 const { Insumo, DetalleCompra } = require('../models');
@@ -73,7 +74,7 @@ describe('InsumoController - Pruebas Unitarias', () => {
             const res = mockRes();
             await controller.createInsumo(req, res);
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'PrecioTela es obligatorio...' }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'El precio de la tela es obligatorio para insumos de tipo Tela.' }));
         });
 
         test('debería retornar 400 si PrecioTela no es un número válido', async () => {
@@ -81,7 +82,7 @@ describe('InsumoController - Pruebas Unitarias', () => {
             const res = mockRes();
             await controller.createInsumo(req, res);
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'PrecioTela debe ser numero >= 0.' }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'El precio de la tela debe ser un número mayor o igual a 0.' }));
         });
 
         test('debería crear insumo de tipo Tela correctamente', async () => {
@@ -119,6 +120,18 @@ describe('InsumoController - Pruebas Unitarias', () => {
             await controller.deleteInsumo(req, res);
             expect(res.status).toHaveBeenCalledWith(400);
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ comprasAsociadas: 3 }));
+        });
+
+        test('no elimina una tela usada en variantes de producto (400)', async () => {
+            const { InventarioProducto } = require('../models');
+            const destroyMock = jest.fn();
+            Insumo.findByPk.mockResolvedValue({ InsumoID: 3, Nombre: 'Jersey', destroy: destroyMock });
+            DetalleCompra.count.mockResolvedValue(0);
+            InventarioProducto.count.mockResolvedValueOnce(4);
+            const res = mockRes();
+            await controller.deleteInsumo({ params: { id: '3' } }, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(destroyMock).not.toHaveBeenCalled();
         });
 
         test('debería eliminar el insumo si no tiene compras asociadas', async () => {

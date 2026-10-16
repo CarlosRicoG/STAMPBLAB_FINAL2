@@ -94,15 +94,15 @@ describe('ProveedorController - Pruebas Unitarias', () => {
             expect(res.status).toHaveBeenCalledWith(404);
         });
 
-        test('debería desactivar el proveedor si tiene compras asociadas', async () => {
-            const saveMock = jest.fn().mockResolvedValue(true);
-            Proveedor.findOne.mockResolvedValue({ Nit: '900123', id: null, Estado: true, save: saveMock });
+        test('bloquea la eliminación si tiene compras asociadas (400) y no borra nada', async () => {
+            const destroyMock = jest.fn();
+            Proveedor.findOne.mockResolvedValue({ Nit: '900123', Nombre: 'Prov', id: 1, destroy: destroyMock });
             Compra.count.mockResolvedValue(2);
-            const req = { params: { nit: '900123' } };
             const res = mockRes();
-            await controller.deleteProveedor(req, res);
-            expect(saveMock).toHaveBeenCalled();
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ accion: 'desactivado' }));
+            await controller.deleteProveedor({ params: { nit: '900123' } }, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ accion: 'bloqueado', comprasAsociadas: 2 }));
+            expect(destroyMock).not.toHaveBeenCalled();
         });
 
         test('debería eliminar el proveedor si no tiene compras', async () => {

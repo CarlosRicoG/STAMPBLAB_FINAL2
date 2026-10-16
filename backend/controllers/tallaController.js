@@ -1,5 +1,23 @@
 const { Talla, Producto } = require("../models");
 
+// XXL y XXXL deben tener precio (recargo) obligatorio. Las demás tallas pueden
+// tener un recargo opcional (p. ej. L o XL); antes se borraba al editar.
+const TALLAS_PRECIO_OBLIGATORIO = ["XXL", "XXXL"];
+
+// Devuelve { error } o { precio } (precio puede ser null)
+const resolverPrecio = (nombre, precio, mensajeNoNumero) => {
+    const vacio = precio === null || precio === undefined || precio === "";
+    if (TALLAS_PRECIO_OBLIGATORIO.includes(String(nombre).trim().toUpperCase()) && vacio) {
+        return { error: "El precio es obligatorio para tallas grandes" };
+    }
+    if (vacio) return { precio: null };
+    if (isNaN(precio)) return { error: mensajeNoNumero };
+    if (parseFloat(precio) < 0) return { error: "El precio no puede ser negativo" };
+    return { precio: parseFloat(precio) };
+};
+
+const esDuplicado = (error) => error?.name === "SequelizeUniqueConstraintError";
+
 // Obtener todas las tallas
 exports.getAllTallas = async (req, res) => {
     try {
@@ -33,22 +51,10 @@ exports.createTalla = async (req, res) => {
             return res.status(400).json({ estado: false, mensaje: "El nombre es obligatorio" });
         }
 
-        let precioFinal = null;
+        const { error, precio } = resolverPrecio(Nombre, Precio, "El precio debe ser un número");
+        if (error) return res.status(400).json({ estado: false, mensaje: error });
 
-        // Solo XXL y XXXL deben tener precio
-        if (["XXL", "XXXL"].includes(Nombre.toUpperCase())) {
-            if (Precio === null || Precio === undefined || Precio === "") {
-                return res.status(400).json({ estado: false, mensaje: "El precio es obligatorio para tallas grandes" });
-            }
-
-            if (isNaN(Precio)) {
-                return res.status(400).json({ estado: false, mensaje: "El precio debe ser un número" });
-            }
-
-            precioFinal = parseFloat(Precio);
-        }
-
-        const nueva = await Talla.create({ Nombre, Precio: precioFinal });
+        const nueva = await Talla.create({ Nombre: Nombre.trim(), Precio: precio });
 
         res.status(201).json({
             estado: true,
@@ -57,6 +63,9 @@ exports.createTalla = async (req, res) => {
         });
 
     } catch (error) {
+        if (esDuplicado(error)) {
+            return res.status(400).json({ estado: false, mensaje: "Ya existe una talla con ese nombre" });
+        }
         res.status(500).json({ estado: false, mensaje: error.message });
     }
 };
@@ -70,19 +79,17 @@ exports.updateTalla = async (req, res) => {
         if (!talla)
             return res.status(404).json({ estado: false, mensaje: "Talla no encontrada" });
 
-        let precioFinal = null;
-
-        if (["XXL", "XXXL"].includes(Nombre.toUpperCase())) {
-            if (!Precio && Precio !== 0)
-                return res.status(400).json({ estado: false, mensaje: "El precio es obligatorio para tallas grandes" });
-
-            if (isNaN(Precio))
-                return res.status(400).json({ estado: false, mensaje: "El precio debe ser numérico" });
-
-            precioFinal = parseFloat(Precio);
+        const nombreFinal = Nombre !== undefined && Nombre !== null ? String(Nombre).trim() : talla.Nombre;
+        if (!nombreFinal) {
+            return res.status(400).json({ estado: false, mensaje: "El nombre es obligatorio" });
         }
 
-        await talla.update({ Nombre, Precio: precioFinal });
+        // Si no se envía Precio se conserva el actual
+        const precioEntrada = Precio !== undefined ? Precio : talla.Precio;
+        const { error, precio } = resolverPrecio(nombreFinal, precioEntrada, "El precio debe ser numérico");
+        if (error) return res.status(400).json({ estado: false, mensaje: error });
+
+        await talla.update({ Nombre: nombreFinal, Precio: precio });
 
         res.json({
             estado: true,
@@ -91,6 +98,9 @@ exports.updateTalla = async (req, res) => {
         });
 
     } catch (error) {
+        if (esDuplicado(error)) {
+            return res.status(400).json({ estado: false, mensaje: "Ya existe una talla con ese nombre" });
+        }
         res.status(500).json({ estado: false, mensaje: error.message });
     }
 };
@@ -107,13 +117,10 @@ exports.deleteTalla = async (req, res) => {
 
     } catch (error) {
         if (error.name === 'SequelizeForeignKeyConstraintError') {
-            return res.status(400).json({
-                estado: false,
-                mensaje: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)',
-                message: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)'
-            });
+            const msg = 'No se puede eliminar la talla: está en uso en variantes de productos, pedidos o cotizaciones.';
+            return res.status(400).json({ estado: false, mensaje: msg, message: msg });
         }
-        
+
         res.status(500).json({ estado: false, mensaje: error.message });
     }
 };

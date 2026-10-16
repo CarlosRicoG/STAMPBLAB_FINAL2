@@ -1,4 +1,5 @@
 jest.mock('../models', () => ({
+    sequelize: { transaction: jest.fn().mockResolvedValue({ commit: jest.fn(), rollback: jest.fn() }) },
     Compra: { findAll: jest.fn(), findByPk: jest.fn(), create: jest.fn() },
     Proveedor: { findByPk: jest.fn(), findOne: jest.fn() },
     DetalleCompra: { findAll: jest.fn(), bulkCreate: jest.fn(), destroy: jest.fn() },
@@ -69,11 +70,11 @@ describe('CompraController - Pruebas Unitarias', () => {
         });
 
         test('debería retornar 400 si cantidad es 0 o negativa', async () => {
-            const req = { body: { ProveedorID: '123', detalles: [{ TipoSeleccion: 'insumo', InsumoID: 1, Cantidad: 0 }] } };
+            const req = { body: { ProveedorID: '123', detalles: [{ TipoSeleccion: 'insumo', InsumoID: 1, Cantidad: 0, PrecioUnitario: 500 }] } };
             const res = mockRes();
             await controller.createCompra(req, res);
             expect(res.status).toHaveBeenCalledWith(400);
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Las cantidades deben ser mayores a 0' }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Las cantidades deben ser números enteros mayores a 0' }));
         });
 
         test('debería retornar 404 si el proveedor no existe', async () => {
@@ -81,7 +82,7 @@ describe('CompraController - Pruebas Unitarias', () => {
             const req = {
                 body: {
                     ProveedorRefId: 999,
-                    detalles: [{ TipoSeleccion: 'insumo', InsumoID: 1, Cantidad: 5 }]
+                    detalles: [{ TipoSeleccion: 'insumo', InsumoID: 1, Cantidad: 5, PrecioUnitario: 500 }]
                 }
             };
             const res = mockRes();
@@ -96,6 +97,7 @@ describe('CompraController - Pruebas Unitarias', () => {
             Compra.create.mockResolvedValue({ CompraID: 10, ProveedorID: '900123' });
             DetalleCompra.bulkCreate.mockResolvedValue([]);
             Insumo.increment.mockResolvedValue(true);
+            Insumo.findByPk.mockResolvedValue({ InsumoID: 1, Nombre: 'Hilo' }); // el insumo debe existir
             Compra.findByPk.mockResolvedValue({ CompraID: 10 });
             const req = {
                 body: {

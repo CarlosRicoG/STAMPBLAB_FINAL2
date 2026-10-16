@@ -1,4 +1,6 @@
-const { Proveedor, Compra } = require('../models');
+const { sequelize, Proveedor, Compra } = require('../models');
+
+const aBooleano = v => v === true || v === 1 || v === '1' || String(v).toLowerCase() === 'true' || String(v).toLowerCase() === 'activo';
 
 // Obtener todos los proveedores
 exports.getAllProveedores = async (req, res) => {
@@ -69,7 +71,7 @@ exports.createProveedor = async (req, res) => {
       Correo,
       Telefono,
       Direccion,
-      Estado: Estado !== undefined ? Estado : true
+      Estado: Estado !== undefined && Estado !== null ? aBooleano(Estado) : true
     });
 
     res.status(201).json({
@@ -95,6 +97,7 @@ exports.updateProveedor = async (req, res) => {
     if (!proveedor) {
       return res.status(404).json({ message: 'Proveedor no encontrado' });
     }
+    const nitAnterior = proveedor.Nit;
 
     // Si intentan cambiar Nit, verificar unicidad
     if (nuevoNit && nuevoNit.trim() !== proveedor.Nit) {
@@ -111,9 +114,15 @@ exports.updateProveedor = async (req, res) => {
     proveedor.Correo = Correo || proveedor.Correo;
     proveedor.Telefono = Telefono || proveedor.Telefono;
     proveedor.Direccion = Direccion || proveedor.Direccion;
-    proveedor.Estado = Estado !== undefined ? Estado : proveedor.Estado;
+    proveedor.Estado = Estado !== undefined && Estado !== null ? aBooleano(Estado) : proveedor.Estado;
 
-    await proveedor.save();
+    await sequelize.transaction(async (transaction) => {
+      await proveedor.save({ transaction });
+      // Mantener sincronizado el NIT "legacy" guardado en las compras del proveedor
+      if (proveedor.Nit !== nitAnterior) {
+        await Compra.update({ ProveedorID: proveedor.Nit }, { where: { ProveedorRefId: proveedor.id }, transaction });
+      }
+    });
 
     res.json({
       message: 'Proveedor actualizado exitosamente',
@@ -146,14 +155,13 @@ exports.deleteProveedor = async (req, res) => {
     }
 
     if (comprasCount > 0) {
-      // ✅ CORRECCIÓN: Si tiene compras relacionadas, desactivarlo y retornar mensaje claro
-      proveedor.Estado = false;
-      await proveedor.save();
-      
-      return res.status(200).json({
-        message: 'No se puede eliminar el proveedor porque tiene compras asociadas. Se ha desactivado en su lugar.',
-        accion: 'desactivado', // ✅ Indicador para el frontend
-        proveedor
+      // Bloquear: un proveedor con compras no se puede eliminar (se perdería la trazabilidad)
+      return res.status(400).json({
+        estado: false,
+        message: `No se puede eliminar el proveedor "${proveedor.Nombre}" porque tiene ${comprasCount} compra(s) asociada(s). Puede desactivarlo en su lugar.`,
+        mensaje: `No se puede eliminar el proveedor "${proveedor.Nombre}" porque tiene ${comprasCount} compra(s) asociada(s). Puede desactivarlo en su lugar.`,
+        comprasAsociadas: comprasCount,
+        accion: 'bloqueado'
       });
     }
 
@@ -190,7 +198,7 @@ exports.cambiarEstadoProveedor = async (req, res) => {
     }
     const proveedor = await Proveedor.findOne({ where: { Nit: nitParam } });
     if (!proveedor) return res.status(404).json({ message: 'Proveedor no encontrado' });
-    await proveedor.update({ Estado: Boolean(Estado) });
+    await proveedor.update({ Estado: aBooleano(Estado) });
     res.json({ message: 'Estado actualizado', proveedor });
   } catch (error) {
     res.status(500).json({ message: 'Error al cambiar estado', error: error.message });

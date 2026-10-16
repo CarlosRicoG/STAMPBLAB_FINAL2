@@ -4,6 +4,16 @@ const InventarioProducto = db.InventarioProducto;
 const CotizacionColor = db.CotizacionColor;
 const DetalleVenta = db.DetalleVenta;
 
+
+// Busca otro color con el mismo nombre (sin distinguir mayúsculas)
+const existeNombre = async (nombre, exceptoID = null) => {
+    if (typeof Color.findOne !== 'function') return false;
+    const { Op, fn, col, where } = require('sequelize');
+    const cond = [where(fn('LOWER', col('Nombre')), nombre.toLowerCase())];
+    if (exceptoID) cond.push({ ColorID: { [Op.ne]: exceptoID } });
+    return !!(await Color.findOne({ where: { [Op.and]: cond } }));
+};
+
 // Listar todos los colores
 const getAllColores = async (req, res) => {
     try {
@@ -37,8 +47,12 @@ const createColor = async (req, res) => {
             return res.status(400).json({ estado: false, mensaje: "El nombre es obligatorio" });
         }
 
-        const nuevoColor = await Color.create({ Nombre });
-        res.json({ estado: true, datos: nuevoColor });
+        if (await existeNombre(Nombre.trim())) {
+            return res.status(400).json({ estado: false, mensaje: `Ya existe un color llamado "${Nombre.trim()}"` });
+        }
+
+        const nuevoColor = await Color.create({ Nombre: Nombre.trim() });
+        res.status(201).json({ estado: true, mensaje: "Color creado correctamente", datos: nuevoColor });
     } catch (error) {
         console.error(error);
         res.status(500).json({ estado: false, mensaje: "Error al crear color" });
@@ -58,7 +72,11 @@ const updateColor = async (req, res) => {
         if (!color)
             return res.status(404).json({ estado: false, mensaje: "Color no encontrado" });
 
-        await color.update({ Nombre });
+        if (await existeNombre(Nombre.trim(), color.ColorID)) {
+            return res.status(400).json({ estado: false, mensaje: `Ya existe un color llamado "${Nombre.trim()}"` });
+        }
+
+        await color.update({ Nombre: Nombre.trim() });
 
         res.json({
             estado: true,
