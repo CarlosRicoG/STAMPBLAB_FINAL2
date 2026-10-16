@@ -82,6 +82,11 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
     const id = c.j?.color?.ColorID ?? c.j?.datos?.ColorID ?? c.j?.ColorID;
     if (id) exp('DELETE /colores', await call('DELETE', '/colores/' + id, null, adm), 200);
 
+    console.log('--- LIMITE DE INTENTOS NO AFECTA A QUIEN INICIA SESION BIEN');
+    let seguidos = 0;
+    for (let i = 0; i < 25; i++) { const r = await call('POST', '/login', { Correo: 'admin@stamplab.com', 'Contraseña': 'Admin123*' }); if (r.s === 200) seguidos++; }
+    si('25 inicios de sesion correctos seguidos nunca se bloquean (' + seguidos + '/25)', seguidos === 25);
+
     console.log('--- TOKENS');
     exp('token basura', await call('GET', '/ventas', null, 'abc.def.ghi'), 401);
 

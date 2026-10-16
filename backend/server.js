@@ -156,6 +156,7 @@ const limiteAuth = rateLimit({
     limit: Number(process.env.AUTH_MAX_FALLOS) || 15,
     // Solo cuentan los intentos que PARECEN fuerza bruta (401 credenciales malas, 403, 404 usuario inexistente).
     // Un 400 (formulario mal llenado) o un 409 (duplicado) no cuentan, ni los exitosos.
+    skipSuccessfulRequests: true,
     requestWasSuccessful: (req, res) => res.statusCode < 400 || res.statusCode === 400 || res.statusCode === 409,
     standardHeaders: true,
     legacyHeaders: false,
