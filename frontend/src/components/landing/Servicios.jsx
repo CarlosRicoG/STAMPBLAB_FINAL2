@@ -1,28 +1,14 @@
-import { useState, useEffect } from "react";
-import { FaSearch, FaCheckCircle, FaTimesCircle, FaArrowRight, FaStar, FaClock, FaShieldAlt, FaPalette, FaTruck, FaMedal, FaChevronRight } from "react-icons/fa";
+import { useState, useEffect, useRef } from "react";
+import {
+    FaSearch, FaCheckCircle, FaTimesCircle, FaArrowRight, FaStar, FaPalette, FaTruck, FaMedal,
+    FaChevronRight, FaChevronDown, FaComments, FaPencilRuler, FaIndustry, FaBoxOpen, FaShieldAlt, FaTshirt,
+} from "react-icons/fa";
 import NavbarComponent from "./NavBarLanding";
 import FooterComponent from "./footer";
+import ScrollToTopButton from "./ScrollTopButton";
+import usePlus from "../../hooks/usePlus";
 
-/* ── Design Tokens (mismo sistema) ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    navyDeep: "linear-gradient(135deg, #0f1824 0%, #1a2540 60%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    danger: "#dc2626",
-    muted: "#64748b",
-    text: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-    purple: "#7c3aed",
-    purpleSoft: "#f5f3ff",
-};
+const IMG_FALLBACK = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop';
 
 const obtenerImagenTecnica = (tecnica) => {
     if (tecnica.imagenTecnica) return tecnica.imagenTecnica;
@@ -38,15 +24,66 @@ const obtenerImagenTecnica = (tecnica) => {
     for (const [key, imagen] of Object.entries(imagenesPorDefecto)) {
         if (nombre.includes(key)) return imagen;
     }
-    return 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop';
+    return IMG_FALLBACK;
 };
 
+/* Contador animado al entrar en pantalla */
+const CountUp = ({ to, suffix = "" }) => {
+    const ref = useRef(null);
+    const [val, setVal] = useState(0);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        let raf = 0;
+        const run = () => {
+            if (reduce || !to) { setVal(to); return; }
+            const t0 = performance.now(), dur = 1400;
+            const tick = (t) => {
+                const p = Math.min(1, (t - t0) / dur);
+                setVal(Math.round(to * (1 - Math.pow(1 - p, 3))));
+                if (p < 1) raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+        };
+        const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { run(); io.disconnect(); } }, { threshold: 0.3 });
+        io.observe(el);
+        return () => { io.disconnect(); cancelAnimationFrame(raf); };
+    }, [to]);
+    return <span ref={ref}>{val}{suffix}</span>;
+};
+
+const BENEFICIOS = [
+    { icon: <FaPalette />, title: "Diseño personalizado", desc: "Creamos diseños únicos adaptados a tus necesidades. Cada prenda es una pieza hecha a tu medida." },
+    { icon: <FaTruck />, title: "Entrega rápida", desc: "Tiempos de producción optimizados sin sacrificar calidad. Tu pedido llega cuando lo necesitas." },
+    { icon: <FaMedal />, title: "Calidad superior", desc: "Materiales premium y técnicas profesionales en cada trabajo, con resultados que superan expectativas." },
+    { icon: <FaShieldAlt />, title: "Garantía total", desc: "Si algo no queda como lo acordamos, lo corregimos. Tu satisfacción es nuestra prioridad." },
+];
+
+const PASOS = [
+    { num: "01", icon: <FaComments />, titulo: "Consulta", desc: "Cuéntanos tu idea y te asesoramos sobre la mejor técnica para tu proyecto." },
+    { num: "02", icon: <FaPencilRuler />, titulo: "Diseño", desc: "Creamos o adaptamos el diseño según tus especificaciones y necesidades." },
+    { num: "03", icon: <FaIndustry />, titulo: "Producción", desc: "Aplicamos la técnica seleccionada con precisión y materiales de primera." },
+    { num: "04", icon: <FaBoxOpen />, titulo: "Entrega", desc: "Recibes tu producto terminado en el tiempo acordado, con calidad garantizada." },
+];
+
+const FAQS = [
+    { q: "¿Qué técnica es la mejor para mi proyecto?", a: "Depende del diseño, la cantidad y el tipo de tela. Cuéntanos tu idea y te recomendamos la opción con mejor acabado y precio." },
+    { q: "¿Hay un mínimo de prendas por pedido?", a: "Trabajamos desde piezas únicas hasta grandes volúmenes. Al cotizar te indicamos las mejores condiciones según la cantidad." },
+    { q: "¿Cuánto tarda mi pedido?", a: "Los tiempos varían según la técnica y el volumen, pero siempre te damos una fecha clara de entrega al aprobar la cotización." },
+    { q: "¿El estampado resiste los lavados?", a: "Sí. Usamos materiales y procesos profesionales pensados para conservar color y definición lavado tras lavado." },
+    { q: "¿Puedo enviar mi propio diseño?", a: "Claro. Puedes enviarnos tu arte o dejar que nuestro equipo lo cree o adapte por ti." },
+];
+
+const MARQUEE = ["Serigrafía", "Sublimación", "Bordado", "Vinilo textil", "Estampado digital", "Personalización"];
+
 const Servicios = () => {
+    usePlus();
     const [tecnicas, setTecnicas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [busqueda, setBusqueda] = useState("");
-    const [hoveredCard, setHoveredCard] = useState(null);
+    const [faqOpen, setFaqOpen] = useState(0);
 
     useEffect(() => { cargarTecnicas(); }, []);
 
@@ -72,506 +109,233 @@ const Servicios = () => {
 
     const disponibles = tecnicas.filter(t => t.Estado).length;
 
+    const wave = (fill) => (
+        <svg className="sx-wave" viewBox="0 0 1440 70" preserveAspectRatio="none" aria-hidden="true">
+            <path d="M0,40 C240,90 480,0 720,30 C960,60 1200,10 1440,40 L1440,70 L0,70 Z" fill={fill} />
+        </svg>
+    );
+
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
-                * { box-sizing: border-box; }
+                .svc-page { font-family: 'Outfit', sans-serif; background: #f8fafc; overflow-x: hidden; }
+                .svc-page * { box-sizing: border-box; }
+                .svc-hero { padding: 110px 24px 40px; text-align: center; }
+                .svc-hero h1 { font: 900 clamp(2.4rem, 6.4vw, 4.6rem)/1.04 'Outfit', sans-serif; letter-spacing: -.04em; margin: 18px 0 18px; color: #fff; }
+                .svc-hero-sub { color: rgba(255,255,255,.68); font-size: 18px; line-height: 1.7; max-width: 620px; margin: 0 auto 38px; }
+                .svc-badge { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 999px; font: 700 12px 'Outfit'; letter-spacing: .1em; text-transform: uppercase;
+                    color: #9ec0ff; background: rgba(79,142,247,.14); border: 1px solid rgba(79,142,247,.4); backdrop-filter: blur(8px); }
+                .svc-ctas { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-bottom: 54px; }
+                .svc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 820px; margin: 0 auto; position: relative; z-index: 1; }
+                .svc-stat { padding: 24px 16px; text-align: center; }
+                .svc-stat b { display: block; font: 900 clamp(2rem, 4vw, 2.9rem)/1 'Outfit'; color: #fff; letter-spacing: -.03em; }
+                .svc-stat span { display: block; margin-top: 8px; font: 600 11px 'Outfit'; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+                .svc-marq { margin-top: 56px; padding-bottom: 70px; }
+                .svc-marq-item { font: 900 clamp(1.6rem, 4vw, 2.6rem) 'Outfit'; letter-spacing: -.02em; display: inline-flex; align-items: center; gap: 56px; }
+                .svc-marq-item i { color: #4f8ef7; font-style: normal; font-size: .6em; }
+                .svc-hero-wave { position: absolute; left: 0; right: 0; bottom: 0; z-index: 1; }
 
-                .srv-page { font-family: 'Outfit', sans-serif; background: ${C.bg}; }
+                .svc-head { text-align: center; margin-bottom: 36px; }
+                .svc-head .sx-sub { margin: 0 auto; }
+                .svc-search { max-width: 580px; margin: 0 auto 46px; position: relative; }
+                .svc-search input { width: 100%; padding: 18px 54px 18px 56px; border: 2px solid transparent; border-radius: 18px; font: 500 15px 'Outfit', sans-serif; color: #0f172a; outline: none;
+                    background: linear-gradient(#fff,#fff) padding-box, linear-gradient(90deg, #e2e8f0, #e2e8f0) border-box; box-shadow: 0 10px 34px rgba(26,37,64,.10); transition: all .3s; }
+                .svc-search input:focus { background: linear-gradient(#fff,#fff) padding-box, linear-gradient(90deg,#4f8ef7,#7c3aed) border-box; box-shadow: 0 14px 44px rgba(79,142,247,.28); transform: translateY(-2px); }
+                .svc-search svg.si { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); color: #4f8ef7; font-size: 17px; pointer-events: none; }
+                .svc-search .cnt { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font: 700 11px 'Outfit'; color: #3b6fe0; background: rgba(79,142,247,.12); padding: 4px 10px; border-radius: 99px; }
 
-                /* HERO */
-                .srv-hero {
-                    background: linear-gradient(135deg, #0f1824 0%, #1a2540 55%, #2d3f6e 100%);
-                    position: relative;
-                    overflow: hidden;
-                    padding: 88px 32px 72px;
-                    text-align: center;
-                }
-                .srv-hero::before {
-                    content: '';
-                    position: absolute;
-                    top: -100px; left: -100px;
-                    width: 500px; height: 500px;
-                    background: radial-gradient(circle, rgba(79,142,247,0.13) 0%, transparent 65%);
-                    pointer-events: none;
-                }
-                .srv-hero::after {
-                    content: '';
-                    position: absolute;
-                    bottom: -80px; right: -60px;
-                    width: 400px; height: 400px;
-                    background: radial-gradient(circle, rgba(124,58,237,0.10) 0%, transparent 65%);
-                    pointer-events: none;
-                }
-                .srv-hero-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 7px;
-                    background: rgba(79,142,247,0.12);
-                    border: 1px solid rgba(79,142,247,0.3);
-                    color: #4f8ef7;
-                    font-size: 12px;
-                    font-weight: 700;
-                    letter-spacing: 0.08em;
-                    text-transform: uppercase;
-                    padding: 6px 16px;
-                    border-radius: 20px;
-                    margin-bottom: 20px;
-                }
-                .srv-hero h1 {
-                    font-size: clamp(2rem, 5vw, 3.2rem);
-                    font-weight: 900;
-                    color: #fff;
-                    letter-spacing: -0.03em;
-                    margin: 0 0 16px;
-                    line-height: 1.1;
-                }
-                .srv-hero h1 span {
-                    background: linear-gradient(90deg, #4f8ef7, #a78bfa);
-                    -webkit-background-clip: text;
-                    -webkit-text-fill-color: transparent;
-                    background-clip: text;
-                }
-                .srv-hero-sub {
-                    color: rgba(255,255,255,0.55);
-                    font-size: 16px;
-                    max-width: 560px;
-                    margin: 0 auto 36px;
-                    line-height: 1.7;
-                }
-                .srv-stat-box {
-                    display: inline-flex;
-                    flex-direction: column;
-                    align-items: center;
-                    padding: 16px 28px;
-                    background: rgba(255,255,255,0.05);
-                    border: 1px solid rgba(255,255,255,0.1);
-                    border-radius: 14px;
-                    backdrop-filter: blur(8px);
-                    margin: 0 8px;
-                }
-                .srv-stat-num { font-size: 26px; font-weight: 800; color: #fff; line-height: 1; }
-                .srv-stat-label { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: 500; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+                .svc-grid { display: grid; gap: 28px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+                .svc-card { display: flex; flex-direction: column; height: 100%; }
+                .svc-img { position: relative; height: 230px; background: #e2e8f0; }
+                .svc-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+                .svc-img::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(15,24,36,.82) 0%, rgba(26,37,64,.15) 55%, transparent 100%); transition: opacity .4s; }
+                .svc-card:hover .svc-img::after { background: linear-gradient(to top, rgba(26,37,64,.9) 0%, rgba(79,142,247,.25) 70%, transparent 100%); }
+                .svc-badge-st { position: absolute; top: 14px; right: 14px; z-index: 2; display: inline-flex; align-items: center; gap: 6px; padding: 6px 13px; border-radius: 999px; font: 700 11px 'Outfit'; color: #fff; backdrop-filter: blur(8px); }
+                .svc-badge-ok { background: rgba(22,163,74,.92); box-shadow: 0 0 0 0 rgba(22,163,74,.6); animation: svc-ping 2.2s infinite; }
+                .svc-badge-no { background: rgba(100,116,139,.88); }
+                .svc-idx { position: absolute; left: 18px; bottom: 12px; z-index: 2; font: 900 44px/1 'Outfit'; color: transparent; -webkit-text-stroke: 1.5px rgba(255,255,255,.7); }
+                .svc-body { padding: 24px 24px 26px; display: flex; flex-direction: column; flex: 1; }
+                .svc-body h3 { font: 800 21px 'Outfit'; letter-spacing: -.02em; color: #1a2540; margin: 0 0 8px; }
+                .svc-desc { font-size: 14px; line-height: 1.7; color: #64748b; margin: 0 0 16px; flex: 1; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+                .svc-feats { list-style: none; padding: 0; margin: 0 0 20px; display: grid; gap: 8px; }
+                .svc-feats li { display: flex; align-items: center; gap: 10px; font: 600 13px 'Outfit'; color: #334155; }
+                .svc-feats li span { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 10px; background: linear-gradient(135deg,#16a34a,#4ade80); flex-shrink: 0; }
+                .svc-btn-off { background: #f1f5f9; color: #94a3b8; box-shadow: none; cursor: not-allowed; }
+                .svc-btn-off:hover { transform: none; box-shadow: none; background: #f1f5f9; color: #94a3b8; }
+                .svc-btn-off::after { display: none; }
 
-                /* SEARCH */
-                .srv-search-wrap {
-                    max-width: 520px;
-                    margin: 0 auto 36px;
-                    position: relative;
-                }
-                .srv-search-input {
-                    width: 100%;
-                    padding: 14px 20px 14px 48px;
-                    border: 2px solid ${C.border};
-                    border-radius: 14px;
-                    font-size: 14px;
-                    font-family: 'Outfit', sans-serif;
-                    color: ${C.text};
-                    outline: none;
-                    transition: border-color 0.2s, box-shadow 0.2s;
-                    background: #fff;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-                }
-                .srv-search-input:focus {
-                    border-color: ${C.accent};
-                    box-shadow: 0 0 0 3px rgba(79,142,247,0.12);
-                }
-                .srv-search-icon {
-                    position: absolute;
-                    left: 16px;
-                    top: 50%;
-                    transform: translateY(-50%);
-                    color: ${C.muted};
-                    font-size: 15px;
-                }
+                .svc-dark { background: linear-gradient(160deg, #0f1824, #1a2540 60%, #14203a); color: #fff; overflow: hidden; }
+                .svc-dark .sx-title { color: #fff; } .svc-dark .sx-sub { color: rgba(255,255,255,.62); }
+                .svc-why { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); position: relative; z-index: 1; }
+                .svc-why .sx-glass { padding: 32px 26px; height: 100%; }
+                .svc-why h3 { font: 800 20px 'Outfit'; margin: 22px 0 10px; color: #fff; }
+                .svc-why p { margin: 0; font-size: 14.5px; line-height: 1.7; color: rgba(255,255,255,.65); }
+                .svc-ghost-num { position: absolute; right: 16px; top: 6px; font: 900 80px/1 'Outfit'; color: rgba(255,255,255,.05); }
 
-                /* CARDS */
-                .srv-card {
-                    background: #fff;
-                    border-radius: 18px;
-                    overflow: hidden;
-                    border: 1.5px solid ${C.border};
-                    transition: all 0.28s cubic-bezier(.4,0,.2,1);
-                    cursor: pointer;
-                    display: flex;
-                    flex-direction: column;
-                    height: 100%;
-                }
-                .srv-card:hover {
-                    transform: translateY(-8px);
-                    border-color: ${C.accent};
-                    box-shadow: 0 20px 48px rgba(79,142,247,0.18), 0 4px 12px rgba(0,0,0,0.08);
-                }
-                .srv-card-img-wrap {
-                    position: relative;
-                    overflow: hidden;
-                    height: 210px;
-                }
-                .srv-card-img {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: cover;
-                    transition: transform 0.4s cubic-bezier(.4,0,.2,1);
-                }
-                .srv-card:hover .srv-card-img { transform: scale(1.07); }
-                .srv-card-img-overlay {
-                    position: absolute;
-                    inset: 0;
-                    background: linear-gradient(to top, rgba(26,37,64,0.7) 0%, transparent 55%);
-                    opacity: 0;
-                    transition: opacity 0.28s;
-                }
-                .srv-card:hover .srv-card-img-overlay { opacity: 1; }
-                .srv-card-status {
-                    position: absolute;
-                    top: 12px;
-                    right: 12px;
-                    display: flex;
-                    align-items: center;
-                    gap: 5px;
-                    padding: 5px 12px;
-                    border-radius: 20px;
-                    font-size: 11px;
-                    font-weight: 700;
-                    font-family: 'Outfit', sans-serif;
-                    backdrop-filter: blur(8px);
-                }
-                .srv-card-body {
-                    padding: 20px;
-                    flex: 1;
-                    display: flex;
-                    flex-direction: column;
-                }
-                .srv-card-title {
-                    font-size: 17px;
-                    font-weight: 800;
-                    color: ${C.navy};
-                    margin: 0 0 8px;
-                    letter-spacing: -0.01em;
-                }
-                .srv-card-desc {
-                    font-size: 13px;
-                    color: ${C.muted};
-                    line-height: 1.65;
-                    flex: 1;
-                    margin: 0 0 16px;
-                }
-                .srv-card-feature {
-                    display: flex;
-                    align-items: center;
-                    gap: 7px;
-                    font-size: 12px;
-                    color: ${C.success};
-                    font-weight: 600;
-                    margin-bottom: 5px;
-                }
-                .srv-card-btn {
-                    width: 100%;
-                    padding: 11px;
-                    border: none;
-                    border-radius: 10px;
-                    font-size: 13px;
-                    font-weight: 700;
-                    font-family: 'Outfit', sans-serif;
-                    cursor: pointer;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 8px;
-                    transition: all 0.2s;
-                    margin-top: 14px;
-                }
-                .srv-card-btn-primary {
-                    background: ${C.navyGrad};
-                    color: #fff;
-                }
-                .srv-card-btn-primary:hover {
-                    opacity: 0.88;
-                    transform: translateY(-1px);
-                }
-                .srv-card-btn-disabled {
-                    background: #f1f5f9;
-                    color: ${C.muted};
-                    cursor: not-allowed;
-                }
+                .svc-tl { position: relative; display: grid; gap: 28px; grid-template-columns: repeat(4, 1fr); padding-top: 40px; }
+                .svc-tl-line { position: absolute; top: 74px; left: 12.5%; right: 12.5%; height: 4px; border-radius: 4px; background: rgba(79,142,247,.18); overflow: hidden; }
+                .svc-tl-line::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, #4f8ef7, #7c3aed, #4f8ef7); background-size: 200% 100%; animation: sx-shine 3s linear infinite; }
+                .svc-step { text-align: center; position: relative; z-index: 1; }
+                .svc-dot { width: 76px; height: 76px; margin: 0 auto 20px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; color: #fff; background: linear-gradient(135deg,#4f8ef7,#7c3aed);
+                    box-shadow: 0 0 0 8px #eef2f9, 0 16px 36px rgba(79,142,247,.4); transition: transform .5s var(--sx-ease); }
+                .svc-step:hover .svc-dot { transform: scale(1.12) rotate(-6deg); }
+                .svc-step .sx-num { font-size: 62px; opacity: .22; display: block; margin-bottom: -18px; }
+                .svc-step h3 { font: 800 20px 'Outfit'; color: #1a2540; margin: 0 0 8px; position: relative; }
+                .svc-step p { font-size: 14px; line-height: 1.65; color: #64748b; margin: 0 auto; max-width: 250px; }
 
-                /* BENEFITS */
-                .srv-benefit-card {
-                    background: #fff;
-                    border: 1.5px solid ${C.border};
-                    border-radius: 18px;
-                    padding: 28px 24px;
-                    text-align: center;
-                    transition: all 0.22s;
-                }
-                .srv-benefit-card:hover {
-                    border-color: ${C.accent};
-                    box-shadow: 0 8px 24px rgba(79,142,247,0.12);
-                    transform: translateY(-4px);
-                }
-                .srv-benefit-icon {
-                    width: 64px;
-                    height: 64px;
-                    border-radius: 18px;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    margin: 0 auto 16px;
-                    font-size: 26px;
-                }
-                .srv-benefit-title { font-size: 16px; font-weight: 800; color: ${C.navy}; margin: 0 0 8px; }
-                .srv-benefit-desc { font-size: 13px; color: ${C.muted}; line-height: 1.65; margin: 0; }
+                .svc-faq { max-width: 820px; margin: 0 auto; display: grid; gap: 14px; }
+                .svc-faq-item { background: #fff; border: 1px solid #e2e8f0; border-radius: 18px; box-shadow: var(--sx-shadow-1); transition: border-color .3s, box-shadow .3s; overflow: hidden; }
+                .svc-faq-item.open { border-color: rgba(79,142,247,.5); box-shadow: 0 16px 44px rgba(79,142,247,.16); }
+                .svc-faq-q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 16px; text-align: left; background: none; border: 0; cursor: pointer; padding: 20px 24px; font: 700 16.5px 'Outfit', sans-serif; color: #1a2540; }
+                .svc-faq-q svg { flex-shrink: 0; color: #4f8ef7; transition: transform .4s var(--sx-ease); }
+                .svc-faq-item.open .svc-faq-q svg { transform: rotate(180deg); }
+                .svc-faq-a { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s var(--sx-ease); }
+                .svc-faq-item.open .svc-faq-a { grid-template-rows: 1fr; }
+                .svc-faq-a > div { overflow: hidden; }
+                .svc-faq-a p { margin: 0; padding: 0 24px 22px; color: #64748b; line-height: 1.75; font-size: 15px; }
 
-                /* STEPS */
-                .srv-step {
-                    display: flex;
-                    align-items: flex-start;
-                    gap: 20px;
-                    padding: 24px;
-                    background: #fff;
-                    border: 1.5px solid ${C.border};
-                    border-radius: 16px;
-                    transition: all 0.22s;
-                }
-                .srv-step:hover {
-                    border-color: ${C.accent};
-                    box-shadow: 0 8px 24px rgba(79,142,247,0.10);
-                }
-                .srv-step-num {
-                    width: 48px;
-                    height: 48px;
-                    border-radius: 14px;
-                    background: ${C.navyGrad};
-                    color: #fff;
-                    font-size: 20px;
-                    font-weight: 800;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    flex-shrink: 0;
-                }
-                .srv-step-title { font-size: 15px; font-weight: 700; color: ${C.navy}; margin: 0 0 5px; }
-                .srv-step-desc { font-size: 13px; color: ${C.muted}; margin: 0; line-height: 1.6; }
+                .svc-cta { position: relative; overflow: hidden; text-align: center; padding: 100px 24px; color: #fff;
+                    background: linear-gradient(120deg, #1a2540 0%, #3b2a8f 50%, #4f8ef7 100%); background-size: 200% 200%; animation: svc-grad 10s ease infinite; }
+                .svc-cta h2 { font: 900 clamp(2rem, 5vw, 3.4rem)/1.08 'Outfit'; letter-spacing: -.035em; margin: 14px 0 16px; }
+                .svc-cta p { color: rgba(255,255,255,.78); font-size: 17px; max-width: 520px; margin: 0 auto 34px; line-height: 1.7; }
+                .svc-cta .sx-btn-light { padding: 18px 40px; font-size: 16px; border-radius: 16px; }
 
-                /* CTA */
-                .srv-cta {
-                    background: linear-gradient(135deg, #0f1824 0%, #1a2540 55%, #2d3f6e 100%);
-                    position: relative;
-                    overflow: hidden;
-                    padding: 72px 32px;
-                    text-align: center;
-                }
-                .srv-cta::before {
-                    content: '';
-                    position: absolute;
-                    top: -80px; left: 50%;
-                    transform: translateX(-50%);
-                    width: 600px; height: 300px;
-                    background: radial-gradient(ellipse, rgba(79,142,247,0.15) 0%, transparent 70%);
-                    pointer-events: none;
-                }
-                .srv-cta-btn {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 10px;
-                    padding: 14px 36px;
-                    background: #fff;
-                    color: ${C.navy};
-                    border: none;
-                    border-radius: 12px;
-                    font-size: 15px;
-                    font-weight: 800;
-                    font-family: 'Outfit', sans-serif;
-                    cursor: pointer;
-                    transition: all 0.22s;
-                    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-                }
-                .srv-cta-btn:hover {
-                    transform: translateY(-2px);
-                    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-                }
+                .svc-empty { text-align: center; padding: 60px 0; color: #64748b; }
+                .svc-spin { width: 48px; height: 48px; border: 4px solid #e2e8f0; border-top-color: #4f8ef7; border-radius: 50%; animation: sx-spin .8s linear infinite; margin: 0 auto 16px; }
+                .svc-skel { height: 440px; border-radius: 20px; background: linear-gradient(90deg,#eef2f9 25%,#f8fafc 50%,#eef2f9 75%); background-size: 200% 100%; animation: sx-shine 1.4s linear infinite; }
 
-                /* SECTION TITLES */
-                .srv-section-label {
-                    font-size: 11px;
-                    font-weight: 700;
-                    letter-spacing: 0.12em;
-                    text-transform: uppercase;
-                    color: ${C.accent};
-                    margin: 0 0 8px;
-                }
-                .srv-section-title {
-                    font-size: clamp(1.5rem, 3vw, 2rem);
-                    font-weight: 800;
-                    color: ${C.navy};
-                    letter-spacing: -0.02em;
-                    margin: 0 0 10px;
-                }
-                .srv-section-sub {
-                    font-size: 14px;
-                    color: ${C.muted};
-                    margin: 0;
-                }
+                @keyframes svc-ping { 70% { box-shadow: 0 0 0 10px rgba(22,163,74,0); } 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); } }
+                @keyframes svc-grad { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 
-                @keyframes fadeInUp {
-                    from { opacity: 0; transform: translateY(18px); }
-                    to   { opacity: 1; transform: none; }
+                @media (max-width: 900px) {
+                    .svc-tl { grid-template-columns: 1fr 1fr; row-gap: 44px; } .svc-tl-line { display: none; }
                 }
-                .srv-card { animation: fadeInUp 0.4s ease both; }
-
-                @media (max-width: 768px) {
-                    .srv-stats-row { flex-direction: column; gap: 12px; }
-                    .srv-grid-4 { grid-template-columns: 1fr 1fr !important; }
-                    .srv-grid-3 { grid-template-columns: 1fr !important; }
-                    .srv-grid-steps { grid-template-columns: 1fr 1fr !important; }
+                @media (max-width: 600px) {
+                    .svc-hero { padding: 84px 18px 30px; }
+                    .svc-stats { grid-template-columns: 1fr; gap: 12px; }
+                    .svc-stat { padding: 16px; }
+                    .svc-tl { grid-template-columns: 1fr; }
+                    .svc-grid { grid-template-columns: 1fr; }
+                    .svc-cta { padding: 72px 20px; }
+                    .svc-search input { padding-right: 20px; } .svc-search .cnt { display: none; }
                 }
-                @media (max-width: 480px) {
-                    .srv-grid-4, .srv-grid-steps { grid-template-columns: 1fr !important; }
+                @media (prefers-reduced-motion: reduce) {
+                    .svc-cta, .svc-badge-ok, .svc-tl-line::after, .svc-skel { animation: none !important; }
                 }
             `}</style>
 
-            <div className="srv-page">
+            <div className="svc-page sx-font">
                 <NavbarComponent />
 
                 {/* ══════════ HERO ══════════ */}
-                <section className="srv-hero">
-                    <div style={{ position: "relative", zIndex: 1 }}>
-                        <div className="srv-hero-badge">
-                            <FaStar size={10} /> Técnicas profesionales de estampado
-                        </div>
-                        <h1>Tu marca en cada<br /><span>prenda</span></h1>
-                        <p className="srv-hero-sub">
+                <section className="sx-hero-bg svc-hero">
+                    <span className="sx-blob b1" /><span className="sx-blob b2" /><span className="sx-blob b3" />
+                    <div className="sx-hero-in" style={{ position: "relative", zIndex: 2 }}>
+                        <div><span className="svc-badge"><FaStar size={11} /> Técnicas profesionales de estampado</span></div>
+                        <h1>Tu marca en cada<br /><span className="sx-gradient-text">prenda</span></h1>
+                        <p className="svc-hero-sub">
                             Transformamos tus ideas en prendas únicas con las mejores técnicas del mercado. Calidad garantizada en cada pedido.
                         </p>
-                        <div className="srv-stats-row" style={{ display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12 }}>
-                            <div className="srv-stat-box">
-                                <span className="srv-stat-num">5+</span>
-                                <span className="srv-stat-label">Años de experiencia</span>
-                            </div>
-                            <div className="srv-stat-box">
-                                <span className="srv-stat-num">{disponibles}</span>
-                                <span className="srv-stat-label">Técnicas disponibles</span>
-                            </div>
-                            <div className="srv-stat-box">
-                                <span className="srv-stat-num">100%</span>
-                                <span className="srv-stat-label">Calidad garantizada</span>
-                            </div>
+                        <div className="svc-ctas">
+                            <a className="sx-btn sx-pulse" href="#tecnicas">Ver técnicas <FaArrowRight size={12} /></a>
+                            <button className="sx-btn sx-btn-ghost" onClick={() => window.location.href = '/cotizacionesLanding'}>Solicitar cotización</button>
+                        </div>
+                        <div className="svc-stats">
+                            <div className="sx-glass svc-stat"><b><CountUp to={5} suffix="+" /></b><span>Años de experiencia</span></div>
+                            <div className="sx-glass svc-stat"><b><CountUp to={disponibles} /></b><span>Técnicas disponibles</span></div>
+                            <div className="sx-glass svc-stat"><b><CountUp to={100} suffix="%" /></b><span>Calidad garantizada</span></div>
                         </div>
                     </div>
+                    <div className="sx-marquee svc-marq" style={{ position: "relative", zIndex: 2 }} aria-hidden="true">
+                        <div className="sx-marquee-track">
+                            {[...MARQUEE, ...MARQUEE, ...MARQUEE, ...MARQUEE].map((m, i) => (
+                                <span key={i} className="svc-marq-item">
+                                    <span className={i % 2 ? "sx-outline-text" : ""} style={i % 2 ? {} : { color: "rgba(255,255,255,.9)" }}>{m}</span><i>✦</i>
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="svc-hero-wave">{wave("#f8fafc")}</div>
                 </section>
 
-                {/* TOP ACCENT LINE */}
-                <div style={{ height: 3, background: "linear-gradient(90deg, #4f8ef7 0%, #7c3aed 50%, #4f8ef7 100%)" }} />
-
                 {/* ══════════ TÉCNICAS ══════════ */}
-                <section style={{ padding: "64px 32px", background: C.bg }}>
-                    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-
-                        {/* Header */}
-                        <div style={{ textAlign: "center", marginBottom: 40 }}>
-                            <p className="srv-section-label">Catálogo de servicios</p>
-                            <h2 className="srv-section-title">Nuestras Técnicas</h2>
-                            <p className="srv-section-sub">Elige la técnica perfecta para tu proyecto</p>
+                <section className="sx-section" id="tecnicas" style={{ paddingTop: 40 }}>
+                    <div className="sx-wrap">
+                        <div className="svc-head sx-reveal">
+                            <span className="sx-eyebrow">Catálogo de servicios</span>
+                            <h2 className="sx-title">Nuestras <span className="sx-gradient-text">técnicas</span></h2>
+                            <p className="sx-sub">Elige la técnica perfecta para tu proyecto</p>
                         </div>
 
-                        {/* Search */}
-                        <div className="srv-search-wrap">
-                            <FaSearch className="srv-search-icon" />
+                        <div className="svc-search sx-reveal" style={{ "--sx-i": 1 }}>
+                            <FaSearch className="si" />
                             <input
-                                className="srv-search-input"
                                 placeholder="Buscar técnica de estampado..."
                                 value={busqueda}
                                 onChange={e => setBusqueda(e.target.value)}
                             />
+                            {!loading && !error && <span className="cnt">{tecnicasFiltradas.length} resultados</span>}
                         </div>
 
-                        {/* Loading */}
                         {loading && (
-                            <div style={{ textAlign: "center", padding: "60px 0" }}>
-                                <div style={{ width: 44, height: 44, border: `3px solid ${C.border}`, borderTop: `3px solid ${C.accent}`, borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 16px" }} />
-                                <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                                <p style={{ color: C.muted, fontSize: 14 }}>Cargando técnicas disponibles...</p>
-                            </div>
+                            <>
+                                <div className="svc-spin" />
+                                <div className="svc-grid">{[0, 1, 2].map(i => <div key={i} className="svc-skel" />)}</div>
+                            </>
                         )}
 
-                        {/* Error */}
                         {error && (
-                            <div style={{ background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 14, padding: "24px 28px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
-                                <p style={{ color: C.danger, fontWeight: 700, fontSize: 15, margin: "0 0 8px" }}>Error al cargar las técnicas</p>
-                                <p style={{ color: C.muted, fontSize: 13, margin: "0 0 16px" }}>{error}</p>
-                                <button onClick={cargarTecnicas}
-                                    style={{ padding: "9px 22px", background: C.danger, color: "#fff", border: "none", borderRadius: 9, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
-                                    Reintentar
-                                </button>
+                            <div style={{ background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 16, padding: "26px 30px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
+                                <p style={{ color: "#dc2626", fontWeight: 700, fontSize: 16, margin: "0 0 8px" }}>Error al cargar las técnicas</p>
+                                <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 16px" }}>{error}</p>
+                                <button className="sx-btn sx-btn-sm" style={{ background: "#dc2626", boxShadow: "none" }} onClick={cargarTecnicas}>Reintentar</button>
                             </div>
                         )}
 
-                        {/* Cards grid */}
                         {!loading && !error && (
                             tecnicasFiltradas.length === 0 ? (
-                                <div style={{ textAlign: "center", padding: "60px 0", color: C.muted }}>
-                                    <FaSearch size={36} style={{ opacity: 0.2, marginBottom: 12 }} />
-                                    <p style={{ fontSize: 16, fontWeight: 600, margin: "0 0 4px" }}>No se encontraron técnicas</p>
-                                    <p style={{ fontSize: 13 }}>Intenta con otra búsqueda</p>
+                                <div className="svc-empty">
+                                    <FaSearch size={40} style={{ opacity: 0.2, marginBottom: 12 }} />
+                                    <p style={{ fontSize: 18, fontWeight: 700, margin: "0 0 4px" }}>No se encontraron técnicas</p>
+                                    <p style={{ fontSize: 14 }}>Intenta con otra búsqueda</p>
                                 </div>
                             ) : (
-                                <div className="srv-grid-4" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 22 }}>
+                                <div className="svc-grid">
                                     {tecnicasFiltradas.map((tecnica, index) => (
-                                        <div
-                                            key={tecnica.TecnicaID || index}
-                                            className="srv-card"
-                                            style={{ animationDelay: `${index * 0.06}s` }}
-                                            onMouseEnter={() => setHoveredCard(tecnica.TecnicaID)}
-                                            onMouseLeave={() => setHoveredCard(null)}
-                                        >
-                                            {/* Imagen */}
-                                            <div className="srv-card-img-wrap">
+                                        <div key={tecnica.TecnicaID || index} className="sx-card sx-reveal svc-card" style={{ "--sx-i": index % 4 }}>
+                                            <div className="svc-img sx-zoom">
                                                 <img
-                                                    className="srv-card-img"
                                                     src={obtenerImagenTecnica(tecnica)}
                                                     alt={tecnica.Nombre}
-                                                    onError={e => { e.target.src = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=250&fit=crop'; }}
+                                                    loading="lazy"
+                                                    onError={e => { e.target.onerror = null; e.target.src = IMG_FALLBACK; }}
                                                 />
-                                                <div className="srv-card-img-overlay" />
-                                                {/* Status badge */}
-                                                <div className="srv-card-status" style={{
-                                                    background: tecnica.Estado ? "rgba(22,163,74,0.9)" : "rgba(100,116,139,0.85)",
-                                                    color: "#fff",
-                                                }}>
+                                                <div className={`svc-badge-st ${tecnica.Estado ? "svc-badge-ok" : "svc-badge-no"}`}>
                                                     {tecnica.Estado
-                                                        ? <><FaCheckCircle size={10} /> Disponible</>
-                                                        : <><FaTimesCircle size={10} /> No disponible</>
-                                                    }
+                                                        ? <><FaCheckCircle size={11} /> Disponible</>
+                                                        : <><FaTimesCircle size={11} /> No disponible</>}
                                                 </div>
+                                                <span className="svc-idx">{String(index + 1).padStart(2, "0")}</span>
                                             </div>
-
-                                            {/* Body */}
-                                            <div className="srv-card-body">
-                                                <p className="srv-card-title">{tecnica.Nombre}</p>
-                                                <p className="srv-card-desc">
+                                            <div className="svc-body">
+                                                <h3>{tecnica.Nombre}</h3>
+                                                <p className="svc-desc">
                                                     {tecnica.Descripcion || "Técnica de estampado profesional de alta calidad para tus prendas."}
                                                 </p>
-
                                                 {tecnica.Estado && (
-                                                    <div style={{ background: C.successSoft, borderRadius: 10, padding: "10px 12px", border: `1px solid #bbf7d0`, marginBottom: 4 }}>
+                                                    <ul className="svc-feats">
                                                         {["Alta durabilidad", "Acabado profesional", "Resistente al lavado"].map(f => (
-                                                            <div key={f} className="srv-card-feature">
-                                                                <FaCheckCircle size={11} /> {f}
-                                                            </div>
+                                                            <li key={f}><span><FaCheckCircle /></span>{f}</li>
                                                         ))}
-                                                    </div>
+                                                    </ul>
                                                 )}
-
                                                 <button
-                                                    className={`srv-card-btn ${tecnica.Estado ? "srv-card-btn-primary" : "srv-card-btn-disabled"}`}
+                                                    className={`sx-btn ${tecnica.Estado ? "" : "svc-btn-off"}`}
+                                                    style={{ width: "100%" }}
                                                     disabled={!tecnica.Estado}
                                                     onClick={() => tecnica.Estado && (window.location.href = '/cotizacionesLanding')}
                                                 >
-                                                    {tecnica.Estado
-                                                        ? <><FaArrowRight size={12} /> Solicitar Servicio</>
-                                                        : "No disponible"
-                                                    }
+                                                    {tecnica.Estado ? <>Solicitar Servicio <FaArrowRight size={12} /></> : "No disponible"}
                                                 </button>
                                             </div>
                                         </div>
@@ -583,72 +347,65 @@ const Servicios = () => {
                 </section>
 
                 {/* ══════════ POR QUÉ ELEGIRNOS ══════════ */}
-                <section style={{ padding: "64px 32px", background: "#fff", borderTop: `1px solid ${C.border}` }}>
-                    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                        <div style={{ textAlign: "center", marginBottom: 44 }}>
-                            <p className="srv-section-label">Nuestra propuesta de valor</p>
-                            <h2 className="srv-section-title">¿Por qué elegirnos?</h2>
-                            <p className="srv-section-sub">Tres razones que nos hacen diferentes</p>
+                <div style={{ background: "#f8fafc", lineHeight: 0 }}>{wave("#0f1824")}</div>
+                <section className="sx-section svc-dark">
+                    <span className="sx-blob b1" style={{ opacity: .3 }} /><span className="sx-blob b2" style={{ opacity: .3 }} />
+                    <div className="sx-wrap">
+                        <div className="svc-head sx-reveal">
+                            <span className="sx-eyebrow">Nuestra propuesta de valor</span>
+                            <h2 className="sx-title">¿Por qué <span className="sx-gradient-text">elegirnos</span>?</h2>
+                            <p className="sx-sub">Razones que nos hacen diferentes</p>
                         </div>
+                        <div className="svc-why">
+                            {BENEFICIOS.map((b, i) => (
+                                <div key={i} className="sx-glass sx-tilt sx-reveal" style={{ "--sx-i": i }}>
+                                    <span className="svc-ghost-num">0{i + 1}</span>
+                                    <div className="sx-icon">{b.icon}</div>
+                                    <h3>{b.title}</h3>
+                                    <p>{b.desc}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+                <div style={{ background: "#eef2f9", lineHeight: 0, transform: "scaleY(-1)", marginTop: -1 }}>{wave("#0f1824")}</div>
 
-                        <div className="srv-grid-3" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 22 }}>
-                            {[
-                                {
-                                    icon: <FaPalette />,
-                                    color: C.accent,
-                                    colorSoft: C.accentSoft,
-                                    title: "Diseño Personalizado",
-                                    desc: "Creamos diseños únicos adaptados completamente a tus necesidades y preferencias. Cada prenda es una obra de arte."
-                                },
-                                {
-                                    icon: <FaTruck />,
-                                    color: C.success,
-                                    colorSoft: C.successSoft,
-                                    title: "Entrega Rápida",
-                                    desc: "Tiempos de producción optimizados sin sacrificar la calidad del producto final. Tu pedido llega cuando lo necesitas."
-                                },
-                                {
-                                    icon: <FaMedal />,
-                                    color: C.purple,
-                                    colorSoft: "#f5f3ff",
-                                    title: "Calidad Superior",
-                                    desc: "Utilizamos materiales premium y técnicas profesionales en cada trabajo. Resultados que superan tus expectativas."
-                                },
-                            ].map((b, i) => (
-                                <div key={i} className="srv-benefit-card">
-                                    <div className="srv-benefit-icon" style={{ background: b.colorSoft, color: b.color }}>
-                                        {b.icon}
-                                    </div>
-                                    <p className="srv-benefit-title">{b.title}</p>
-                                    <p className="srv-benefit-desc">{b.desc}</p>
+                {/* ══════════ PROCESO ══════════ */}
+                <section className="sx-section" style={{ background: "#eef2f9", paddingTop: 30 }}>
+                    <div className="sx-wrap">
+                        <div className="svc-head sx-reveal">
+                            <span className="sx-eyebrow">Cómo trabajamos</span>
+                            <h2 className="sx-title">Nuestro <span className="sx-gradient-text">proceso</span></h2>
+                            <p className="sx-sub">Simple, transparente y eficiente</p>
+                        </div>
+                        <div className="svc-tl">
+                            <div className="svc-tl-line" />
+                            {PASOS.map((p, i) => (
+                                <div key={i} className="svc-step sx-reveal" style={{ "--sx-i": i }}>
+                                    <div className="svc-dot">{p.icon}</div>
+                                    <span className="sx-num">{p.num}</span>
+                                    <h3>{p.titulo}</h3>
+                                    <p>{p.desc}</p>
                                 </div>
                             ))}
                         </div>
                     </div>
                 </section>
 
-                {/* ══════════ PROCESO ══════════ */}
-                <section style={{ padding: "64px 32px", background: C.bg, borderTop: `1px solid ${C.border}` }}>
-                    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
-                        <div style={{ textAlign: "center", marginBottom: 44 }}>
-                            <p className="srv-section-label">Cómo trabajamos</p>
-                            <h2 className="srv-section-title">Nuestro Proceso</h2>
-                            <p className="srv-section-sub">Simple, transparente y eficiente</p>
+                {/* ══════════ FAQ ══════════ */}
+                <section className="sx-section" style={{ background: "#f8fafc" }}>
+                    <div className="sx-wrap">
+                        <div className="svc-head sx-reveal">
+                            <span className="sx-eyebrow">Resolvemos tus dudas</span>
+                            <h2 className="sx-title">Preguntas <span className="sx-gradient-text">frecuentes</span></h2>
                         </div>
-
-                        <div className="srv-grid-steps" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 18 }}>
-                            {[
-                                { num: "01", titulo: "Consulta", desc: "Cuéntanos tu idea y te asesoramos sobre la mejor técnica para tu proyecto." },
-                                { num: "02", titulo: "Diseño", desc: "Creamos o adaptamos el diseño según tus especificaciones y necesidades." },
-                                { num: "03", titulo: "Producción", desc: "Aplicamos la técnica seleccionada con precisión y materiales de primera." },
-                                { num: "04", titulo: "Entrega", desc: "Recibes tu producto terminado en el tiempo acordado, con calidad garantizada." },
-                            ].map((paso, idx) => (
-                                <div key={idx} className="srv-step">
-                                    <div className="srv-step-num">{paso.num}</div>
-                                    <div>
-                                        <p className="srv-step-title">{paso.titulo}</p>
-                                        <p className="srv-step-desc">{paso.desc}</p>
-                                    </div>
+                        <div className="svc-faq">
+                            {FAQS.map((f, i) => (
+                                <div key={i} className={`svc-faq-item sx-reveal ${faqOpen === i ? "open" : ""}`} style={{ "--sx-i": i }}>
+                                    <button className="svc-faq-q" aria-expanded={faqOpen === i} onClick={() => setFaqOpen(faqOpen === i ? -1 : i)}>
+                                        {f.q} <FaChevronDown />
+                                    </button>
+                                    <div className="svc-faq-a"><div><p>{f.a}</p></div></div>
                                 </div>
                             ))}
                         </div>
@@ -656,24 +413,22 @@ const Servicios = () => {
                 </section>
 
                 {/* ══════════ CTA ══════════ */}
-                <section className="srv-cta">
-                    <div style={{ position: "relative", zIndex: 1 }}>
-                        <p style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: C.accent, margin: "0 0 12px" }}>
-                            ¿Listo para empezar?
-                        </p>
-                        <h2 style={{ fontSize: "clamp(1.6rem, 4vw, 2.4rem)", fontWeight: 900, color: "#fff", letterSpacing: "-0.02em", margin: "0 0 14px" }}>
-                            Crea algo increíble hoy
-                        </h2>
-                        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, margin: "0 0 32px", maxWidth: 460, marginLeft: "auto", marginRight: "auto" }}>
-                            Contáctanos y comencemos tu proyecto. Respuesta garantizada en menos de 24 horas.
-                        </p>
-                        <button className="srv-cta-btn" onClick={() => window.location.href = '/cotizacionesLanding'}>
+                <section className="svc-cta">
+                    <span className="sx-blob b3" style={{ top: "-20%", left: "10%", opacity: .35 }} />
+                    <span className="sx-blob b2" style={{ opacity: .35 }} />
+                    <div style={{ position: "relative", zIndex: 1 }} className="sx-reveal">
+                        <FaTshirt size={38} className="sx-bob" style={{ opacity: .9 }} />
+                        <span className="sx-eyebrow" style={{ color: "#cfe0ff", display: "flex", justifyContent: "center" }}>¿Listo para empezar?</span>
+                        <h2>Crea algo increíble hoy</h2>
+                        <p>Contáctanos y comencemos tu proyecto. Respuesta garantizada en menos de 24 horas.</p>
+                        <button className="sx-btn sx-btn-light sx-pulse" onClick={() => window.location.href = '/cotizacionesLanding'}>
                             Solicitar Cotización <FaChevronRight size={13} />
                         </button>
                     </div>
                 </section>
 
                 <FooterComponent />
+                <ScrollToTopButton />
             </div>
         </>
     );

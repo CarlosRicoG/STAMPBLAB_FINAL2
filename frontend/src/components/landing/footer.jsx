@@ -1,5 +1,6 @@
 import { FaWhatsapp, FaFacebook, FaInstagram, FaMapMarkerAlt, FaPhone, FaEnvelope, FaHeart } from "react-icons/fa";
 import { Link } from "react-router-dom";
+import logoImg from "../../assets/images/nuevo_logo_stamplab.png";
 
 const FooterComponent = () => {
     const year = new Date().getFullYear();
@@ -154,29 +155,39 @@ const FooterComponent = () => {
                     background: rgba(0,0,0,0.25);
                     padding: 14px 0;
                 }
+
+                .sl-footer-topline { height: 4px; background: linear-gradient(90deg, #4f8ef7, #7c3aed, #4f8ef7, #7c3aed); background-size: 300% 100%; animation: sl-footer-slide 8s linear infinite; }
+                @keyframes sl-footer-slide { to { background-position: 300% 0; } }
+                .sl-footer-grid { display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 40px; align-items: start; }
+                .sl-footer-logo { background: #fff; border-radius: 14px; padding: 6px 12px; height: 54px; object-fit: contain; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+                .sl-footer-social-btn { width: 46px; height: 46px; }
+                .sl-footer-link { position: relative; }
+                .sl-footer-link::before { content: "→"; position: absolute; left: -16px; opacity: 0; color: #4f8ef7; transition: opacity .2s, left .2s; }
+                .sl-footer-link:hover::before { opacity: 1; left: -14px; }
+                .sl-footer-link:hover { padding-left: 14px; }
+                .sl-footer-section-title { color: #fff; position: relative; padding-bottom: 10px; }
+                .sl-footer-section-title::after { content: ""; position: absolute; left: 0; bottom: 0; width: 28px; height: 3px; border-radius: 3px; background: linear-gradient(90deg,#4f8ef7,#7c3aed); }
+                @media (max-width: 900px) { .sl-footer-grid { grid-template-columns: 1fr 1fr; } }
+                @media (max-width: 560px) { .sl-footer-grid { grid-template-columns: 1fr; gap: 30px; } }
+                @media (prefers-reduced-motion: reduce) { .sl-footer-topline { animation: none; } }
             `}</style>
 
             <footer className="sl-footer">
                 {/* TOP ACCENT LINE */}
-                <div style={{
-                    height: 3,
-                    background: "linear-gradient(90deg, #4f8ef7 0%, #7c3aed 50%, #4f8ef7 100%)",
-                    backgroundSize: "200% 100%",
-                    animation: "none"
-                }} />
+                <div className="sl-footer-topline" />
 
                 {/* MAIN CONTENT */}
                 <div style={{ padding: "48px 0 36px", position: "relative", zIndex: 1 }}>
                     <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 40, alignItems: "start" }}>
+                        <div className="sl-footer-grid">
 
                             {/* ── COLUMNA 1: BRAND ── */}
                             <div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
                                     <img
-                                        src="src/assets/logostamplab.png"
+                                        src={logoImg}
                                         alt="StampLab"
-                                        style={{ height: 48, objectFit: "contain", filter: "brightness(1.1)" }}
+                                        className="sl-footer-logo"
                                         onError={e => { e.target.style.display = "none"; }}
                                     />
                                     <div>

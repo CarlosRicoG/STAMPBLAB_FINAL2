@@ -5,23 +5,11 @@ import NavbarComponent from "./NavBarLanding";
 import ScrollToTopButton from "./ScrollTopButton";
 import { getProductos } from "../../Services/api-productos/productos";
 import { getTallas } from "../../Services/api-productos/atributos";
-
-const C = {
-    navy:      "#1a2540",
-    navyDark:  "#0f1824",
-    accent:    "#4f8ef7",
-    text:      "#0f172a",
-    muted:     "#64748b",
-    mutedDark: "rgba(255,255,255,0.38)",
-    border:    "#e2e8f0",
-    borderDark:"rgba(255,255,255,0.09)",
-    bg:        "#f8fafc",
-    white:     "#ffffff",
-    success:   "#16a34a",
-    successBg: "#f0fdf4",
-};
-
-const FONT = "'Outfit', sans-serif";
+import usePlus from "../../hooks/usePlus";
+import "./landing.css";
+import imgBlanca from "../../assets/images/camisablanca.png";
+import imgNegra from "../../assets/images/camisanegra.png";
+import imgBuzo from "../../assets/images/buzo.png";
 
 const coloresHex = {
     "Rojo":"#ef4444","Azul":"#3b82f6","Verde":"#22c55e","Amarillo":"#eab308",
@@ -75,16 +63,24 @@ const Counter = ({ num, suf }) => {
     return <span ref={ref}>{val}{suf}</span>;
 };
 
-/* ─── Chevron SVG ─── */
 const ChevLeft  = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 const ChevRight = () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 18l6-6-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
-const Check     = ({ color = "currentColor" }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+const Check     = ({ color = "currentColor" }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 const ArrowR    = ({ color = "currentColor" }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M12 5l7 7-7 7" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>;
+
+const Wave = ({ fill, flip, className = "sx-wave", style }) => (
+    <svg className={className} viewBox="0 0 1440 80" preserveAspectRatio="none" style={{ transform: flip ? "scaleY(-1)" : undefined, ...style }}>
+        <path fill={fill} d="M0 40c120 36 240 40 360 20S600 0 720 8s240 56 360 56 240-24 360-44v60H0z" />
+    </svg>
+);
+
+const CINTA = ["Serigrafía", "Sublimación", "Vinil textil", "Bordado", "Camisetas", "Buzos", "Gorras", "Uniformes"];
 
 /* ══════════════════════════════════
    HOME
 ══════════════════════════════════ */
 const Home = () => {
+    usePlus();
     const navigate = useNavigate();
     const [productos,  setProductos]  = useState([]);
     const [tallas,     setTallas]     = useState([]);
@@ -117,295 +113,185 @@ const Home = () => {
     const totalS  = Math.ceil(productos.length / PPS);
     const current = productos.slice(slide * PPS, (slide + 1) * PPS);
 
+    const cinta = [...CINTA, ...CINTA];
+
     return (
-        <div style={{ fontFamily: FONT, background: C.bg, overflowX: "hidden" }}>
-            <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
-                *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-                @keyframes fadeUp  { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:none } }
-                @keyframes fadeIn  { from { opacity:0 } to { opacity:1 } }
-                @keyframes shimmer { 0%{background-position:-600px 0} 100%{background-position:600px 0} }
-
-                .h1 { animation: fadeUp 0.6s ease 0.04s both }
-                .h2 { animation: fadeUp 0.6s ease 0.16s both }
-                .h3 { animation: fadeUp 0.6s ease 0.27s both }
-                .h4 { animation: fadeUp 0.6s ease 0.38s both }
-                .h5 { animation: fadeIn 0.8s ease 0.55s both }
-
-                .prod-c  { transition: box-shadow 0.2s, transform 0.2s; }
-                .prod-c:hover  { box-shadow: 0 10px 32px rgba(26,37,64,0.12); transform: translateY(-4px); }
-                .prod-c:hover .pimg { transform: scale(1.05); }
-                .pimg { transition: transform 0.3s ease; }
-
-                .tec-r { transition: background 0.15s; border-bottom: 1px solid rgba(255,255,255,0.08); }
-                .tec-r:hover { background: rgba(255,255,255,0.03); }
-
-                .step-c { transition: border-color 0.18s; }
-                .step-c:hover { border-color: ${C.accent}; }
-
-                /* Botones sin gradiente */
-                .btn-n {
-                    background: ${C.navy}; color: #fff;
-                    border: 2px solid ${C.navy}; border-radius: 8px;
-                    padding: 11px 24px; font-weight: 700; font-size: 14px;
-                    cursor: pointer; font-family: ${FONT};
-                    display: inline-flex; align-items: center; gap: 7px;
-                    transition: background 0.16s;
-                    text-decoration: none;
-                }
-                .btn-n:hover { background: ${C.navyDark}; border-color: ${C.navyDark}; }
-
-                .btn-a {
-                    background: ${C.accent}; color: #fff;
-                    border: 2px solid ${C.accent}; border-radius: 8px;
-                    padding: 11px 24px; font-weight: 700; font-size: 14px;
-                    cursor: pointer; font-family: ${FONT};
-                    display: inline-flex; align-items: center; gap: 7px;
-                    transition: background 0.16s;
-                }
-                .btn-a:hover { background: #3b7ae0; border-color: #3b7ae0; }
-
-                .btn-g {
-                    background: transparent; color: #fff;
-                    border: 2px solid rgba(255,255,255,0.3); border-radius: 8px;
-                    padding: 11px 24px; font-weight: 700; font-size: 14px;
-                    cursor: pointer; font-family: ${FONT};
-                    display: inline-flex; align-items: center; gap: 7px;
-                    transition: border-color 0.16s, background 0.16s;
-                }
-                .btn-g:hover { border-color: rgba(255,255,255,0.7); background: rgba(255,255,255,0.06); }
-
-                ::-webkit-scrollbar { width: 6px; }
-                ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 4px; }
-
-                @media (max-width: 768px) {
-                    .hero-grid  { grid-template-columns: 1fr !important; }
-                    .about-grid { grid-template-columns: 1fr !important; }
-                    .cta-grid   { grid-template-columns: 1fr !important; }
-                    .tec-r      { grid-template-columns: 50px 1fr !important; }
-                    .tec-desc   { display: none !important; }
-                }
-            `}</style>
-
+        <div className="hm-root">
             <NavbarComponent />
 
-            {/* ══════════════════
-                HERO
-            ══════════════════ */}
-            <section style={{ minHeight:"100vh", background:C.navy, display:"flex", alignItems:"center", padding:"120px 24px 80px", position:"relative", overflow:"hidden" }}>
-
-                {/* Franja diagonal sutil */}
-                <div style={{ position:"absolute", top:0, right:0, bottom:0, width:"38%", background:"rgba(255,255,255,0.022)", clipPath:"polygon(16% 0, 100% 0, 100% 100%, 0% 100%)", pointerEvents:"none" }}/>
-                {/* Línea vertical */}
-                <div style={{ position:"absolute", left:"60%", top:0, bottom:0, width:1, background:"rgba(255,255,255,0.05)", pointerEvents:"none" }}/>
-
-                <div className="hero-grid" style={{ maxWidth:1100, margin:"0 auto", width:"100%", display:"grid", gridTemplateColumns:"1fr 220px", gap:48, alignItems:"center", position:"relative", zIndex:1 }}>
-
-                    {/* Texto */}
-                    <div>
-                        <p className="h1" style={{ fontSize:11, fontWeight:700, color:C.accent, textTransform:"uppercase", letterSpacing:"0.18em", marginBottom:20 }}>
-                            StampLab · Desde 2022
-                        </p>
-                        <h1 className="h2" style={{ fontSize:"clamp(2.6rem,7vw,5.4rem)", fontWeight:900, color:"#fff", lineHeight:0.95, letterSpacing:"-0.04em", marginBottom:8 }}>DISEÑA</h1>
-                        <h1 className="h3" style={{ fontSize:"clamp(2.6rem,7vw,5.4rem)", fontWeight:900, color:"transparent", WebkitTextStroke:"2px rgba(255,255,255,0.4)", lineHeight:0.95, letterSpacing:"-0.04em", marginBottom:8 }}>TU ESTILO,</h1>
-                        <h1 className="h3" style={{ fontSize:"clamp(2.6rem,7vw,5.4rem)", fontWeight:900, color:C.accent, lineHeight:0.95, letterSpacing:"-0.04em", marginBottom:28 }}>ESTAMPA TU IDENTIDAD.</h1>
-                        <p className="h4" style={{ fontSize:16, color:"rgba(255,255,255,0.45)", lineHeight:1.78, maxWidth:460, marginBottom:36 }}>
-                            Serigrafía, sublimación, vinil textil y bordado. Cuéntanos tu idea y la hacemos realidad.
-                        </p>
-                        <div className="h4" style={{ display:"flex", gap:12, flexWrap:"wrap" }}>
-                            <button className="btn-a" onClick={() => navigate("/productosLanding")}>
-                                Ver productos <ArrowR color="#fff"/>
-                            </button>
-                            <button className="btn-g" onClick={() => navigate("/cotizacionesLanding")}>
-                                Cotizar diseño
-                            </button>
+            {/* ══════════ HERO ══════════ */}
+            <section className="hm-hero sx-hero-bg">
+                <div className="sx-blob b1" /><div className="sx-blob b2" /><div className="sx-blob b3" />
+                <div className="hm-hero-grid">
+                    <div className="sx-hero-in">
+                        <span className="hm-badge"><i className="hm-dot sx-pulse" /> StampLab · Desde 2022</span>
+                        <div>
+                            <h1 className="hm-h1">DISEÑA</h1>
+                            <h1 className="hm-h1 sx-outline-text">TU ESTILO,</h1>
+                            <h1 className="hm-h1 sx-gradient-text">ESTAMPA TU IDENTIDAD.</h1>
+                        </div>
+                        <p className="hm-lead">Serigrafía, sublimación, vinil textil y bordado. Cuéntanos tu idea y la hacemos realidad.</p>
+                        <div className="hm-cta">
+                            <button className="sx-btn" onClick={() => navigate("/productosLanding")}>Ver productos <ArrowR color="#fff"/></button>
+                            <button className="sx-btn sx-btn-ghost" onClick={() => navigate("/cotizacionesLanding")}>Cotizar diseño</button>
+                        </div>
+                        <div className="hm-hero-stats">
+                            {STATS.slice(0, 3).map((s, i) => (
+                                <div key={i}><b><Counter num={s.num} suf={s.suf}/></b><span>{s.label}</span></div>
+                            ))}
                         </div>
                     </div>
 
-                    {/* Estadísticas verticales */}
-                    <div className="h5" style={{ display:"flex", flexDirection:"column" }}>
-                        {STATS.map((s, i) => (
-                            <div key={i} style={{ padding:"18px 0 18px 18px", borderLeft:`3px solid ${i % 2 === 0 ? C.accent : C.borderDark}`, marginBottom:6 }}>
-                                <p style={{ fontSize:28, fontWeight:900, color:"#fff", lineHeight:1, letterSpacing:"-0.03em", marginBottom:4 }}>
-                                    <Counter num={s.num} suf={s.suf}/>
-                                </p>
-                                <p style={{ fontSize:11, color:"rgba(255,255,255,0.35)", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.09em" }}>{s.label}</p>
-                            </div>
+                    <div className="hm-stage" aria-hidden="true">
+                        <div className="hm-ring" /><div className="hm-ring hm-ring2" /><div className="hm-orb sx-bob" />
+                        <div className="hm-fcard hm-fc1 sx-bob"><img src={imgBlanca} alt="" /></div>
+                        <div className="hm-fcard hm-fc2 sx-bob"><img src={imgNegra} alt="" /></div>
+                        <div className="hm-fcard hm-fc3 sx-bob"><img src={imgBuzo} alt="" /></div>
+                        <div className="hm-tag t1 sx-bob"><i>✦</i> Calidad premium</div>
+                        <div className="hm-tag t2 sx-bob" style={{ animationDelay: "-2s" }}><i>★</i> Entrega a tiempo</div>
+                    </div>
+                </div>
+                <div className="hm-scroll" />
+                <Wave fill="#ffffff" className="sx-wave hm-wave-hero" />
+            </section>
+
+            {/* ══════════ CINTA ══════════ */}
+            <div className="hm-ribbon">
+                <div className="sx-marquee">
+                    <div className="sx-marquee-track">
+                        {cinta.map((t, i) => (
+                            <span key={i} className={`hm-ribbon-item ${i % 2 ? "o" : ""}`}>{t} <span className="hm-star">✦</span></span>
                         ))}
                     </div>
                 </div>
+            </div>
 
-                {/* Scroll hint */}
-                <div style={{ position:"absolute", bottom:28, left:"50%", transform:"translateX(-50%)", display:"flex", flexDirection:"column", alignItems:"center", gap:6, opacity:0.28 }}>
-                    <div style={{ width:1, height:32, background:"rgba(255,255,255,0.6)" }}/>
-                    <p style={{ fontSize:9, fontWeight:700, letterSpacing:"0.2em", color:"#fff", textTransform:"uppercase" }}>scroll</p>
-                </div>
-            </section>
-
-            {/* ══════════════════
-                QUIÉNES SOMOS
-            ══════════════════ */}
-            <section style={{ padding:"88px 24px", background:C.white, borderBottom:`1px solid ${C.border}` }}>
-                <div className="about-grid" style={{ maxWidth:1100, margin:"0 auto", display:"grid", gridTemplateColumns:"1fr 1fr", gap:72, alignItems:"center" }}>
-
-                    <div>
-                        <p style={{ fontSize:11, fontWeight:700, color:C.accent, textTransform:"uppercase", letterSpacing:"0.16em", marginBottom:14 }}>Quiénes somos</p>
-                        <h2 style={{ fontSize:"clamp(1.6rem,3vw,2.3rem)", fontWeight:900, color:C.navy, lineHeight:1.2, letterSpacing:"-0.025em", marginBottom:20 }}>
-                            Transformamos ideas en prendas que la gente usa
-                        </h2>
-                        <p style={{ fontSize:15, color:C.muted, lineHeight:1.8, marginBottom:14 }}>
-                            Desde 2022 personalizamos ropa y accesorios para personas, equipos y marcas. Trabajamos con la técnica que cada diseño necesita — no usamos plantillas genéricas.
-                        </p>
-                        <p style={{ fontSize:15, color:C.muted, lineHeight:1.8, marginBottom:32 }}>
-                            Cada pedido pasa por un proceso de asesoría donde revisamos diseño, técnica y materiales antes de producir. Sin sorpresas en la entrega.
-                        </p>
-
-                        <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+            {/* ══════════ QUIÉNES SOMOS ══════════ */}
+            <section className="sx-section" style={{ background:"#fff" }}>
+                <div className="sx-wrap hm-about">
+                    <div className="sx-reveal sx-reveal-left">
+                        <span className="sx-eyebrow">Quiénes somos</span>
+                        <h2 className="sx-title">Transformamos ideas en <span className="sx-gradient-text">prendas que la gente usa</span></h2>
+                        <p className="hm-p">Desde 2022 personalizamos ropa y accesorios para personas, equipos y marcas. Trabajamos con la técnica que cada diseño necesita — no usamos plantillas genéricas.</p>
+                        <p className="hm-p" style={{ marginBottom: 24 }}>Cada pedido pasa por un proceso de asesoría donde revisamos diseño, técnica y materiales antes de producir. Sin sorpresas en la entrega.</p>
+                        <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                             {[
                                 ["Materiales de primera",  "Usamos insumos que duran lavado tras lavado."],
                                 ["Asesoría incluida",      "Te orientamos en técnica, colores y acabados."],
                                 ["Tiempos cumplidos",      "Acordamos fecha de entrega y la respetamos."],
                             ].map(([t, d], i) => (
-                                <div key={i} style={{ display:"flex", gap:13, alignItems:"flex-start" }}>
-                                    <div style={{ width:22, height:22, borderRadius:"50%", background:C.accent, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1 }}>
-                                        <Check color="#fff"/>
-                                    </div>
-                                    <div>
-                                        <p style={{ fontWeight:800, fontSize:14, color:C.navy, marginBottom:2 }}>{t}</p>
-                                        <p style={{ fontSize:13, color:C.muted }}>{d}</p>
-                                    </div>
+                                <div key={i} className="hm-feat">
+                                    <div className="sx-icon"><Check color="#fff"/></div>
+                                    <div><b>{t}</b><span>{d}</span></div>
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Visual */}
-                    <div style={{ position:"relative" }}>
-                        <div style={{ background:C.navy, borderRadius:14, padding:"44px 36px", display:"flex", flexDirection:"column", justifyContent:"space-between", minHeight:320 }}>
+                    <div className="hm-visual sx-reveal sx-reveal-right">
+                        <div className="hm-vbox sx-tilt">
                             <div>
-                                <p style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"0.15em", marginBottom:6 }}>Stamp</p>
-                                <p style={{ fontSize:60, fontWeight:900, color:"#fff", lineHeight:1, letterSpacing:"-0.04em" }}>LAB</p>
+                                <p style={{ fontSize:12, fontWeight:800, color:"rgba(255,255,255,.5)", textTransform:"uppercase", letterSpacing:".2em", marginBottom:10 }}>Stamp</p>
+                                <p className="hm-big sx-gradient-text">LAB</p>
                             </div>
-                            <div style={{ borderTop:"1px solid rgba(255,255,255,0.09)", paddingTop:22, marginTop:32 }}>
-                                <p style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.3)", textTransform:"uppercase", letterSpacing:"0.12em", marginBottom:10 }}>Técnicas</p>
-                                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
-                                    {["Serigrafía","Sublimación","Vinil","Bordado"].map(t => (
-                                        <span key={t} style={{ background:"rgba(255,255,255,0.07)", color:"rgba(255,255,255,0.65)", borderRadius:4, padding:"4px 10px", fontSize:11, fontWeight:600 }}>{t}</span>
-                                    ))}
-                                </div>
+                            <div style={{ borderTop:"1px solid rgba(255,255,255,.14)", paddingTop:22, marginTop:32 }}>
+                                <p style={{ fontSize:11, fontWeight:800, color:"rgba(255,255,255,.5)", textTransform:"uppercase", letterSpacing:".16em", marginBottom:12 }}>Técnicas</p>
+                                {["Serigrafía","Sublimación","Vinil","Bordado"].map(t => <span key={t} className="hm-pill">{t}</span>)}
                             </div>
                         </div>
-                        {/* Tag flotante */}
-                        <div style={{ position:"absolute", bottom:-14, right:-14, background:C.white, borderRadius:10, padding:"13px 16px", boxShadow:"0 8px 28px rgba(0,0,0,0.09)", border:`1px solid ${C.border}` }}>
-                            <p style={{ fontSize:22, fontWeight:900, color:C.navy, marginBottom:2 }}>500+</p>
-                            <p style={{ fontSize:11, color:C.muted, fontWeight:600 }}>pedidos entregados</p>
-                        </div>
+                        <div className="hm-float sx-bob"><b className="sx-gradient-text">500+</b><span>pedidos entregados</span></div>
                     </div>
                 </div>
             </section>
 
-            {/* <section style={{ padding:"88px 24px", background:C.navy }}>
-                <div style={{ maxWidth:1100, margin:"0 auto" }}>
-                    <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", marginBottom:48, flexWrap:"wrap", gap:16 }}>
-                        <div>
-                            <p style={{ fontSize:11, fontWeight:700, color:C.accent, textTransform:"uppercase", letterSpacing:"0.16em", marginBottom:10 }}>Lo que hacemos</p>
-                            <h2 style={{ fontSize:"clamp(1.6rem,3vw,2.3rem)", fontWeight:900, color:"#fff", letterSpacing:"-0.025em" }}>Nuestras técnicas</h2>
+            {/* ══════════ ESTADÍSTICAS ══════════ */}
+            <section className="hm-stats sx-hero-bg" style={{ padding:"70px 24px" }}>
+                <div className="sx-blob b1" style={{ opacity:.25 }} /><div className="sx-blob b2" style={{ opacity:.25 }} />
+                <div className="sx-wrap sx-grid sx-grid-4" style={{ gap:10 }}>
+                    {STATS.map((s, i) => (
+                        <div key={i} className="hm-stat sx-reveal" style={{ "--sx-i": i }}>
+                            <b><Counter num={s.num} suf={s.suf}/></b><span>{s.label}</span>
                         </div>
-                        <p style={{ fontSize:14, color:"rgba(255,255,255,0.35)", maxWidth:300, lineHeight:1.75, textAlign:"right" }}>
-                            La técnica correcta depende del diseño, la prenda y el volumen del pedido.
-                        </p>
+                    ))}
+                </div>
+            </section>
+
+            {/* ══════════ TÉCNICAS ══════════ */}
+            <section className="sx-section sx-hero-bg" style={{ paddingBottom: 110 }}>
+                <div className="sx-blob b3" style={{ top:"10%", left:"70%" }} />
+                <div className="sx-wrap">
+                    <div className="sx-reveal" style={{ textAlign:"center", marginBottom:50 }}>
+                        <span className="sx-eyebrow">Lo que hacemos</span>
+                        <h2 className="sx-title" style={{ color:"#fff" }}>Nuestras <span className="sx-gradient-text">técnicas</span></h2>
+                        <p className="sx-sub" style={{ margin:"0 auto", color:"rgba(255,255,255,.65)" }}>La técnica correcta depende del diseño, la prenda y el volumen del pedido.</p>
                     </div>
-
-
-                    <div style={{ borderTop:"1px solid rgba(255,255,255,0.08)" }}>
+                    <div className="sx-grid sx-grid-4">
                         {TECNICAS.map((t, i) => (
-                            <div key={i} className="tec-r" style={{ display:"grid", gridTemplateColumns:"64px 1fr 2fr", gap:24, alignItems:"start", padding:"26px 12px", borderRadius:6 }}>
-                                <p style={{ fontSize:11, fontWeight:700, color:"rgba(255,255,255,0.2)", letterSpacing:"0.08em", paddingTop:2 }}>{t.n}</p>
-                                <p style={{ fontSize:17, fontWeight:800, color:"#fff" }}>{t.titulo}</p>
-                                <p className="tec-desc" style={{ fontSize:14, color:"rgba(255,255,255,0.42)", lineHeight:1.75 }}>{t.desc}</p>
+                            <div key={i} className="sx-glass sx-reveal" style={{ "--sx-i": i }}>
+                                <div className="hm-tec">
+                                    <p className="n">{t.n}</p>
+                                    <h3>{t.titulo}</h3>
+                                    <p>{t.desc}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
-            </section> */}
+            </section>
 
-            {/* ══════════════════
-                PRODUCTOS
-            ══════════════════ */}
-            <section style={{ padding:"88px 24px", background:C.bg }}>
-                <div style={{ maxWidth:1100, margin:"0 auto" }}>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:36, flexWrap:"wrap", gap:14 }}>
+            {/* ══════════ PRODUCTOS ══════════ */}
+            <section className="sx-section sx-alt">
+                <div className="sx-wrap">
+                    <div className="hm-head sx-reveal">
                         <div>
-                            <p style={{ fontSize:11, fontWeight:700, color:C.accent, textTransform:"uppercase", letterSpacing:"0.16em", marginBottom:8 }}>Catálogo</p>
-                            <h2 style={{ fontSize:"clamp(1.5rem,3vw,2.1rem)", fontWeight:900, color:C.navy, letterSpacing:"-0.025em" }}>Productos disponibles</h2>
+                            <span className="sx-eyebrow">Catálogo</span>
+                            <h2 className="sx-title" style={{ marginBottom:0 }}>Productos <span className="sx-gradient-text">disponibles</span></h2>
                         </div>
-                        <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                        <div className="hm-nav">
                             {totalS > 1 && (
-                                <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                                    <button onClick={() => setSlide(p => Math.max(0,p-1))} disabled={slide===0}
-                                        style={{ width:32, height:32, borderRadius:7, border:`1.5px solid ${C.border}`, background:C.white, cursor:slide===0?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:slide===0?0.3:1, color:C.navy }}>
-                                        <ChevLeft/>
-                                    </button>
-                                    <span style={{ fontSize:12, color:C.muted, fontWeight:600, minWidth:40, textAlign:"center" }}>{slide+1} / {totalS}</span>
-                                    <button onClick={() => setSlide(p => Math.min(totalS-1,p+1))} disabled={slide===totalS-1}
-                                        style={{ width:32, height:32, borderRadius:7, border:`1.5px solid ${C.border}`, background:C.white, cursor:slide===totalS-1?"not-allowed":"pointer", display:"flex", alignItems:"center", justifyContent:"center", opacity:slide===totalS-1?0.3:1, color:C.navy }}>
-                                        <ChevRight/>
-                                    </button>
-                                </div>
+                                <>
+                                    <button className="hm-arrow" aria-label="Anterior" onClick={() => setSlide(p => Math.max(0,p-1))} disabled={slide===0}><ChevLeft/></button>
+                                    <span style={{ fontSize:13, color:"#64748b", fontWeight:700, minWidth:44, textAlign:"center" }}>{slide+1} / {totalS}</span>
+                                    <button className="hm-arrow" aria-label="Siguiente" onClick={() => setSlide(p => Math.min(totalS-1,p+1))} disabled={slide===totalS-1}><ChevRight/></button>
+                                </>
                             )}
-                            <button className="btn-n" onClick={() => navigate("/productosLanding")} style={{ padding:"8px 16px", fontSize:13 }}>
-                                Ver todos
-                            </button>
+                            <button className="sx-btn sx-btn-dark sx-btn-sm" onClick={() => navigate("/productosLanding")}>Ver todos <ArrowR color="#fff"/></button>
                         </div>
                     </div>
 
                     {cargando ? (
-                        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:18 }}>
-                            {[1,2,3].map(i => (
-                                <div key={i} style={{ background:C.white, borderRadius:12, overflow:"hidden", border:`1px solid ${C.border}` }}>
-                                    <div style={{ height:200, background:"linear-gradient(90deg,#f1f5f9 25%,#e8e6e1 50%,#f1f5f9 75%)", backgroundSize:"600px 100%", animation:"shimmer 1.4s infinite" }}/>
-                                    <div style={{ padding:14 }}>
-                                        <div style={{ height:13, borderRadius:4, background:"#f1f5f9", marginBottom:8 }}/>
-                                        <div style={{ height:11, borderRadius:4, background:"#f1f5f9", width:"55%" }}/>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        <div className="sx-grid">{[1,2,3].map(i => <div key={i} className="hm-skel" />)}</div>
                     ) : productos.length === 0 ? (
-                        <div style={{ textAlign:"center", padding:"44px 20px", background:C.white, borderRadius:12, border:`1px solid ${C.border}` }}>
-                            <p style={{ fontWeight:700, color:C.navy, marginBottom:4 }}>No hay productos disponibles por ahora.</p>
-                            <p style={{ color:C.muted, fontSize:14 }}>Vuelve pronto.</p>
+                        <div className="hm-empty">
+                            <p style={{ fontWeight:800, color:"#1a2540", marginBottom:4 }}>No hay productos disponibles por ahora.</p>
+                            <p style={{ color:"#64748b", fontSize:14 }}>Vuelve pronto.</p>
                         </div>
                     ) : (
-                        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))", gap:18 }}>
-                            {current.map(p => {
+                        <div className="sx-grid" key={slide}>
+                            {current.map((p, idx) => {
                                 const precio = precioMin(p);
                                 const cols   = coloresOf(p);
                                 return (
-                                    <div key={p.ProductoID} className="prod-c" style={{ background:C.white, borderRadius:12, overflow:"hidden", border:`1px solid ${C.border}`, display:"flex", flexDirection:"column" }}>
-                                        <div style={{ height:200, overflow:"hidden", background:C.bg, position:"relative" }}>
+                                    <div key={p.ProductoID} className="sx-card sx-reveal hm-prod" style={{ "--sx-i": idx }}>
+                                        <div className="hm-pimg sx-zoom">
                                             {p.ImagenProducto
-                                                ? <img src={p.ImagenProducto} alt={p.Nombre} className="pimg" style={{ width:"100%", height:"100%", objectFit:"contain", display:"block" }} onError={e=>e.target.style.display="none"}/>
-                                                : <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ fontSize:13, color:C.muted }}>Sin imagen</p></div>
+                                                ? <img src={p.ImagenProducto} alt={p.Nombre} onError={e=>e.target.style.display="none"}/>
+                                                : <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ fontSize:13, color:"#64748b" }}>Sin imagen</p></div>
                                             }
-                                            <span style={{ position:"absolute", top:10, left:10, background:C.successBg, color:C.success, borderRadius:4, padding:"3px 8px", fontSize:10, fontWeight:700, letterSpacing:"0.04em" }}>Disponible</span>
+                                            <span className="hm-avail">● Disponible</span>
                                         </div>
-                                        <div style={{ padding:"13px 14px", flex:1, display:"flex", flexDirection:"column", gap:5 }}>
-                                            <p style={{ fontWeight:800, fontSize:15, color:C.navy }}>{p.Nombre}</p>
-                                            {p.Descripcion && <p style={{ fontSize:12, color:C.muted, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden" }}>{p.Descripcion}</p>}
+                                        <div className="hm-pbody">
+                                            <p className="hm-pname">{p.Nombre}</p>
+                                            {p.Descripcion && <p className="hm-pdesc">{p.Descripcion}</p>}
                                             {cols.length > 0 && (
-                                                <div style={{ display:"flex", gap:5, alignItems:"center" }}>
-                                                    <p style={{ margin:0, fontSize:11, color:C.muted, fontWeight:600 }}>Colores</p>
-                                                    {cols.map(c => <span key={c} title={c} style={{ width:12, height:12, borderRadius:"50%", background:coloresHex[c]||"#ccc", border:"1.5px solid rgba(0,0,0,0.1)", display:"inline-block" }}/>)}
+                                                <div style={{ display:"flex", gap:7, alignItems:"center", flexWrap:"wrap" }}>
+                                                    <span style={{ fontSize:11, color:"#64748b", fontWeight:700 }}>Colores</span>
+                                                    {cols.map(c => <span key={c} title={c} className="hm-swatch" style={{ background:coloresHex[c]||"#ccc" }}/>)}
                                                 </div>
                                             )}
-                                            <div style={{ marginTop:"auto", paddingTop:11, borderTop:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                                                <div>
-                                                    <p style={{ fontSize:10, color:C.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.06em", marginBottom:1 }}>Desde</p>
-                                                    <p style={{ fontWeight:900, fontSize:18, color:C.text }}>${precio.toLocaleString("es-CO")}</p>
-                                                </div>
-                                                <button className="btn-n" onClick={() => navigate("/productosLanding")} style={{ padding:"7px 13px", fontSize:12 }}>Ver</button>
+                                            <div className="hm-pfoot">
+                                                <div className="hm-price"><small>Desde</small><b>${precio.toLocaleString("es-CO")}</b></div>
+                                                <button className="sx-btn sx-btn-sm" onClick={() => navigate("/productosLanding")}>Ver <ArrowR color="#fff"/></button>
                                             </div>
                                         </div>
                                     </div>
@@ -416,50 +302,38 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* ══════════════════
-                PROCESO
-            ══════════════════ */}
-            <section style={{ padding:"88px 24px", background:C.white, borderTop:`1px solid ${C.border}` }}>
-                <div style={{ maxWidth:1100, margin:"0 auto" }}>
-                    <div style={{ maxWidth:460, marginBottom:48 }}>
-                        <p style={{ fontSize:11, fontWeight:700, color:C.accent, textTransform:"uppercase", letterSpacing:"0.16em", marginBottom:12 }}>Proceso</p>
-                        <h2 style={{ fontSize:"clamp(1.6rem,3vw,2.3rem)", fontWeight:900, color:C.navy, lineHeight:1.2, letterSpacing:"-0.025em", marginBottom:14 }}>¿Cómo funciona?</h2>
-                        <p style={{ fontSize:15, color:C.muted, lineHeight:1.75 }}>Del concepto a la prenda en cuatro pasos. Sin letra chica.</p>
+            {/* ══════════ PROCESO ══════════ */}
+            <section className="sx-section" style={{ background:"#fff" }}>
+                <div className="sx-wrap">
+                    <div className="sx-reveal" style={{ textAlign:"center", marginBottom:54 }}>
+                        <span className="sx-eyebrow">Proceso</span>
+                        <h2 className="sx-title">¿Cómo <span className="sx-gradient-text">funciona?</span></h2>
+                        <p className="sx-sub" style={{ margin:"0 auto" }}>Del concepto a la prenda en cuatro pasos. Sin letra chica.</p>
                     </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))", gap:13 }}>
+                    <div className="hm-steps sx-grid sx-grid-4">
                         {PASOS.map((paso, i) => (
-                            <div key={i} className="step-c" style={{ background:C.bg, borderRadius:10, padding:"22px 18px", border:`1.5px solid ${C.border}` }}>
-                                <p style={{ fontSize:11, fontWeight:700, color:C.muted, letterSpacing:"0.1em", marginBottom:14 }}>{paso.n}</p>
-                                <p style={{ fontWeight:800, fontSize:15, color:C.navy, marginBottom:7 }}>{paso.titulo}</p>
-                                <p style={{ fontSize:13, color:C.muted, lineHeight:1.7 }}>{paso.desc}</p>
+                            <div key={i} className="sx-card sx-reveal" style={{ "--sx-i": i }}>
+                                <div className="hm-step">
+                                    <p className="sx-num">{paso.n}</p>
+                                    <h3>{paso.titulo}</h3>
+                                    <p>{paso.desc}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* ══════════════════
-                CTA FINAL
-            ══════════════════ */}
-            <section style={{ padding:"88px 24px", background:C.navy }}>
-                <div className="cta-grid" style={{ maxWidth:1100, margin:"0 auto", display:"grid", gridTemplateColumns:"1fr auto", gap:56, alignItems:"center" }}>
-                    <div>
-                        <p style={{ fontSize:11, fontWeight:700, color:C.accent, textTransform:"uppercase", letterSpacing:"0.16em", marginBottom:12 }}>¿Tienes un proyecto?</p>
-                        <h2 style={{ fontSize:"clamp(1.8rem,4vw,2.8rem)", fontWeight:900, color:"#fff", lineHeight:1.1, letterSpacing:"-0.03em", marginBottom:16 }}>
-                            Tu idea merece ser real.
-                        </h2>
-                        <p style={{ fontSize:15, color:"rgba(255,255,255,0.4)", lineHeight:1.78, maxWidth:420 }}>
-                            Cotiza sin compromiso. Revisamos juntos el diseño, la técnica y el presupuesto. Sin costos ocultos.
-                        </p>
-                    </div>
-                    <div style={{ display:"flex", flexDirection:"column", gap:10, minWidth:190 }}>
-                        <button className="btn-a" onClick={() => navigate("/cotizacionesLanding")} style={{ justifyContent:"center" }}>
-                            Cotizar gratis <ArrowR color="#fff"/>
-                        </button>
-                        <button className="btn-g" onClick={() => navigate("/productosLanding")} style={{ justifyContent:"center" }}>
-                            Ver catálogo
-                        </button>
-                    
+            {/* ══════════ CTA FINAL ══════════ */}
+            <section className="hm-cta-sec sx-hero-bg">
+                <div className="sx-blob b1" /><div className="sx-blob b2" />
+                <div className="sx-wrap sx-reveal sx-reveal-zoom">
+                    <span className="sx-eyebrow" style={{ color:"#9bbcff" }}>¿Tienes un proyecto?</span>
+                    <h2 className="hm-cta-title">Tu idea merece <span className="sx-gradient-text">ser real.</span></h2>
+                    <p className="hm-cta-p">Cotiza sin compromiso. Revisamos juntos el diseño, la técnica y el presupuesto. Sin costos ocultos.</p>
+                    <div className="hm-cta" style={{ justifyContent:"center" }}>
+                        <button className="sx-btn sx-btn-light" onClick={() => navigate("/cotizacionesLanding")}>Cotizar gratis <ArrowR color="#1a2540"/></button>
+                        <button className="sx-btn sx-btn-ghost" onClick={() => navigate("/productosLanding")}>Ver catálogo</button>
                     </div>
                 </div>
             </section>

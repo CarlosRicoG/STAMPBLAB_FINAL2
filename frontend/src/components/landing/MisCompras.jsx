@@ -1,73 +1,40 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import FooterComponent from "./footer";
 import NavbarComponent from "./NavBarLanding";
-import { FaBoxOpen, FaEye, FaCreditCard, FaTruck, FaStore, FaTimes, FaReceipt } from "react-icons/fa";
+import { FaBoxOpen, FaEye, FaCreditCard, FaTruck, FaStore, FaReceipt, FaCalendarAlt, FaShoppingBag, FaWallet, FaCheckCircle, FaClock, FaChevronRight, FaArrowRight } from "react-icons/fa";
+import usePlus from "../../hooks/usePlus";
+import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
 
-/* ── Tokens de color ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    successBorder: "#bbf7d0",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    warningBorder: "#fde68a",
-    danger: "#dc2626",
-    dangerSoft: "#fef2f2",
-    dangerBorder: "#fecaca",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = { accent: "#4f8ef7", success: "#16a34a", warning: "#d97706", danger: "#dc2626", muted: "#64748b" };
 
-
-const formatPrecio = (valor) =>
-    (parseFloat(valor) || 0).toLocaleString('es-CO', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-});
-
-
-/* ── Badge de estado ── */
+/* ── Estados ── */
 const estadoConfig = {
-    "Pendiente": { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
-    "Pagada": { bg: C.successSoft, color: C.success, border: C.successBorder },
-    "En Producción": { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-    "Lista para Entrega": { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-    "Entregada": { bg: C.successSoft, color: C.success, border: C.successBorder },
-    "Cancelada": { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
+    "Pendiente": { bg: "#fffbeb", color: C.warning, border: "#fde68a" },
+    "Pagada": { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
+    "En Producción": { bg: "#f0f4ff", color: C.accent, border: "#c7d9ff" },
+    "Lista para Entrega": { bg: "#f5f3ff", color: "#7c3aed", border: "#ddd6fe" },
+    "Entregada": { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
+    "Cancelada": { bg: "#fef2f2", color: C.danger, border: "#fecaca" },
+};
+const getEstado = (n) => estadoConfig[n] || { bg: "#f1f5f9", color: C.muted, border: "#e2e8f0" };
+
+const FLUJO = ["Pendiente", "Pagada", "En Producción", "Lista para Entrega", "Entregada"];
+const pasosDe = (nombre) => {
+    if (nombre === "Cancelada") return { steps: ["Pendiente", "Cancelada"], current: 1, failed: true };
+    const i = FLUJO.indexOf(nombre);
+    return { steps: FLUJO, current: i < 0 ? 0 : i, failed: false };
 };
 
 const EstadoBadge = ({ nombre }) => {
-    const s = estadoConfig[nombre] || { bg: "#f1f5f9", color: C.muted, border: C.border };
-    return (
-        <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700, fontFamily: "'Outfit',sans-serif" }}>
-            {nombre || "Pendiente"}
-        </span>
-    );
+    const s = getEstado(nombre);
+    return <span className="mc-badge" style={{ background: s.bg, color: s.color, borderColor: s.border }}>{nombre || "Pendiente"}</span>;
 };
 
-/* ── Badge método de pago ── */
 const MetodoPagoBadge = ({ metodo }) => {
-    if (!metodo) return (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#f1f5f9", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
-            <FaStore size={10} /> Presencial
-        </span>
-    );
-    if (metodo === "transferencia") return (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.accentSoft, color: C.accent, border: `1px solid ${C.accentBorder}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
-            <FaCreditCard size={10} /> Transferencia
-        </span>
-    );
-    return (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: C.successSoft, color: C.success, border: `1px solid ${C.successBorder}`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>
-            <FaTruck size={10} /> Contraentrega
-        </span>
-    );
+    if (!metodo) return <span className="mc-pill"><FaStore size={10} /> Presencial</span>;
+    if (metodo === "transferencia") return <span className="mc-pill blue"><FaCreditCard size={10} /> Transferencia</span>;
+    return <span className="mc-pill" style={{ background: "#f0fdf4", borderColor: "#bbf7d0", color: C.success }}><FaTruck size={10} /> Contraentrega</span>;
 };
 
 const formatFecha = (f) => new Date(f).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" });
@@ -79,98 +46,61 @@ const formatFechaHora = (f) => new Date(f).toLocaleDateString("es-CO", { year: "
 const ModalDetalle = ({ venta, onClose }) => {
     if (!venta) return null;
     const estadoNombre = venta.estado?.Nombre || "Pendiente";
-
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.48)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, overflowY: "auto" }}>
-            <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 760, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 16px 56px rgba(0,0,0,0.22)", fontFamily: "'Outfit',sans-serif", animation: "popIn 0.25s ease" }}>
-
-                {/* Header */}
-                <div style={{ background: C.navyGrad, padding: "22px 28px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexShrink: 0 }}>
-                    <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-                            <FaReceipt size={16} color="rgba(255,255,255,0.8)" />
-                            <p style={{ margin: 0, fontWeight: 800, fontSize: 18, color: "#fff" }}>Compra #{venta.VentaID}</p>
-                        </div>
-                        <p style={{ margin: 0, color: "rgba(255,255,255,0.6)", fontSize: 12 }}>{formatFechaHora(venta.FechaVenta)}</p>
-                    </div>
-                    <button onClick={onClose}
-                        style={{ width: 32, height: 32, borderRadius: 9, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15 }}>
-                        ✕
-                    </button>
+        <McModal onClose={onClose}>
+            <ModalHead eyebrow="Detalle de compra" title={`Compra #${venta.VentaID}`}
+                sub={<><FaCalendarAlt size={10} style={{ marginRight: 6 }} />{formatFechaHora(venta.FechaVenta)}</>} onClose={onClose} />
+            <div className="mc-mbody">
+                <div className="mc-sum">
+                    <div><small>Estado</small><EstadoBadge nombre={estadoNombre} /></div>
+                    <div><small>Método de pago</small><MetodoPagoBadge metodo={venta.MetodoPago} /></div>
+                    <div><small>Total</small><div className="big">${formatPrecio(venta.Total)}</div></div>
+                </div>
+                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 18, padding: "18px 18px 8px", marginBottom: 22 }}>
+                    <small className="mc-lbl" style={{ marginBottom: 14 }}>Seguimiento del pedido</small>
+                    <Stepper {...pasosDe(estadoNombre)} />
+                    <div style={{ height: 10 }} />
                 </div>
 
-                {/* Body */}
-                <div style={{ overflowY: "auto", flex: 1, padding: "24px 28px" }}>
-
-                    {/* Info rápida */}
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 22 }}>
-                        <div style={{ background: C.bg, borderRadius: 12, padding: "14px 16px", border: `1px solid ${C.border}` }}>
-                            <p style={{ margin: "0 0 6px", fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Estado</p>
-                            <EstadoBadge nombre={estadoNombre} />
-                        </div>
-                        <div style={{ background: C.bg, borderRadius: 12, padding: "14px 16px", border: `1px solid ${C.border}` }}>
-                            <p style={{ margin: "0 0 6px", fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Método de pago</p>
-                            <MetodoPagoBadge metodo={venta.MetodoPago} />
-                        </div>
-                        <div style={{ background: C.successSoft, borderRadius: 12, padding: "14px 16px", border: `1px solid ${C.successBorder}` }}>
-                            <p style={{ margin: "0 0 4px", fontSize: 11, color: C.success, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Total</p>
-                            <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.success }}>${formatPrecio(venta.Total)}</p>
+                {venta.MetodoPago === "contraentrega" && (
+                    <div className="mc-info">
+                        <small className="mc-lbl" style={{ color: "#3b6fe0" }}>Datos de entrega</small>
+                        <div className="mc-kv">
+                            <div><small>Receptor</small><span>{venta.NombreReceptor || "—"}</span></div>
+                            <div><small>Teléfono</small><span>{venta.TelefonoEntrega || "—"}</span></div>
+                            <div className="full"><small>Dirección</small><span>{venta.DireccionEntrega || "—"}</span></div>
                         </div>
                     </div>
+                )}
 
-                    {/* Datos de entrega (contraentrega) */}
-                    {venta.MetodoPago === "contraentrega" && (
-                        <div style={{ background: C.accentSoft, border: `1.5px solid ${C.accentBorder}`, borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
-                            <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: "0.06em" }}>Datos de entrega</p>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 }}>
-                                <p style={{ margin: 0, color: C.navy }}><span style={{ color: C.muted }}>Receptor:</span> <strong>{venta.NombreReceptor || "—"}</strong></p>
-                                <p style={{ margin: 0, color: C.navy }}><span style={{ color: C.muted }}>Teléfono:</span> <strong>{venta.TelefonoEntrega || "—"}</strong></p>
-                                <p style={{ margin: 0, color: C.navy, gridColumn: "1/-1" }}><span style={{ color: C.muted }}>Dirección:</span> <strong>{venta.DireccionEntrega || "—"}</strong></p>
+                <div className="mc-sec">Productos comprados</div>
+                {venta.detalles?.map((det, i) => (
+                    <div key={i} className="mc-item">
+                        <div className="mc-item-h">
+                            <div className="mc-item-img">
+                                {det.producto?.ImagenProducto
+                                    ? <img src={det.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
+                                    : <FaBoxOpen style={{ opacity: .5 }} />}
                             </div>
-                        </div>
-                    )}
-
-                    {/* Productos */}
-                    <p style={{ margin: "0 0 14px", fontWeight: 700, fontSize: 14, color: C.navy, borderBottom: `2px solid ${C.accent}`, paddingBottom: 8 }}>
-                        Productos comprados
-                    </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        {venta.detalles?.map((det, i) => (
-                            <div key={i} style={{ border: `1px solid ${C.border}`, borderRadius: 12, padding: "16px 18px", background: C.bg, display: "flex", gap: 16, alignItems: "flex-start" }}>
-                                {/* Imagen */}
-                                <div style={{ width: 80, height: 80, borderRadius: 10, background: "#fff", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
-                                    {det.producto?.ImagenProducto
-                                        ? <img src={det.producto.ImagenProducto} alt="prod" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                                        : <FaBoxOpen size={24} color={C.muted} style={{ opacity: 0.4 }} />}
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                    <p style={{ margin: "0 0 8px", fontWeight: 700, fontSize: 14, color: C.navy }}>{det.producto?.Nombre || "Producto"}</p>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 8, fontSize: 12, color: C.muted, marginBottom: 10 }}>
-                                        <span>Cantidad: <strong style={{ color: C.navy }}>{det.Cantidad}</strong></span>
-                                        {det.color && <span>Color: <strong style={{ color: C.navy }}>{det.color?.Nombre}</strong></span>}
-                                        {det.talla && <span>Talla: <strong style={{ color: C.navy }}>{det.talla?.Nombre}</strong></span>}
-                                        <span>P. Unit: <strong style={{ color: C.navy }}>${formatPrecio(det.PrecioUnitario)}</strong></span>
-                                    </div>
-                                    <div style={{ background: C.successSoft, border: `1px solid ${C.successBorder}`, borderRadius: 8, padding: "6px 12px", display: "inline-block" }}>
-                                        <span style={{ fontSize: 13, fontWeight: 700, color: C.success }}>
-                                            Subtotal: ${formatPrecio(det.Cantidad * parseFloat(det.PrecioUnitario || 0))}
-                                        </span>
-                                    </div>
+                            <div style={{ minWidth: 0 }}>
+                                <p className="mc-item-t">{det.producto?.Nombre || "Producto"}</p>
+                                <div className="mc-chips">
+                                    <span className="mc-pill">Cantidad: <b>{det.Cantidad}</b></span>
+                                    {det.color && <span className="mc-pill">Color: <b>{det.color?.Nombre}</b></span>}
+                                    {det.talla && <span className="mc-pill">Talla: <b>{det.talla?.Nombre}</b></span>}
+                                    <span className="mc-pill">P. Unit: <b>${formatPrecio(det.PrecioUnitario)}</b></span>
                                 </div>
                             </div>
-                        ))}
+                            <div className="mc-item-sub">
+                                <small>Subtotal</small>
+                                <b>${formatPrecio(det.Cantidad * parseFloat(det.PrecioUnitario || 0))}</b>
+                            </div>
+                        </div>
                     </div>
-                </div>
-
-                {/* Footer */}
-                <div style={{ padding: "16px 28px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "flex-end", background: C.bg, flexShrink: 0 }}>
-                    <button onClick={onClose}
-                        style={{ background: C.danger, color: "#ffff", border: `1.5px solid ${C.dangerBorder}`, borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
-                        <FaTimes size={12} /> Cerrar
-                    </button>
-                </div>
+                ))}
             </div>
-        </div>
+            <div className="mc-mfoot"><button type="button" className="mc-cta" onClick={onClose}>Cerrar</button></div>
+        </McModal>
     );
 };
 
@@ -178,6 +108,9 @@ const ModalDetalle = ({ venta, onClose }) => {
    COMPONENTE PRINCIPAL
 ════════════════════════════════════════ */
 const MisCompras = () => {
+    usePlus();
+    const [filtro, setFiltro] = useState("Todos");
+    const nombreUsuario = leerUsuario().Nombre || "";
     const [ventas, setVentas] = useState([]);
     const [cargando, setCargando] = useState(true);
     const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
@@ -202,8 +135,7 @@ const MisCompras = () => {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas?documentoID=${encodeURIComponent(documentoID)}&limit=1000&page=1`);
             const data = await response.json();
 
-            // ✅ FIX: Mostrar TODAS las ventas del usuario (con y sin MetodoPago)
-            // Antes el filtro `!v.MetodoPago` excluía las compras del Landing (transferencia/contraentrega)
+            // Mostrar TODAS las ventas del usuario (con y sin MetodoPago)
             // El endpoint devuelve { datos, total, ... } y ya viene filtrado por cliente
             const lista = Array.isArray(data) ? data : (data.datos || []);
             const ventasUsuario = lista.filter(v => String(v.DocumentoID) === String(documentoID));
@@ -229,114 +161,85 @@ const MisCompras = () => {
         }
     };
 
+    const nomEstado = (v) => v.estado?.Nombre || "Pendiente";
+    const estados = ["Todos", ...new Set(ventas.map(nomEstado))];
+    const visibles = filtro === "Todos" ? ventas : ventas.filter(v => nomEstado(v) === filtro);
+    const tabs = estados.map(e => ({ key: e, label: e === "Todos" ? "Todas" : e, count: e === "Todos" ? ventas.length : ventas.filter(v => nomEstado(v) === e).length }));
+    const totalGastado = ventas.filter(v => nomEstado(v) !== "Cancelada").reduce((s, v) => s + (parseFloat(v.Total) || 0), 0);
+    const enCurso = ventas.filter(v => !["Entregada", "Cancelada"].includes(nomEstado(v))).length;
+    const entregadas = ventas.filter(v => nomEstado(v) === "Entregada").length;
+
     return (
         <>
-            <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-        * { box-sizing: border-box; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes popIn { from{opacity:0;transform:scale(0.95)} to{opacity:1;transform:scale(1)} }
-        .compra-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .compra-card:hover { transform: translateY(-4px); box-shadow: 0 10px 32px rgba(26,37,64,0.13) !important; }
-        .ver-btn:hover { opacity: 0.88 !important; }
-      `}</style>
-
+            <style>{MC_CSS}</style>
             <NavbarComponent />
 
-            <div style={{ minHeight: "calc(100vh - 72px)", background: C.bg, fontFamily: "'Outfit',sans-serif" }}>
-
-                {/* ── Hero header ── */}
-                <div style={{ background: C.navyGrad, padding: "44px 32px 50px" }}>
-                    <div style={{ maxWidth: 1100, margin: "0 auto", textAlign: "center" }}>
-                        <p style={{ margin: "0 0 6px", fontWeight: 800, fontSize: 28, color: "#fff", letterSpacing: "-0.02em" }}>Mis Compras</p>
-                        <p style={{ margin: 0, color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
-                            Historial de todas tus compras
-                        </p>
+            <div className="mc-page">
+                <MiCuentaHero title="Mis" accent="Compras" nombre={nombreUsuario}
+                    sub="Todo tu historial de pedidos en un solo lugar, con seguimiento paso a paso.">
+                    <div className="mc-stats">
+                        <StatCard i={0} tone="blue" icon={<FaShoppingBag />} label="Compras" value={ventas.length} />
+                        <StatCard i={1} tone="amber" icon={<FaClock />} label="En curso" value={enCurso} />
+                        <StatCard i={2} tone="green" icon={<FaCheckCircle />} label="Entregadas" value={entregadas} />
+                        <StatCard i={3} tone="violet" icon={<FaWallet />} label="Total gastado" value={totalGastado} format={(n) => `$${formatPrecio(n)}`} />
                     </div>
-                </div>
+                </MiCuentaHero>
 
-                {/* ── Contenido ── */}
-                <div style={{ maxWidth: 1100, margin: "0 auto", padding: "36px 24px 60px" }}>
+                <div className="mc-wrap">
 
-                    {/* Loading */}
-                    {cargando ? (
-                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "80px 0", gap: 14 }}>
-                            <div style={{ width: 40, height: 40, border: `3px solid ${C.border}`, borderTop: `3px solid ${C.accent}`, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                            <p style={{ color: C.muted, fontSize: 14, fontWeight: 600 }}>Cargando tus compras...</p>
-                        </div>
-
-                    ) : ventas.length === 0 ? (
-                        /* Empty state */
-                        <div style={{ textAlign: "center", padding: "72px 20px", animation: "fadeIn 0.3s ease" }}>
-                            <div style={{ width: 76, height: 76, borderRadius: "50%", background: C.accentSoft, border: `2px solid ${C.accentBorder}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
-                                <FaBoxOpen size={30} color={C.accent} />
-                            </div>
-                            <p style={{ margin: "0 0 6px", fontWeight: 800, fontSize: 18, color: C.navy }}>No tienes compras aún</p>
-                            <p style={{ margin: 0, fontSize: 14, color: C.muted }}>Cuando realices un pedido, aparecerá aquí</p>
-                        </div>
-
+                    {cargando ? <Skeletons n={3} /> : ventas.length === 0 ? (
+                        <EmptyState icon={<FaShoppingBag />} title="No tienes compras aún" text="Cuando realices un pedido, aparecerá aquí con su seguimiento. Explora nuestros estampados y encuentra el tuyo.">
+                            <Link to="/productosLanding" className="mc-cta">Explorar productos <FaArrowRight size={12} /></Link>
+                            <Link to="/cotizacionesLanding" className="mc-cta alt">Cotizar un diseño</Link>
+                        </EmptyState>
                     ) : (
                         <>
-                            {/* Contador */}
-                            <p style={{ margin: "0 0 22px", fontSize: 13, color: C.muted, fontWeight: 600 }}>
-                                {ventas.length} {ventas.length === 1 ? "compra encontrada" : "compras encontradas"}
-                            </p>
+                            <div className="mc-bar sx-reveal">
+                                <PillTabs items={tabs} value={filtro} onChange={setFiltro} />
+                                <span className="mc-bar-t">{visibles.length} {visibles.length === 1 ? "compra encontrada" : "compras encontradas"}</span>
+                            </div>
 
-                            {/* Grid de compras */}
-                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20, animation: "fadeIn 0.3s ease" }}>
-                                {ventas.map(venta => {
-                                    const estadoNombre = venta.estado?.Nombre || "Pendiente";
+                            <div className="mc-grid" key={filtro}>
+                                {visibles.map((venta, idx) => {
+                                    const estadoNombre = nomEstado(venta);
+                                    const est = getEstado(estadoNombre);
                                     const primerDetalle = venta.detalles?.[0] || {};
-
+                                    const n = venta.detalles?.length || 0;
                                     return (
-                                        <div key={venta.VentaID} className="compra-card"
-                                            style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.07)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-
-                                            {/* Card header */}
-                                            <div style={{ background: C.navyGrad, padding: "16px 18px", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                                        <div key={venta.VentaID} className="mc-card sx-reveal" style={{ "--sx-i": idx % 6, "--mc-c": est.color }}>
+                                            <div className="mc-card-top">
                                                 <div>
-                                                    <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#fff" }}>Compra #{venta.VentaID}</p>
-                                                    <p style={{ margin: "3px 0 0", color: "rgba(255,255,255,0.6)", fontSize: 11 }}>{formatFecha(venta.FechaVenta)}</p>
+                                                    <div className="mc-id"><small>Compra</small>#{venta.VentaID}</div>
+                                                    <span className="mc-date"><FaCalendarAlt size={10} />{formatFecha(venta.FechaVenta)}</span>
                                                 </div>
                                                 <EstadoBadge nombre={estadoNombre} />
                                             </div>
-
-                                            {/* Card body */}
-                                            <div style={{ padding: "16px 18px", flex: 1, display: "flex", flexDirection: "column", gap: 14 }}>
-
-                                                {/* Producto preview */}
-                                                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                                                    <div style={{ width: 64, height: 64, borderRadius: 10, background: C.bg, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                                            <div className="mc-card-body">
+                                                <div className="mc-prod">
+                                                    <div className="mc-thumb">
                                                         {primerDetalle.producto?.ImagenProducto
-                                                            ? <img src={primerDetalle.producto.ImagenProducto} alt="prod" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-                                                            : <FaBoxOpen size={20} color={C.muted} style={{ opacity: 0.4 }} />}
+                                                            ? <img src={primerDetalle.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
+                                                            : <FaBoxOpen style={{ opacity: .5 }} />}
+                                                        {n > 1 && <span className="mc-more">+{n - 1}</span>}
                                                     </div>
                                                     <div style={{ minWidth: 0 }}>
-                                                        <p style={{ margin: "0 0 3px", fontWeight: 700, fontSize: 13, color: C.navy, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                                            {primerDetalle.producto?.Nombre || "Producto"}
-                                                        </p>
-                                                        <p style={{ margin: 0, fontSize: 12, color: C.muted }}>
-                                                            {venta.detalles?.length || 0} {venta.detalles?.length === 1 ? "artículo" : "artículos"}
-                                                        </p>
+                                                        <p className="mc-pname">{primerDetalle.producto?.Nombre || "Producto"}</p>
+                                                        <div className="mc-pmeta">
+                                                            <span className="mc-pill">{n} {n === 1 ? "artículo" : "artículos"}</span>
+                                                            <MetodoPagoBadge metodo={venta.MetodoPago} />
+                                                        </div>
                                                     </div>
                                                 </div>
 
-                                                {/* Método de pago */}
-                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                    <MetodoPagoBadge metodo={venta.MetodoPago} />
+                                                <Stepper {...pasosDe(estadoNombre)} />
+
+                                                <div className="mc-total ok">
+                                                    <div><small>Total</small><b>${formatPrecio(venta.Total)}</b></div>
+                                                    <FaReceipt size={20} color="#16a34a" style={{ opacity: .45 }} />
                                                 </div>
 
-                                                {/* Total */}
-                                                <div style={{ background: C.successSoft, border: `1px solid ${C.successBorder}`, borderRadius: 10, padding: "10px 14px" }}>
-                                                    <p style={{ margin: "0 0 2px", fontSize: 11, color: C.success, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" }}>Total</p>
-                                                    <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: C.success }}>${formatPrecio(venta.Total)}</p>
-                                                </div>
-
-                                                {/* Botón */}
-                                                <button className="ver-btn" onClick={() => verDetalle(venta.VentaID)}
-                                                    style={{ width: "100%", background: C.navyGrad, color: "#fff", border: "none", borderRadius: 10, padding: "11px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", justifyContent: "center", gap: 7, transition: "opacity 0.15s" }}>
-                                                    <FaEye size={13} /> Ver detalle
+                                                <button type="button" className="mc-btn" onClick={() => verDetalle(venta.VentaID)}>
+                                                    <FaEye size={14} /> Ver detalle <FaChevronRight size={10} />
                                                 </button>
                                             </div>
                                         </div>
@@ -350,7 +253,6 @@ const MisCompras = () => {
 
             <FooterComponent />
 
-            {/* Modal */}
             {ventaSeleccionada && (
                 <ModalDetalle venta={ventaSeleccionada} onClose={() => setVentaSeleccionada(null)} />
             )}

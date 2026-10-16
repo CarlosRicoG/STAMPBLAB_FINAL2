@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Swal from "sweetalert2";
 import {
     FaShoppingCart, FaTshirt, FaImage, FaPlusCircle, FaTrash, FaEdit,
     FaEye, FaCheckCircle, FaTimesCircle, FaArrowRight, FaBoxOpen,
     FaPalette, FaRuler, FaTags, FaLayerGroup, FaChevronRight,
     FaUser, FaUpload, FaTimes, FaCheck, FaExclamationTriangle,
-    FaStar, FaPlus, FaMinus
+    FaStar, FaPlus, FaMinus, FaCloudUploadAlt
 } from "react-icons/fa";
 import FooterComponent from "./footer";
 import NavbarComponent from "./NavBarLanding";
+import usePlus from "../../hooks/usePlus";
+import "../../styles/plus.css";
 
 // ── Design tokens (mismo sistema) ──
 const C = {
@@ -64,6 +66,37 @@ const api = {
 };
 
 // ── Componentes UI ──
+const Counter = ({ value }) => {
+    const [shown, setShown] = useState(value);
+    const from = useRef(value);
+    useEffect(() => {
+        const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        if (reduce || from.current === value) { setShown(value); from.current = value; return; }
+        const start = performance.now(), a = from.current, b = value;
+        let raf;
+        const tick = (t) => {
+            const p = Math.min(1, (t - start) / 700);
+            setShown(Math.round(a + (b - a) * (1 - Math.pow(1 - p, 3))));
+            if (p < 1) raf = requestAnimationFrame(tick); else from.current = b;
+        };
+        raf = requestAnimationFrame(tick);
+        return () => cancelAnimationFrame(raf);
+    }, [value]);
+    return <>{shown}</>;
+};
+
+const Confetti = () => (
+    <div className="cot-confetti" aria-hidden="true">
+        {Array.from({ length: 30 }).map((_, i) => (
+            <i key={i} style={{
+                left: `${(i * 29) % 100}%`, animationDelay: `${(i % 9) * 0.08}s`, animationDuration: `${1.6 + (i % 5) * 0.28}s`,
+                background: ["#4f8ef7", "#7c3aed", "#16a34a", "#facc15", "#f472b6", "#22d3ee"][i % 6],
+                width: 6 + (i % 4) * 2, height: 9 + (i % 3) * 3, "--r": `${(i * 47) % 360}deg`, "--dx": `${((i % 7) - 3) * 24}px`
+            }} />
+        ))}
+    </div>
+);
+
 const Label = ({ children, required }) => (
     <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'Outfit',sans-serif" }}>
         {children}{required && <span style={{ color: C.danger, marginLeft: 3 }}>*</span>}
@@ -77,7 +110,7 @@ const InputBase = ({ style, ...props }) => (
         color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
         background: C.white, ...style
     }}
-        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 3px rgba(79,142,247,0.12)`; }}
+        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 4px rgba(79,142,247,0.16), 0 8px 22px rgba(79,142,247,0.16)`; }}
         onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
     />
 );
@@ -89,7 +122,7 @@ const SelectBase = ({ style, ...props }) => (
         color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
         background: C.white, cursor: "pointer", ...style
     }}
-        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 3px rgba(79,142,247,0.12)`; }}
+        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 4px rgba(79,142,247,0.16), 0 8px 22px rgba(79,142,247,0.16)`; }}
         onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
     />
 );
@@ -101,16 +134,16 @@ const TextareaBase = ({ style, ...props }) => (
         color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
         background: C.white, resize: "vertical", ...style
     }}
-        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 3px rgba(79,142,247,0.12)`; }}
+        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 4px rgba(79,142,247,0.16), 0 8px 22px rgba(79,142,247,0.16)`; }}
         onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
     />
 );
 
 const SectionCard = ({ title, subtitle, icon, accentColor = C.accent, children, headerRight }) => (
-    <div style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`, overflow: "hidden", marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+    <div className="cot-card sx-reveal" style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`, overflow: "hidden", marginBottom: 20 }}>
         <div style={{ padding: "16px 22px", borderBottom: `1.5px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: `linear-gradient(90deg, ${accentColor}08 0%, transparent 100%)` }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${accentColor}15`, display: "flex", alignItems: "center", justifyContent: "center", color: accentColor, fontSize: 15 }}>
+                <div className="cot-ico" style={{ width: 36, height: 36, borderRadius: 10, background: `${accentColor}15`, display: "flex", alignItems: "center", justifyContent: "center", color: accentColor, fontSize: 15 }}>
                     {icon}
                 </div>
                 <div>
@@ -124,7 +157,7 @@ const SectionCard = ({ title, subtitle, icon, accentColor = C.accent, children, 
     </div>
 );
 
-const Btn = ({ children, onClick, variant = "primary", size = "md", disabled, style, ...rest }) => {
+const Btn = ({ children, onClick, variant = "primary", size = "md", disabled, style, className = "", ...rest }) => {
     const variants = {
         primary: { bg: C.navyGrad, color: "#fff", border: "none" },
         success: { bg: `linear-gradient(90deg, #16a34a, #15803d)`, color: "#fff", border: "none" },
@@ -136,13 +169,11 @@ const Btn = ({ children, onClick, variant = "primary", size = "md", disabled, st
     const sizes = { sm: { padding: "6px 14px", fontSize: 12 }, md: { padding: "10px 20px", fontSize: 13 }, lg: { padding: "13px 28px", fontSize: 14 } };
     const v = variants[variant]; const s = sizes[size];
     return (
-        <button onClick={onClick} disabled={disabled} {...rest} style={{
+        <button onClick={onClick} disabled={disabled} {...rest} className={`cot-btn ${className}`} style={{ position: "relative", overflow: "hidden",
             ...v, ...s, borderRadius: 10, fontWeight: 700, fontFamily: "'Outfit',sans-serif",
             cursor: disabled ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center",
             gap: 7, transition: "all 0.2s", opacity: disabled ? 0.5 : 1, ...style
         }}
-            onMouseEnter={e => { if (!disabled) e.currentTarget.style.opacity = "0.85"; }}
-            onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}
         >
             {children}
         </button>
@@ -169,9 +200,9 @@ const InfoBadge = ({ type, children }) => {
 const Modal = ({ open, onClose, title, subtitle, accentColor = C.navy, maxWidth = 680, children, footer }) => {
     if (!open) return null;
     return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
+        <div className="cot-overlay" style={{ position: "fixed", inset: 0, background: "rgba(10,16,30,0.62)", backdropFilter: "blur(6px)", zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
             onClick={onClose}>
-            <div style={{ background: C.white, borderRadius: 20, width: "100%", maxWidth, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column", animation: "modalIn 0.25s ease", boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}
+            <div style={{ background: C.white, borderRadius: 20, width: "100%", maxWidth, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column", animation: "cotModal 0.45s cubic-bezier(.34,1.56,.64,1)", boxShadow: "0 32px 80px rgba(0,0,0,0.4)" }}
                 onClick={e => e.stopPropagation()}>
                 <div style={{ background: accentColor, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
@@ -217,6 +248,14 @@ const CotizacionLanding = () => {
     const [tipoCotizacion, setTipoCotizacion] = useState("");
     const [mensajeExito, setMensajeExito] = useState("");
     const [enviando, setEnviando] = useState(false);
+    const [arrastrando, setArrastrando] = useState(false);
+    usePlus();
+    const previewUrl = useMemo(() => (disenoActual.ImagenDiseno ? URL.createObjectURL(disenoActual.ImagenDiseno) : null), [disenoActual.ImagenDiseno]);
+    const onDropImagen = (e) => {
+        e.preventDefault(); setArrastrando(false);
+        const f = e.dataTransfer?.files?.[0];
+        if (f) { setDisenoActual(d => ({ ...d, ImagenDiseno: f })); setErroresDiseño(p => ({ ...p, ImagenDiseno: undefined })); }
+    };
 
     // ── Efectos ──
     useEffect(() => { verificarAutenticacion(); cargarDatos(); }, []);
@@ -554,6 +593,43 @@ const CotizacionLanding = () => {
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
                 @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+                @keyframes cotModal { from { opacity: 0; transform: translateY(26px) scale(.94); } to { opacity: 1; transform: none; } }
+                @keyframes cotPop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+                @keyframes cotFade { from { opacity: 0; } to { opacity: 1; } }
+                @keyframes cotDraw { to { stroke-dashoffset: 0; } }
+                @keyframes cotRing { 0% { transform: scale(.9); opacity: 1; } 100% { transform: scale(1.45); opacity: 0; } }
+                @keyframes cotFlash { 0%, 55% { left: -80%; } 100% { left: 140%; } }
+                @keyframes cotFall { 0% { opacity: 1; transform: translate(0,0) rotate(0); } 100% { opacity: 0; transform: translate(var(--dx), 380px) rotate(calc(var(--r) * 3)); } }
+                .cot-overlay { animation: cotFade .3s; }
+                .cot-card { box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 10px 28px rgba(15,23,42,.06); }
+                .cot-card.sx-in { transition: transform .35s cubic-bezier(.22,1,.36,1), box-shadow .35s, border-color .3s; }
+                .cot-card.sx-in:hover { transform: translateY(-3px); box-shadow: 0 2px 4px rgba(15,23,42,.05), 0 20px 44px rgba(79,142,247,.16); border-color: #c7d9ff !important; }
+                .cot-card:hover .cot-ico { transform: rotate(-8deg) scale(1.1); }
+                .cot-ico { transition: transform .45s cubic-bezier(.34,1.56,.64,1); }
+                .cot-layout { grid-template-columns: minmax(0,1fr) 340px; }
+                .cot-grid2 { grid-template-columns: 1fr 1fr; }
+                .cot-btn::after { content: ""; position: absolute; top: 0; left: -80%; width: 50%; height: 100%; transform: skewX(-22deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent); transition: left .7s; pointer-events: none; }
+                .cot-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(26,37,64,.28); }
+                .cot-btn:hover:not(:disabled)::after { left: 140%; }
+                .cot-btn:active:not(:disabled) { transform: scale(.97); }
+                .cot-flash::after { animation: cotFlash 2.8s ease-in-out infinite; }
+                .cot-toggle { transition: transform .3s cubic-bezier(.22,1,.36,1), box-shadow .3s; }
+                .cot-toggle:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(79,142,247,.14); }
+                .cot-select-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(79,142,247,.16); border-color: #4f8ef7 !important; }
+                .cot-drop:hover, .cot-drop.over { border-color: #7c3aed !important; background: #f5f3ff !important; box-shadow: 0 0 0 4px rgba(124,58,237,.1); }
+                .cot-drop.over { transform: scale(1.015); }
+                .cot-row { animation: fadeUp .4s ease backwards; }
+                .cot-empty { text-align: center; padding: 18px 0 4px; color: #64748b; font-size: 13px; }
+                .cot-empty p { margin: 6px 0 0; }
+                .cot-check { width: 84px; height: 84px; margin: 0 auto 18px; border-radius: 50%; background: linear-gradient(135deg,#22c55e,#15803d); display: grid; place-items: center; box-shadow: 0 14px 34px rgba(22,163,74,.42); animation: cotPop .7s cubic-bezier(.34,1.56,.64,1); position: relative; }
+                .cot-check::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 3px solid rgba(34,197,94,.4); animation: cotRing 1.8s ease-out infinite; }
+                .cot-check svg { width: 42px; height: 42px; } .cot-check path { stroke: #fff; stroke-width: 5; fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 60; stroke-dashoffset: 60; animation: cotDraw .6s .4s ease forwards; }
+                .cot-num { animation: cotPop .8s .3s cubic-bezier(.34,1.56,.64,1) backwards; box-shadow: 0 10px 26px rgba(79,142,247,.2); }
+                .cot-confetti { position: absolute; inset: -30px -24px; pointer-events: none; overflow: hidden; }
+                .cot-confetti i { position: absolute; top: 0; border-radius: 2px; opacity: 0; animation: cotFall linear forwards; }
+                @media (max-width: 980px) { .cot-layout { grid-template-columns: 1fr !important; } .cot-aside { position: static !important; } }
+                @media (max-width: 640px) { .cot-grid2 { grid-template-columns: 1fr !important; } }
+                @media (prefers-reduced-motion: reduce) { .cot-btn, .cot-card, .cot-overlay, .cot-row, .cot-check, .cot-num, .cot-check path { animation: none !important; transition: none !important; } .cot-check path { stroke-dashoffset: 0; } .cot-confetti { display: none; } }
                 .dis-row:hover { background: ${C.accentSoft} !important; }
                 .prod-card:hover { transform: translateY(-4px) !important; box-shadow: 0 12px 32px rgba(79,142,247,0.18) !important; border-color: ${C.accent} !important; }
                 .prod-card { transition: all 0.22s cubic-bezier(.4,0,.2,1) !important; }
@@ -563,15 +639,16 @@ const CotizacionLanding = () => {
             <NavbarComponent />
 
             {/* ── HERO ── */}
-            <section style={{ background: C.navyDeep, position: "relative", overflow: "hidden", padding: "52px 32px 42px", textAlign: "center" }}>
+            <section className="sx-hero-bg" style={{ background: C.navyDeep, position: "relative", overflow: "hidden", padding: "52px 32px 42px", textAlign: "center" }}>
                 <div style={{ position: "absolute", top: -80, left: -80, width: 400, height: 400, background: "radial-gradient(circle, rgba(79,142,247,0.12) 0%, transparent 65%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -60, right: -40, width: 300, height: 300, background: "radial-gradient(circle, rgba(124,58,237,0.10) 0%, transparent 65%)", pointerEvents: "none" }} />
-                <div style={{ position: "relative", zIndex: 1 }}>
+                <div className="sx-blob b1" style={{ opacity: 0.3 }} /><div className="sx-blob b2" style={{ opacity: 0.3 }} />
+                <div className="sx-hero-in" style={{ position: "relative", zIndex: 1 }}>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(79,142,247,0.12)", border: "1px solid rgba(79,142,247,0.3)", color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 20, marginBottom: 16, fontFamily: "'Outfit',sans-serif" }}>
                         <FaStar size={9} /> Cotización personalizada
                     </div>
                     <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", margin: "0 0 10px", fontFamily: "'Outfit',sans-serif" }}>
-                        Crea tu <span style={{ background: "linear-gradient(90deg,#4f8ef7,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>cotización</span>
+                        Crea tu <span className="sx-gradient-text">cotización</span>
                     </h1>
                     <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, maxWidth: 480, margin: "0 auto", fontFamily: "'Outfit',sans-serif" }}>
                         Selecciona tus productos, configura los diseños y recibe tu presupuesto en horas.
@@ -603,17 +680,16 @@ const CotizacionLanding = () => {
                 title={tipoCotizacion === 'cotización' ? '¡Cotización generada!' : '¡Pedido registrado!'}
                 accentColor="linear-gradient(90deg,#16a34a,#15803d)" maxWidth={460}
                 footer={<Btn variant="success" style={{ background: C.success, color: "#ffff" }} onClick={() => setMostrarExito(false)}><FaCheck size={12} /> Entendido</Btn>}>
-                <div style={{ textAlign: "center", padding: "8px 0" }}>
-                    <div style={{ width: 72, height: 72, borderRadius: 20, background: C.successSoft, border: `2px solid ${C.successBorder}`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px", fontSize: 32, color: C.success }}>
-                        <FaCheckCircle />
-                    </div>
+                <div style={{ textAlign: "center", padding: "8px 0", position: "relative" }}>
+                    <Confetti />
+                    <div className="cot-check"><svg viewBox="0 0 48 48"><path d="M10 25l9 9 19-20" /></svg></div>
                     <p style={{ fontSize: 16, fontWeight: 700, color: C.navy, margin: "0 0 8px", fontFamily: "'Outfit',sans-serif" }}>
                         {tipoCotizacion === 'cotización' ? 'Estamos cotizando tu pedido' : 'Tu pedido fue registrado'}
                     </p>
                     <p style={{ fontSize: 13, color: C.muted, margin: "0 0 16px", fontFamily: "'Outfit',sans-serif" }}>{mensajeExito}</p>
-                    <div style={{ background: C.accentSoft, border: `1.5px solid ${C.accentBorder}`, borderRadius: 12, padding: "12px 20px", display: "inline-block" }}>
+                    <div className="cot-num" style={{ background: C.accentSoft, border: `1.5px solid ${C.accentBorder}`, borderRadius: 14, padding: "14px 30px", display: "inline-block" }}>
                         <p style={{ margin: 0, fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Número de {tipoCotizacion}</p>
-                        <p style={{ margin: 0, fontSize: 22, fontWeight: 900, color: C.accent, fontFamily: "'Outfit',sans-serif" }}>#{numeroCotizacion}</p>
+                        <p className="sx-gradient-text" style={{ margin: 0, fontSize: 32, fontWeight: 900, fontFamily: "'Outfit',sans-serif" }}>#{numeroCotizacion}</p>
                     </div>
                 </div>
             </Modal>
@@ -624,7 +700,7 @@ const CotizacionLanding = () => {
                 footer={<Btn variant="ghost" style={{ background: C.danger, color: "#ffffff"}} onClick={() => setMostrarModalVisualizacion(false)}>Cerrar</Btn>}>
                 {disenoVisualizando && (
                     <div>
-                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
+                        <div className="cot-grid2" style={{ display: "grid", gap: 14, marginBottom: 16 }}>
                             {[["Técnica", disenoVisualizando.tecnica?.Nombre || "N/A"], ["Parte", disenoVisualizando.parte?.Nombre || "N/A"], ["Subparte", disenoVisualizando.Subparte || "No especificada"], ["Archivo", disenoVisualizando.ImagenNombre]].map(([k, v]) => (
                                 <div key={k} style={{ background: C.bg, borderRadius: 10, padding: "10px 14px", border: `1px solid ${C.border}` }}>
                                     <p style={{ margin: "0 0 2px", fontSize: 10, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'Outfit',sans-serif" }}>{k}</p>
@@ -675,7 +751,7 @@ const CotizacionLanding = () => {
 
             {/* ── CUERPO PRINCIPAL ── */}
             <div style={{ background: C.bg, minHeight: "100vh", padding: "32px 24px", fontFamily: "'Outfit',sans-serif" }}>
-                <div style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 340px", gap: 22, alignItems: "start" }}>
+                <div className="cot-layout" style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gap: 22, alignItems: "start" }}>
 
                     {/* ── COLUMNA IZQUIERDA ── */}
                     <div>
@@ -683,7 +759,7 @@ const CotizacionLanding = () => {
                         {/* SECCIÓN 1: PRODUCTO */}
                         <SectionCard title="Configuración del Producto" subtitle="Elige producto y variante" icon={<FaTshirt />} accentColor={C.accent}>
                             {/* Toggle prenda propia */}
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: traePrenda ? C.warningSoft : C.accentSoft, border: `1.5px solid ${traePrenda ? C.warningBorder : C.accentBorder}`, borderRadius: 12, padding: "12px 16px", marginBottom: 20, cursor: "pointer" }}
+                            <div className="cot-toggle" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: traePrenda ? C.warningSoft : C.accentSoft, border: `1.5px solid ${traePrenda ? C.warningBorder : C.accentBorder}`, borderRadius: 12, padding: "12px 16px", marginBottom: 20, cursor: "pointer" }}
                                 onClick={() => { setTraePrenda(p => !p); setProductoSeleccionado(null); setVariantesProducto([]); setFormProducto({ ColorID: "", TallaID: "", TipoTela: "", Cantidad: 1, PrendaDescripcion: "" }); }}>
                                 <div>
                                     <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 13, color: traePrenda ? C.warning : C.accent }}>¿Traes tu propia prenda?</p>
@@ -714,11 +790,11 @@ const CotizacionLanding = () => {
                                     </div>
                                 </div>
                             ) : (
-                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                                <div className="cot-grid2" style={{ display: "grid", gap: 14 }}>
                                     {/* Selector de producto */}
                                     <div style={{ gridColumn: "1/-1" }}>
                                         <Label required>Producto del catálogo</Label>
-                                        <button onClick={() => setMostrarModalProductos(true)} style={{ width: "100%", padding: "12px 16px", border: `1.5px solid ${productoSeleccionado ? C.success : C.border}`, borderRadius: 12, background: productoSeleccionado ? C.successSoft : C.bg, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }}>
+                                        <button className="cot-select-btn" onClick={() => setMostrarModalProductos(true)} style={{ width: "100%", padding: "12px 16px", border: `1.5px solid ${productoSeleccionado ? C.success : C.border}`, borderRadius: 12, background: productoSeleccionado ? C.successSoft : C.bg, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, transition: "all 0.2s" }}>
                                             {productoSeleccionado?.ImagenProducto
                                                 ? <img src={productoSeleccionado.ImagenProducto} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: "cover" }} />
                                                 : <div style={{ width: 40, height: 40, borderRadius: 8, background: C.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", color: C.accent }}><FaBoxOpen /></div>
@@ -793,7 +869,7 @@ const CotizacionLanding = () => {
                                 </div>
                             )}
 
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                            <div className="cot-grid2" style={{ display: "grid", gap: 14 }}>
                                 {/* Técnica */}
                                 <div>
                                     <Label required>Técnica de estampado</Label>
@@ -823,11 +899,11 @@ const CotizacionLanding = () => {
                                         Imagen del diseño
                                         {disenoEditando && <span style={{ color: C.muted, fontWeight: 400, textTransform: "none", fontSize: 10 }}> (opcional al editar)</span>}
                                     </Label>
-                                    <label style={{ display: "block", cursor: "pointer" }}>
-                                        <div style={{ border: `2px dashed ${erroresDiseño.ImagenDiseno ? C.danger : disenoActual.ImagenDiseno ? C.success : C.border}`, borderRadius: 10, padding: "12px 14px", background: disenoActual.ImagenDiseno ? C.successSoft : C.bg, transition: "all 0.2s", textAlign: "center" }}>
+                                    <label style={{ display: "block", cursor: "pointer" }} onDragOver={e => { e.preventDefault(); setArrastrando(true); }} onDragLeave={() => setArrastrando(false)} onDrop={onDropImagen}>
+                                        <div className={`cot-drop ${arrastrando ? "over" : ""}`} style={{ border: `2px dashed ${erroresDiseño.ImagenDiseno ? C.danger : disenoActual.ImagenDiseno ? C.success : C.border}`, borderRadius: 10, padding: "12px 14px", background: disenoActual.ImagenDiseno ? C.successSoft : C.bg, transition: "all 0.2s", textAlign: "center" }}>
                                             {disenoActual.ImagenDiseno ? (
                                                 <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "center" }}>
-                                                    <img src={URL.createObjectURL(disenoActual.ImagenDiseno)} alt="" style={{ width: 36, height: 36, objectFit: "cover", borderRadius: 6 }} />
+                                                    <img src={previewUrl} alt="" style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 10, boxShadow: "0 4px 12px rgba(0,0,0,0.18)", animation: "cotPop .45s cubic-bezier(.34,1.56,.64,1)" }} />
                                                     <div style={{ textAlign: "left" }}>
                                                         <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: C.success, fontFamily: "'Outfit',sans-serif" }}>✓ {disenoActual.ImagenDiseno.name}</p>
                                                         <p style={{ margin: 0, fontSize: 10, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>{(disenoActual.ImagenDiseno.size / 1024).toFixed(0)} KB</p>
@@ -841,8 +917,8 @@ const CotizacionLanding = () => {
                                                 </div>
                                             ) : (
                                                 <div>
-                                                    <FaUpload style={{ color: C.muted, marginBottom: 4, fontSize: 18 }} />
-                                                    <p style={{ margin: 0, fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>JPG, PNG, GIF, WEBP · máx. 5MB</p>
+                                                    <FaCloudUploadAlt className="sx-bob" style={{ color: C.purple, marginBottom: 4, fontSize: 28 }} />
+                                                    <p style={{ margin: 0, fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Arrastra tu diseño o haz clic · JPG, PNG, GIF, WEBP · máx. 5MB</p>
                                                 </div>
                                             )}
                                         </div>
@@ -878,6 +954,12 @@ const CotizacionLanding = () => {
                                 )} 
                             </div>
 
+                            {disenosAgregados.length === 0 && (
+                                <div className="cot-empty">
+                                    <svg viewBox="0 0 120 80" width="110" height="74" fill="none"><rect x="14" y="10" width="92" height="60" rx="12" fill="#f5f3ff" stroke="#ddd6fe" strokeWidth="2" strokeDasharray="5 5" /><circle cx="40" cy="32" r="7" fill="#c4b5fd" /><path d="M20 62l26-22 16 14 14-10 24 18z" fill="#a78bfa" opacity=".65" /></svg>
+                                    <p>Aún no hay diseños agregados</p>
+                                </div>
+                            )}
                             {/* Tabla de diseños */}
                             {disenosAgregados.length > 0 && (
                                 <div style={{ marginTop: 20 }}>
@@ -896,7 +978,7 @@ const CotizacionLanding = () => {
                                             </thead>
                                             <tbody>
                                                 {disenosAgregados.map((dis, idx) => (
-                                                    <tr key={dis.id} className="dis-row" style={{ background: idx % 2 === 0 ? "#fff" : C.bg, transition: "background 0.15s" }}>
+                                                    <tr key={dis.id} className="dis-row cot-row" style={{ background: idx % 2 === 0 ? "#fff" : C.bg, transition: "background 0.15s" }}>
                                                         <td style={{ padding: "10px 12px", fontWeight: 700, color: C.muted }}>#{idx + 1}</td>
                                                         <td style={{ padding: "8px 12px" }}>
                                                             {dis.ImagenPreviewUrl
@@ -932,14 +1014,14 @@ const CotizacionLanding = () => {
                         </SectionCard>
 
                         {/* BOTÓN AGREGAR AL CARRITO */}
-                        <div style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`, padding: "18px 22px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                        <div className="cot-card cot-addbar sx-reveal" style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`, padding: "18px 22px", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
                             <div>
                                 <p style={{ margin: "0 0 2px", fontWeight: 700, fontSize: 14, color: C.navy, fontFamily: "'Outfit',sans-serif" }}>¿Listo con este producto?</p>
                                 <p style={{ margin: 0, fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>
                                     {disenosAgregados.length === 0 ? "Agrega al menos un diseño antes de continuar." : `${disenosAgregados.length} diseño(s) configurado(s) → se agregarán con el producto.`}
                                 </p>
                             </div>
-                            <Btn variant="primary" style={{ background: C.navyGrad, color: "#fff", width: "320px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px"  }} size="lg" onClick={handleAgregarACotizacion}
+                            <Btn variant="primary" style={{ background: C.navyGrad, color: "#fff", width: "320px", maxWidth: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px"  }} size="lg" onClick={handleAgregarACotizacion}
                                 disabled={disenosAgregados.length === 0 || (!traePrenda && !validacionStock.valido)}>
                                 <FaShoppingCart size={14} /> Agregar al carrito
                             </Btn>
@@ -947,16 +1029,16 @@ const CotizacionLanding = () => {
                     </div>
 
                     {/* ── COLUMNA DERECHA: RESUMEN ── */}
-                    <div style={{ position: "sticky", top: 20 }}>
+                    <div className="cot-aside" style={{ position: "sticky", top: 20 }}>
                         {/* Stats */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 16 }}>
                             {[
                                 { val: productosEnCotizacion.length, label: "Productos", color: C.accent, bg: C.accentSoft, icon: <FaShoppingCart /> },
                                 { val: totalDisenos, label: "Diseños", color: C.purple, bg: C.purpleSoft, icon: <FaPalette /> },
                             ].map(({ val, label, color, bg, icon }) => (
-                                <div key={label} style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 14, padding: "14px 16px", textAlign: "center" }}>
+                                <div key={label} className="cot-card sx-reveal" style={{ background: C.white, border: `1.5px solid ${C.border}`, borderRadius: 14, padding: "14px 16px", textAlign: "center" }}>
                                     <div style={{ width: 36, height: 36, borderRadius: 10, background: bg, color, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 8px" }}>{icon}</div>
-                                    <p style={{ margin: "0 0 2px", fontSize: 22, fontWeight: 900, color, fontFamily: "'Outfit',sans-serif" }}>{val}</p>
+                                    <p style={{ margin: "0 0 2px", fontSize: 22, fontWeight: 900, color, fontFamily: "'Outfit',sans-serif" }}><Counter value={val} /></p>
                                     <p style={{ margin: 0, fontSize: 11, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>{label}</p>
                                 </div>
                             ))}
@@ -984,7 +1066,7 @@ const CotizacionLanding = () => {
                         <SectionCard title="Tu Cotización" subtitle={productosEnCotizacion.length === 0 ? "Sin productos aún" : `${productosEnCotizacion.length} producto(s)`} icon={<FaLayerGroup />} accentColor={C.success}>
                             {productosEnCotizacion.length === 0 ? (
                                 <div style={{ textAlign: "center", padding: "16px 0" }}>
-                                    <FaBoxOpen size={28} style={{ color: C.muted, opacity: 0.3, marginBottom: 8 }} />
+                                    <FaBoxOpen className="sx-bob" size={32} style={{ color: C.accent, opacity: 0.35, marginBottom: 8 }} />
                                     <p style={{ color: C.muted, fontSize: 12, margin: 0, fontFamily: "'Outfit',sans-serif" }}>Agrega productos para comenzar</p>
                                 </div>
                             ) : (
@@ -1016,7 +1098,7 @@ const CotizacionLanding = () => {
                         {/* Botones finales */}
                         {productosEnCotizacion.length > 0 && (
                             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
-                                <Btn variant="success" style={{ width: "100%", background: C.success, color: "#ffff", justifyContent: "center" }} size="lg" onClick={handleGenerarCotizacion} disabled={enviando}>
+                                <Btn variant="success" className="cot-flash" style={{ width: "100%", background: C.success, color: "#ffff", justifyContent: "center" }} size="lg" onClick={handleGenerarCotizacion} disabled={enviando}>
                                     {enviando
                                         ? <><div style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Procesando...</>
                                         : <><FaCheckCircle size={14} /> Generar cotización</>

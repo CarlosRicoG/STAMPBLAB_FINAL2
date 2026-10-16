@@ -72,6 +72,14 @@ const NavbarComponent = () => {
     const [mobileOpen, setMobileOpen] = useState(false);
     const navigate = useNavigate();
     const location = useLocation();
+    const [scrolled, setScrolled] = useState(false);
+
+    useEffect(() => {
+        const onScroll = () => setScrolled(window.scrollY > 24);
+        onScroll();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        return () => window.removeEventListener("scroll", onScroll);
+    }, []);
 
     useEffect(() => { checkAuth(); }, [location]);
 
@@ -109,18 +117,23 @@ const NavbarComponent = () => {
         @keyframes fadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
         @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
         .nav-link-item { position: relative; }
-        .nav-link-item::after { content:''; position:absolute; bottom:-4px; left:0; width:0; height:2px; background:${C.accent}; border-radius:2px; transition:width 0.2s ease; }
-        .nav-link-item:hover::after, .nav-link-item.active::after { width:100%; }
+        .nav-link-item::after { content:''; position:absolute; bottom:-6px; left:0; width:100%; height:3px; background:linear-gradient(90deg,#4f8ef7,#7c3aed); border-radius:3px; transform:scaleX(0); transform-origin:left; transition:transform 0.35s cubic-bezier(.22,1,.36,1); }
+        .nav-link-item:hover::after, .nav-link-item.active::after { transform:scaleX(1); }
         .nav-link-item:hover { color:${C.accent} !important; }
         .mobile-menu { animation: slideDown 0.2s ease; }
+        .sl-nav { transition: background .3s, box-shadow .3s, border-color .3s, backdrop-filter .3s; }
+        .sl-nav.scrolled { background: rgba(255,255,255,0.72) !important; backdrop-filter: blur(16px) saturate(160%); -webkit-backdrop-filter: blur(16px) saturate(160%); box-shadow: 0 8px 30px rgba(26,37,64,0.12) !important; border-bottom-color: rgba(79,142,247,0.18) !important; }
+        .sl-nav .sl-logo { transition: transform .3s, height .3s; }
+        .sl-nav.scrolled .sl-logo { height: 46px !important; }
+        .sl-nav .sl-logo:hover { transform: scale(1.05) rotate(-1.5deg); }
       `}</style>
 
-            <nav style={{ background: "#fff", borderBottom: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.08)", fontFamily: "'Outfit',sans-serif", position: "sticky", top: 0, zIndex: 1000 }}>
+            <nav className={`sl-nav ${scrolled ? "scrolled" : ""}`} style={{ background: "rgba(255,255,255,0.96)", borderBottom: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.06)", fontFamily: "'Outfit',sans-serif", position: "sticky", top: 0, zIndex: 1000 }}>
                 <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 72, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
 
                     {/* Logo */}
                     <Link to="/" style={{ display: "flex", alignItems: "center", textDecoration: "none", flexShrink: 0 }}>
-                        <img src={logo} alt="StampLab" style={{ height: 56, objectFit: "contain" }} />
+                        <img src={logo} alt="StampLab" className="sl-logo" style={{ height: 56, objectFit: "contain" }} />
                     </Link>
 
                     {/* Nav Links - Desktop */}
@@ -161,9 +174,9 @@ const NavbarComponent = () => {
                                     Iniciar Sesión
                                 </Link>
                                 <Link to="/signup"
-                                    style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: C.navyGrad, color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none", transition: "opacity 0.15s", fontFamily: "'Outfit',sans-serif" }}
-                                    onMouseEnter={e => e.currentTarget.style.opacity = "0.88"}
-                                    onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                                    style={{ padding: "8px 18px", borderRadius: 10, border: "none", background: "linear-gradient(90deg,#4f8ef7,#7c3aed)", color: "#fff", fontWeight: 700, fontSize: 13, textDecoration: "none", transition: "transform 0.2s, box-shadow 0.2s", fontFamily: "'Outfit',sans-serif", boxShadow: "0 6px 18px rgba(79,142,247,0.35)" }}
+                                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 10px 24px rgba(124,58,237,0.4)"; }}
+                                    onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 6px 18px rgba(79,142,247,0.35)"; }}>
                                     Registrarse
                                 </Link>
                             </>

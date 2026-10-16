@@ -1,112 +1,65 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FaShoppingCart, FaCreditCard, FaTruck, FaBoxOpen, FaQrcode, FaEyeSlash, FaChevronDown } from "react-icons/fa";
+import { FaShoppingCart, FaCreditCard, FaTruck, FaBoxOpen, FaQrcode, FaEyeSlash, FaChevronDown, FaCloudUploadAlt, FaCheckCircle, FaPalette, FaLock } from "react-icons/fa";
 import Swal from "sweetalert2";
 import * as api from "../../Services/api-cotizacion-landing/cotizacion-landing";
 import { getVariantesByProducto } from '../../Services/api-productos/variantes';
 import NavbarComponent from "../landing/NavBarLanding";
 import FooterComponent from "../landing/footer";
 import { crearVenta } from '../../Services/api-ventas/ventas';
+import usePlus from "../../hooks/usePlus";
+import { MC_CSS, leerUsuario, MiCuentaHero } from "./miCuentaKit";
 
 /* ── Tokens de color ── */
 const C = {
     navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
     accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
     success: "#16a34a",
-    successSoft: "#f0fdf4",
-    successBorder: "#bbf7d0",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    warningBorder: "#fde68a",
     danger: "#dc2626",
-    dangerSoft: "#fef2f2",
-    dangerBorder: "#fecaca",
     muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
 };
-
-/* ── Helpers de estilo ── */
-const selectStyle = (focused) => ({
-    width: "100%", padding: "10px 14px", fontSize: 13,
-    fontFamily: "'Outfit',sans-serif",
-    border: `1.5px solid ${focused ? C.accent : C.border}`,
-    borderRadius: 10, outline: "none", color: "#0f172a",
-    background: "#fff", transition: "border-color 0.15s",
-    cursor: "pointer", appearance: "none", WebkitAppearance: "none",
-});
-
-const inputStyle = (focused, error) => ({
-    width: "100%", padding: "10px 14px", fontSize: 13,
-    fontFamily: "'Outfit',sans-serif",
-    border: `1.5px solid ${error ? C.danger : focused ? C.accent : C.border}`,
-    borderRadius: 10, outline: "none", color: "#0f172a",
-    background: error ? C.dangerSoft : "#fff",
-    transition: "border-color 0.15s", boxSizing: "border-box",
-});
 
 /* ── SelectField wrapper con chevron ── */
-const SelectField = ({ label, value, onChange, disabled, children, required }) => {
-    const [focused, setFocused] = useState(false);
-    return (
-        <div>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
-                {label} {required && <span style={{ color: C.danger }}>*</span>}
-            </label>
-            <div style={{ position: "relative" }}>
-                <select value={value} onChange={onChange} disabled={disabled} required={required}
-                    onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-                    style={{ ...selectStyle(focused), opacity: disabled ? 0.6 : 1, paddingRight: 36 }}>
-                    {children}
-                </select>
-                <FaChevronDown size={11} color={C.muted} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} />
-            </div>
-        </div>
-    );
-};
-
-/* ── InputField ── */
-const InputField = ({ label, type = "text", value, onChange, placeholder, required, maxLength, hint, pattern }) => {
-    const [focused, setFocused] = useState(false);
-    return (
-        <div>
-            <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
-                {label} {required && <span style={{ color: C.danger }}>*</span>}
-            </label>
-            <input type={type} value={value} onChange={onChange} placeholder={placeholder}
-                required={required} maxLength={maxLength} pattern={pattern}
-                onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-                style={inputStyle(focused)} />
-            {hint && <p style={{ margin: "5px 0 0", fontSize: 12, color: C.muted }}>{hint}</p>}
-        </div>
-    );
-};
-
-/* ── SectionCard ── */
-const SectionCard = ({ title, icon, children }) => (
-    <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.06)", overflow: "hidden", marginBottom: 18 }}>
-        <div style={{ padding: "14px 20px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 9, background: C.bg }}>
-            {icon && <span style={{ color: C.accent }}>{icon}</span>}
-            <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: C.navy }}>{title}</p>
-        </div>
-        <div style={{ padding: "18px 20px" }}>
-            {children}
+const SelectField = ({ label, value, onChange, disabled, children, required }) => (
+    <div className="mc-field">
+        <label>{label} {required && <i>*</i>}</label>
+        <div className="mc-selwrap">
+            <select className="mc-input" value={value} onChange={onChange} disabled={disabled} required={required}>
+                {children}
+            </select>
+            <FaChevronDown size={11} />
         </div>
     </div>
 );
 
+/* ── InputField ── */
+const InputField = ({ label, type = "text", value, onChange, placeholder, required, maxLength, hint, pattern }) => (
+    <div className="mc-field">
+        <label>{label} {required && <i>*</i>}</label>
+        <input className="mc-input" type={type} value={value} onChange={onChange} placeholder={placeholder}
+            required={required} maxLength={maxLength} pattern={pattern} />
+        {hint && <p className="mc-hint">{hint}</p>}
+    </div>
+);
+
+/* ── SectionCard numerada ── */
+const SectionCard = ({ title, icon, n, children }) => (
+    <div className="mc-fsec mc-fc-sec sx-reveal">
+        <p className="mc-fsec-h"><span>{icon || n}</span> {title}</p>
+        {children}
+    </div>
+);
+
 /* ── Radio de método de pago ── */
-const MetodoRadio = ({ id, value, checked, onChange, icon, label, color }) => (
-    <label htmlFor={id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, border: `1.5px solid ${checked ? color : C.border}`, background: checked ? `${color}0d` : "#fff", cursor: "pointer", transition: "all 0.15s", marginBottom: 10 }}>
+const MetodoRadio = ({ id, value, checked, onChange, icon, label, color, desc }) => (
+    <label htmlFor={id} className={`mc-pay ${checked ? "on" : ""}`} style={{ "--pc": color }}>
         <input type="radio" id={id} name="metodoPago" value={value} checked={checked} onChange={onChange} style={{ display: "none" }} />
-        <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${checked ? color : C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            {checked && <div style={{ width: 9, height: 9, borderRadius: "50%", background: color }} />}
-        </div>
-        <span style={{ color }}>{icon}</span>
-        <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: checked ? color : C.navy }}>{label}</p>
+        <span className="mc-pay-ico">{icon}</span>
+        <span style={{ flex: 1 }}>
+            <b>{label}</b>
+            <small>{desc}</small>
+        </span>
+        <span className="mc-pay-dot">{checked && <FaCheckCircle size={14} />}</span>
     </label>
 );
 
@@ -114,6 +67,7 @@ const MetodoRadio = ({ id, value, checked, onChange, icon, label, color }) => (
    COMPONENTE PRINCIPAL
 ══════════════════════════════════════════ */
 const FormularioCompra = () => {
+    usePlus();
     const location = useLocation();
     const navigate = useNavigate();
     const producto = location.state?.producto;
@@ -136,8 +90,6 @@ const FormularioCompra = () => {
     const [cargando, setCargando] = useState(false);
 
     /* ── Focused states ── */
-    const [cantidadFocused, setCantidadFocused] = useState(false);
-    const [textareaFocused, setTextareaFocused] = useState(false);
 
     useEffect(() => {
         verificarAutenticacion();
@@ -322,235 +274,212 @@ const FormularioCompra = () => {
 
     return (
         <>
-            <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
-        * { box-sizing: border-box; }
-        @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes slideDown { from{opacity:0;max-height:0;overflow:hidden} to{opacity:1;max-height:600px} }
-        .upload-area:hover { border-color: ${C.accent} !important; background: ${C.accentSoft} !important; }
-        .compra-sticky { position: sticky; top: 24px; }
-      `}</style>
+            <style>{MC_CSS + `
+            .mc-fc-grid { display: grid; grid-template-columns: 340px 1fr; gap: 28px; align-items: start; }
+            .mc-fc-side { position: sticky; top: 90px; display: flex; flex-direction: column; gap: 20px; }
+            .mc-fc-img { height: 270px; display: grid; place-items: center; padding: 18px; background: radial-gradient(circle at 50% 40%, #fff, #eaf0fb); position: relative; overflow: hidden; }
+            .mc-fc-img img { max-height: 100%; max-width: 100%; object-fit: contain; filter: drop-shadow(0 18px 24px rgba(26,37,64,.25)); transition: transform .8s var(--sx-ease); }
+            .mc-fc-side .mc-glass-card:hover .mc-fc-img img { transform: scale(1.07) rotate(-1.5deg); }
+            .mc-fc-name { padding: 18px 22px 20px; }
+            .mc-fc-name h3 { margin: 0 0 6px; font-size: 19px; font-weight: 900; letter-spacing: -.02em; color: #1a2540; }
+            .mc-fc-name p { margin: 0; font-size: 13px; color: #64748b; line-height: 1.55; }
+            .mc-fc-sum { background: #fff; border-radius: 18px; border: 1px solid #e2e8f0; position: relative; overflow: hidden; box-shadow: var(--sx-shadow-1); }
+            .mc-fc-sum-b { padding: 16px 20px 18px; }
+            .mc-fc-sum h4 { margin: 0; padding: 14px 20px; font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(90deg, #1a2540, #2d3f6e); }
+            .mc-fc-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #64748b; }
+            .mc-fc-row b { color: #1a2540; font-weight: 700; }
+            .mc-fc-tot { display: flex; justify-content: space-between; align-items: flex-end; padding-top: 18px; }
+            .mc-fc-tot span { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; color: #1a2540; }
+            .mc-fc-tot strong { font-size: 26px; font-weight: 900; letter-spacing: -.03em; line-height: 1; color: #16a34a; font-variant-numeric: tabular-nums; }
+            .mc-secure { display: flex; gap: 8px; align-items: center; margin-top: 16px; font-size: 12px; color: #94a3b8; }
+            .mc-pay { display: flex; align-items: center; gap: 14px; padding: 15px 18px; border-radius: 18px; border: 1.5px solid #dbe3ef; background: #fff; cursor: pointer; margin-bottom: 12px; transition: all .3s var(--sx-ease); }
+            .mc-pay:hover { border-color: var(--pc); transform: translateY(-2px); box-shadow: 0 12px 28px rgba(15,23,42,.08); }
+            .mc-pay.on { border-color: var(--pc); background: linear-gradient(135deg, color-mix(in srgb, var(--pc) 9%, #fff), #fff); box-shadow: 0 0 0 4px color-mix(in srgb, var(--pc) 16%, transparent); }
+            .mc-pay-ico { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: #fff; background: var(--pc); font-size: 17px; box-shadow: 0 8px 18px color-mix(in srgb, var(--pc) 40%, transparent); }
+            .mc-pay b { display: block; font-size: 15px; font-weight: 800; color: #1a2540; }
+            .mc-pay small { font-size: 12px; color: #64748b; }
+            .mc-pay-dot { width: 24px; height: 24px; border-radius: 50%; border: 2px solid #cbd5e1; display: grid; place-items: center; color: #fff; background: #fff; transition: all .3s; }
+            .mc-pay.on .mc-pay-dot { background: var(--pc); border-color: var(--pc); }
+            .mc-reveal { animation: sx-in-up .5s var(--sx-ease); }
+            .mc-bank { border-radius: 18px; border: 1.5px solid #c7d9ff; background: linear-gradient(135deg, #eef3ff, #f5f0ff); padding: 16px; margin: -2px 0 14px; }
+            .mc-bank-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+            .mc-bank-grid > div { background: #fff; border: 1px solid #c7d9ff; border-radius: 12px; padding: 9px 13px; }
+            .mc-bank-grid small { display: block; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; font-weight: 800; color: #94a3b8; }
+            .mc-bank-grid b { font-size: 14px; color: #1a2540; }
+            .mc-qrbtn { display: inline-flex; align-items: center; gap: 8px; margin-top: 12px; padding: 9px 16px; border-radius: 12px; border: 1.5px solid #c7d9ff; background: #fff; color: #3b6fe0; font-size: 12.5px; font-weight: 800; cursor: pointer; transition: all .25s; }
+            .mc-qrbtn:hover { background: #4f8ef7; color: #fff; border-color: #4f8ef7; }
+            .mc-upload { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 26px 16px; border: 2px dashed #cbd5e1; border-radius: 18px; background: #fff; cursor: pointer; transition: all .3s; text-align: center; }
+            .mc-upload:hover { border-color: #4f8ef7; background: #f4f8ff; transform: translateY(-2px); }
+            .mc-upload.done { border-color: #16a34a; background: #f0fdf4; }
+            .mc-upload svg { font-size: 30px; color: #4f8ef7; } .mc-upload.done svg { color: #16a34a; }
+            .mc-upload p { margin: 0; font-size: 14px; font-weight: 700; color: #475569; } .mc-upload small { font-size: 12px; color: #94a3b8; }
+            .mc-deliver { border-radius: 18px; border: 1.5px solid #bbf7d0; background: linear-gradient(135deg, #f0fdf4, #f7fffa); padding: 18px; margin-top: 2px; display: flex; flex-direction: column; gap: 16px; }
+            @media (max-width: 900px) { .mc-fc-grid { grid-template-columns: 1fr; } .mc-fc-side { position: static; } }
+            @media (max-width: 560px) { .mc-bank-grid { grid-template-columns: 1fr; } .mc-fc-img { height: 220px; } }
+            `}</style>
 
             <NavbarComponent />
 
-            <div style={{ minHeight: "calc(100vh - 72px)", background: C.bg, fontFamily: "'Outfit',sans-serif" }}>
+            <div className="mc-page">
+                <MiCuentaHero eyebrow="Finaliza tu pedido" title="Comprar:" accent={producto.Nombre} nombre={leerUsuario().Nombre || ""}
+                    sub="Completa el formulario para confirmar tu pedido." />
 
-                {/* ── Hero ── */}
-                <div style={{ background: C.navyGrad, padding: "36px 24px 44px", textAlign: "center" }}>
-                    <div style={{ maxWidth: 1040, margin: "0 auto" }}>
-                        <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 22, color: "#fff", letterSpacing: "-0.02em" }}>
-                            Comprar: {producto.Nombre}
-                        </p>
-                        <p style={{ margin: 0, color: "rgba(255,255,255,0.6)", fontSize: 13 }}>
-                            Completa el formulario para confirmar tu pedido
-                        </p>
-                    </div>
-                </div>
+                <div className="mc-wrap" style={{ maxWidth: 1040 }}>
+                    <div className="mc-fc-grid">
 
-                {/* ── Grid principal ── */}
-                <div style={{ maxWidth: 1040, margin: "0 auto", padding: "32px 20px 60px", display: "grid", gridTemplateColumns: "340px 1fr", gap: 24, alignItems: "start" }}
-                    className="compra-grid">
-                    <style>{`@media(max-width:768px){.compra-grid{grid-template-columns:1fr !important}}`}</style>
-
-                    {/* ══════ PANEL IZQUIERDO – Resumen ══════ */}
-                    <div className="compra-sticky" style={{ animation: "fadeIn 0.35s ease" }}>
-
-                        {/* Imagen producto */}
-                        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.06)", overflow: "hidden", marginBottom: 16 }}>
-                            <div style={{ height: 240, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-                                {producto.ImagenProducto
-                                    ? <img src={producto.ImagenProducto} alt={producto.Nombre} style={{ maxHeight: "100%", maxWidth: "100%", objectFit: "contain" }} />
-                                    : <FaBoxOpen size={48} color={C.muted} style={{ opacity: 0.3 }} />}
+                        {/* ══════ PANEL IZQUIERDO – Resumen ══════ */}
+                        <div className="mc-fc-side">
+                            <div className="mc-glass-card sx-reveal">
+                                <div className="mc-fc-img">
+                                    {producto.ImagenProducto
+                                        ? <img src={producto.ImagenProducto} alt={producto.Nombre} />
+                                        : <FaBoxOpen size={56} color={C.muted} style={{ opacity: 0.3 }} />}
+                                </div>
+                                <div className="mc-fc-name">
+                                    <h3>{producto.Nombre}</h3>
+                                    {producto.Descripcion && <p>{producto.Descripcion}</p>}
+                                </div>
                             </div>
-                            <div style={{ padding: "14px 18px", borderTop: `1px solid ${C.border}` }}>
-                                <p style={{ margin: "0 0 4px", fontWeight: 800, fontSize: 15, color: C.navy }}>{producto.Nombre}</p>
-                                {producto.Descripcion && <p style={{ margin: 0, fontSize: 12, color: C.muted, lineHeight: 1.5 }}>{producto.Descripcion}</p>}
+
+                            <div className="mc-fc-sum sx-reveal" style={{ "--sx-i": 1 }}>
+                                <h4>Resumen del Pedido</h4>
+                                <div className="mc-fc-sum-b">
+                                    {[
+                                        { label: "Precio base", value: `$${precios.precioBaseProducto.toLocaleString()}` },
+                                        ...(tallasDisponibles.length > 0 && tallaID ? [{ label: "Talla", value: `+$${precios.precioTalla.toLocaleString()}` }] : []),
+                                        ...(telasDisponibles.length > 0 && telaID ? [{ label: "Tela", value: `+$${precios.precioTela.toLocaleString()}` }] : []),
+                                        { label: "Precio unitario", value: `$${precios.precioUnitario.toLocaleString()}` },
+                                        { label: "Cantidad", value: `× ${precios.cantidadUnidades}` },
+                                    ].map(({ label, value }, i) => (
+                                        <div key={i} className="mc-fc-row"><span>{label}</span><b>{value}</b></div>
+                                    ))}
+                                    <div className="mc-fc-tot"><span>Total</span><strong>${precios.subtotal.toLocaleString()}</strong></div>
+                                    <div className="mc-secure"><FaLock size={11} /> Tus datos viajan protegidos</div>
+                                </div>
                             </div>
                         </div>
 
-                        {/* Resumen de precios */}
-                        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, boxShadow: "0 2px 12px rgba(26,37,64,0.06)", overflow: "hidden" }}>
-                            <div style={{ background: C.navyGrad, padding: "14px 18px" }}>
-                                <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: "#fff" }}>Resumen del Pedido</p>
-                            </div>
-                            <div style={{ padding: "16px 18px" }}>
-                                {[
-                                    { label: "Precio base", value: `$${precios.precioBaseProducto.toLocaleString()}` },
-                                    ...(tallasDisponibles.length > 0 && tallaID ? [{ label: "Talla", value: `+$${precios.precioTalla.toLocaleString()}` }] : []),
-                                    ...(telasDisponibles.length > 0 && telaID ? [{ label: "Tela", value: `+$${precios.precioTela.toLocaleString()}` }] : []),
-                                    { label: "Precio unitario", value: `$${precios.precioUnitario.toLocaleString()}`, bold: true },
-                                    { label: "Cantidad", value: `× ${precios.cantidadUnidades}`, bold: true },
-                                ].map(({ label, value, bold }, i) => (
-                                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
-                                        <span style={{ fontSize: 13, color: C.muted }}>{label}</span>
-                                        <span style={{ fontSize: 13, fontWeight: bold ? 700 : 500, color: bold ? C.navy : C.muted }}>{value}</span>
+                        {/* ══════ PANEL DERECHO – Formulario ══════ */}
+                        <form onSubmit={handleSubmit}>
+
+                            {/* ── Características ── */}
+                            <SectionCard title="Características del producto" icon={<FaPalette size={13} />}>
+                                <div className="mc-fgrid" style={{ gridTemplateColumns: coloresDisponibles.length > 0 && tallasDisponibles.length > 0 ? undefined : "1fr", marginBottom: 16 }}>
+                                    {coloresDisponibles.length > 0 && (
+                                        <SelectField label="Color" value={colorID} required
+                                            onChange={e => { setColorID(e.target.value); setTallaID(""); setTelaID(""); }}>
+                                            <option value="">Seleccionar...</option>
+                                            {coloresDisponibles.map(c => <option key={c.ColorID} value={c.ColorID}>{c.Nombre}</option>)}
+                                        </SelectField>
+                                    )}
+                                    {tallasDisponibles.length > 0 && (
+                                        <SelectField label="Talla" value={tallaID} required
+                                            onChange={e => { setTallaID(e.target.value); setTelaID(""); }}>
+                                            <option value="">{!colorID ? "Primero selecciona un color" : "Seleccionar..."}</option>
+                                            {tallasDisponibles.map(t => <option key={t.TallaID} value={t.TallaID}>{t.Nombre} — +${t.Precio?.toLocaleString()}</option>)}
+                                        </SelectField>
+                                    )}
+                                </div>
+                                {telasDisponibles.length > 0 && (
+                                    <div style={{ marginBottom: 16 }}>
+                                        <SelectField label="Tipo de Tela" value={telaID} required
+                                            onChange={e => setTelaID(e.target.value)}>
+                                            <option value="">{!colorID || !tallaID ? "Primero selecciona color y talla" : "Seleccionar..."}</option>
+                                            {telasDisponibles.map(t => <option key={t.InsumoID} value={t.InsumoID}>{t.Nombre} — +${t.PrecioTela?.toLocaleString()}</option>)}
+                                        </SelectField>
                                     </div>
-                                ))}
-                                {/* Total */}
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 4px" }}>
-                                    <span style={{ fontSize: 14, fontWeight: 700, color: C.navy }}>Total</span>
-                                    <span style={{ fontSize: 22, fontWeight: 800, color: C.success }}>${precios.subtotal.toLocaleString()}</span>
+                                )}
+                                {/* Cantidad */}
+                                <div className="mc-field" style={{ maxWidth: 220 }}>
+                                    <label>Cantidad <i>*</i></label>
+                                    <input className="mc-input" type="number" min="1" max="100" value={cantidad}
+                                        onChange={e => { const v = e.target.value; if (v === '' || (parseInt(v) > 0 && parseInt(v) <= 100)) setCantidad(v); }}
+                                        required />
+                                    {validacionStock.stockDisponible !== undefined && (
+                                        <p className="mc-hint">
+                                            Stock disponible: <strong style={{ color: validacionStock.stockDisponible > 0 ? C.success : C.danger }}>{validacionStock.stockDisponible} unidades</strong>
+                                        </p>
+                                    )}
                                 </div>
-                            </div>
-                        </div>
-                    </div>
+                            </SectionCard>
 
-                    {/* ══════ PANEL DERECHO – Formulario ══════ */}
-                    <form onSubmit={handleSubmit} style={{ animation: "fadeIn 0.35s ease 0.05s both" }}>
+                            {/* ── Método de pago ── */}
+                            <SectionCard title="Método de pago" icon={<FaCreditCard size={13} />}>
 
-                        {/* ── Características ── */}
-                        <SectionCard title="Características del Producto">
-                            <div style={{ display: "grid", gridTemplateColumns: coloresDisponibles.length > 0 && tallasDisponibles.length > 0 ? "1fr 1fr" : "1fr", gap: 14, marginBottom: 14 }}>
-                                {coloresDisponibles.length > 0 && (
-                                    <SelectField label="Color" value={colorID} required
-                                        onChange={e => { setColorID(e.target.value); setTallaID(""); setTelaID(""); }}>
-                                        <option value="">Seleccionar...</option>
-                                        {coloresDisponibles.map(c => <option key={c.ColorID} value={c.ColorID}>{c.Nombre}</option>)}
-                                    </SelectField>
-                                )}
-                                {tallasDisponibles.length > 0 && (
-                                    <SelectField label="Talla" value={tallaID} required
-                                        onChange={e => { setTallaID(e.target.value); setTelaID(""); }}>
-                                        <option value="">{!colorID ? "Primero selecciona un color" : "Seleccionar..."}</option>
-                                        {tallasDisponibles.map(t => <option key={t.TallaID} value={t.TallaID}>{t.Nombre} — +${t.Precio?.toLocaleString()}</option>)}
-                                    </SelectField>
-                                )}
-                            </div>
-                            {telasDisponibles.length > 0 && (
-                                <div style={{ marginBottom: 14 }}>
-                                    <SelectField label="Tipo de Tela" value={telaID} required
-                                        onChange={e => setTelaID(e.target.value)}>
-                                        <option value="">{!colorID || !tallaID ? "Primero selecciona color y talla" : "Seleccionar..."}</option>
-                                        {telasDisponibles.map(t => <option key={t.InsumoID} value={t.InsumoID}>{t.Nombre} — +${t.PrecioTela?.toLocaleString()}</option>)}
-                                    </SelectField>
-                                </div>
-                            )}
-                            {/* Cantidad */}
-                            <div style={{ maxWidth: 200 }}>
-                                <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
-                                    Cantidad <span style={{ color: C.danger }}>*</span>
-                                </label>
-                                <input type="number" min="1" max="100" value={cantidad}
-                                    onChange={e => { const v = e.target.value; if (v === '' || (parseInt(v) > 0 && parseInt(v) <= 100)) setCantidad(v); }}
-                                    onFocus={() => setCantidadFocused(true)} onBlur={() => setCantidadFocused(false)}
-                                    style={inputStyle(cantidadFocused)} required />
-                                {validacionStock.stockDisponible !== undefined && (
-                                    <p style={{ margin: "5px 0 0", fontSize: 12, color: C.muted }}>
-                                        Stock disponible: <strong style={{ color: validacionStock.stockDisponible > 0 ? C.success : C.danger }}>{validacionStock.stockDisponible} unidades</strong>
-                                    </p>
-                                )}
-                            </div>
-                        </SectionCard>
+                                <MetodoRadio id="pago-transferencia" value="transferencia" checked={metodoPago === "transferencia"}
+                                    onChange={e => setMetodoPago(e.target.value)}
+                                    icon={<FaCreditCard />} label="Transferencia bancaria" desc="Paga desde tu banco y sube el comprobante" color={C.accent} />
 
-                        {/* ── Método de pago ── */}
-                        <SectionCard title="Método de Pago" icon={<FaCreditCard size={14} />}>
-
-                            <MetodoRadio id="pago-transferencia" value="transferencia" checked={metodoPago === "transferencia"}
-                                onChange={e => setMetodoPago(e.target.value)}
-                                icon={<FaCreditCard size={14} />} label="Transferencia Bancaria" color={C.accent} />
-
-                            {/* Bloque transferencia */}
-                            {metodoPago === "transferencia" && (
-                                <div style={{ marginBottom: 14, animation: "slideDown 0.25s ease", borderRadius: 12, border: `1.5px solid ${C.accentBorder}`, background: C.accentSoft, overflow: "hidden" }}>
-                                    {/* Datos bancarios */}
-                                    <div style={{ padding: "14px 16px", borderBottom: `1px solid ${C.accentBorder}` }}>
-                                        <p style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: "0.06em" }}>Datos bancarios</p>
-                                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 13 }}>
-                                            {[["Banco", "Bancolombia"], ["Cuenta", "1234-5678-9012"], ["Titular", "La Empresa"]].map(([k, v]) => (
-                                                <div key={k} style={{ background: "#fff", borderRadius: 8, padding: "8px 12px", border: `1px solid ${C.accentBorder}`, gridColumn: k === "Titular" ? "1/-1" : "auto" }}>
-                                                    <p style={{ margin: "0 0 2px", fontSize: 11, color: C.muted, fontWeight: 600 }}>{k}</p>
-                                                    <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.navy }}>{v}</p>
+                                {metodoPago === "transferencia" && (
+                                    <div className="mc-reveal">
+                                        <div className="mc-bank">
+                                            <small className="mc-lbl" style={{ color: "#3b6fe0" }}>Datos bancarios</small>
+                                            <div className="mc-bank-grid">
+                                                {[["Banco", "Bancolombia"], ["Cuenta", "1234-5678-9012"], ["Titular", "La Empresa"]].map(([k, v]) => (
+                                                    <div key={k} style={{ gridColumn: k === "Titular" ? "1/-1" : "auto" }}>
+                                                        <small>{k}</small><b>{v}</b>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <button type="button" className="mc-qrbtn" onClick={() => setMostrarQR(!mostrarQR)}>
+                                                {mostrarQR ? <FaEyeSlash size={12} /> : <FaQrcode size={12} />}
+                                                {mostrarQR ? "Ocultar QR" : "Ver código QR"}
+                                            </button>
+                                            {mostrarQR && (
+                                                <div style={{ marginTop: 14, textAlign: "center" }} className="mc-reveal">
+                                                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAC6CAMAAAAu0KfDAAAABlBMVEX///8AAABVwtN+AAABxklEQVR4nO3QUZKDQAwD0eT+l94DgJQeCAXOtr4oGKzneb2MMebivHHSX31mbzljkC5d+hT6tj6dIcuQ+vRMDNKlS59I5zX9ZKKQ98QgXbr0X6X3f9P5NEG6dOnSSTGnk6/SpUv/PXrHEXpHHLsa6dKlT6cfq/nuMzdIly59Cv18SMGF9Wci/Y5IvyM301N9quxEshJZAy0sXbr0x9NJWRqXWH2NnnQR0qVLn0XvUL79KqVfFmmULl36FHpC9xBoByFi+ipduvQh9D4ivUllqwvwq5EuXfpEOjoK6NsJxy6iLyxduvRZ9M4lX8mSx7rieenSpQ+hry6z/TdVrl5E/1e6dOmz6H2B/kyI6TmtmhaLy0iXLv3B9FXWauXq5NSyE+nSpT+enupTyEoESto/oKVLl/54emKREemvPqf/tWCQLl36EHpfKYWc54vxLunSpU+hr2Zbn3Dkfb+yPkG6dOnPp79xTtWErmPXIV269Fn0nQ/hTHomK5FeflK6dOmz6O9N+Lgz6/XsoKVLl/6j9PS1V/LFert06dL/A31nUM13J0iXLn0inRfz9JnbM/3ipEuXPpF+DEGInN5bpEuXPpFujDEX5A/WVTvF1c+o+gAAAABJRU5ErkJggg=="
+                                                        alt="QR" style={{ width: 170, height: 170, borderRadius: 16, border: "2px solid #c7d9ff", padding: 8, background: "#fff" }} />
+                                                    <p className="mc-hint">Escanea para realizar el pago</p>
                                                 </div>
-                                            ))}
+                                            )}
+                                        </div>
+
+                                        {/* Upload comprobante */}
+                                        <div className="mc-field" style={{ marginBottom: 16 }}>
+                                            <label>Comprobante de pago <i>*</i></label>
+                                            <label className={`mc-upload ${comprobanteArchivo ? "done" : ""}`} style={{ fontWeight: 400, marginBottom: 0 }}>
+                                                <input type="file" accept="image/*,.pdf" onChange={e => setComprobanteArchivo(e.target.files[0])} style={{ display: "none" }} required />
+                                                {comprobanteArchivo ? <FaCheckCircle /> : <FaCloudUploadAlt />}
+                                                <p style={{ color: comprobanteArchivo ? C.success : undefined }}>
+                                                    {comprobanteArchivo ? `✓ ${comprobanteArchivo.name}` : "Haz clic para subir el comprobante"}
+                                                </p>
+                                                <small>JPG, PNG o PDF · Máx. 5MB</small>
+                                            </label>
                                         </div>
                                     </div>
+                                )}
 
-                                    {/* QR */}
-                                    <div style={{ padding: "12px 16px" }}>
-                                        <button type="button" onClick={() => setMostrarQR(!mostrarQR)}
-                                            style={{ display: "flex", alignItems: "center", gap: 7, background: "#fff", border: `1.5px solid ${C.accentBorder}`, borderRadius: 9, padding: "8px 14px", fontSize: 12, fontWeight: 700, color: C.accent, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
-                                            {mostrarQR ? <FaEyeSlash size={12} /> : <FaQrcode size={12} />}
-                                            {mostrarQR ? "Ocultar QR" : "Ver código QR"}
-                                        </button>
-                                        {mostrarQR && (
-                                            <div style={{ marginTop: 12, textAlign: "center" }}>
-                                                <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAC6CAMAAAAu0KfDAAAABlBMVEX///8AAABVwtN+AAABxklEQVR4nO3QUZKDQAwD0eT+l94DgJQeCAXOtr4oGKzneb2MMebivHHSX31mbzljkC5d+hT6tj6dIcuQ+vRMDNKlS59I5zX9ZKKQ98QgXbr0X6X3f9P5NEG6dOnSSTGnk6/SpUv/PXrHEXpHHLsa6dKlT6cfq/nuMzdIly59Cv18SMGF9Wci/Y5IvyM301N9quxEshJZAy0sXbr0x9NJWRqXWH2NnnQR0qVLn0XvUL79KqVfFmmULl36FHpC9xBoByFi+ipduvQh9D4ivUllqwvwq5EuXfpEOjoK6NsJxy6iLyxduvRZ9M4lX8mSx7rieenSpQ+hry6z/TdVrl5E/1e6dOmz6H2B/kyI6TmtmhaLy0iXLv3B9FXWauXq5NSyE+nSpT+enupTyEoESto/oKVLl/54emKREemvPqf/tWCQLl36EHpfKYWc54vxLunSpU+hr2Zbn3Dkfb+yPkG6dOnPp79xTtWErmPXIV269Fn0nQ/hTHomK5FeflK6dOmz6O9N+Lgz6/XsoKVLl/6j9PS1V/LFert06dL/A31nUM13J0iXLn0inRfz9JnbM/3ipEuXPpF+DEGInN5bpEuXPpFujDEX5A/WVTvF1c+o+gAAAABJRU5ErkJggg=="
-                                                    alt="QR" style={{ width: 160, height: 160, borderRadius: 10, border: `2px solid ${C.accentBorder}`, padding: 8, background: "#fff" }} />
-                                                <p style={{ margin: "8px 0 0", fontSize: 12, color: C.muted }}>Escanea para realizar el pago</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                                <MetodoRadio id="pago-contraentrega" value="contraentrega" checked={metodoPago === "contraentrega"}
+                                    onChange={e => setMetodoPago(e.target.value)}
+                                    icon={<FaTruck />} label="Pago contraentrega" desc="Paga cuando recibas tu pedido" color={C.success} />
 
-                            {/* Upload comprobante */}
-                            {metodoPago === "transferencia" && (
-                                <div style={{ marginBottom: 14 }}>
-                                    <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
-                                        Comprobante de pago <span style={{ color: C.danger }}>*</span>
-                                    </label>
-                                    <label className="upload-area" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, padding: "20px 16px", border: `2px dashed ${comprobanteArchivo ? C.success : C.border}`, borderRadius: 12, background: comprobanteArchivo ? C.successSoft : "#fff", cursor: "pointer", transition: "all 0.15s" }}>
-                                        <input type="file" accept="image/*,.pdf" onChange={e => setComprobanteArchivo(e.target.files[0])} style={{ display: "none" }} required />
-                                        <FaShoppingCart size={20} color={comprobanteArchivo ? C.success : C.muted} style={{ opacity: 0.6 }} />
-                                        <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: comprobanteArchivo ? C.success : C.muted }}>
-                                            {comprobanteArchivo ? `✓ ${comprobanteArchivo.name}` : "Haz clic para subir el comprobante"}
-                                        </p>
-                                        <p style={{ margin: 0, fontSize: 11, color: C.muted }}>JPG, PNG o PDF · Máx. 5MB</p>
-                                    </label>
-                                </div>
-                            )}
-
-                            <MetodoRadio id="pago-contraentrega" value="contraentrega" checked={metodoPago === "contraentrega"}
-                                onChange={e => setMetodoPago(e.target.value)}
-                                icon={<FaTruck size={14} />} label="Pago Contraentrega" color={C.success} />
-
-                            {/* Bloque contraentrega */}
-                            {metodoPago === "contraentrega" && (
-                                <div style={{ animation: "slideDown 0.25s ease", borderRadius: 12, border: `1.5px solid ${C.successBorder}`, background: C.successSoft, padding: "16px 18px", marginTop: 4 }}>
-                                    <p style={{ margin: "0 0 14px", fontSize: 12, fontWeight: 700, color: C.success, textTransform: "uppercase", letterSpacing: "0.06em" }}>Datos de entrega</p>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                                {metodoPago === "contraentrega" && (
+                                    <div className="mc-deliver mc-reveal">
+                                        <small className="mc-lbl" style={{ color: "#16a34a", margin: 0 }}>Datos de entrega</small>
                                         <InputField label="Nombre de quien recibe" value={nombreReceptor}
                                             onChange={e => setNombreReceptor(e.target.value.replace(/[^a-záéíóúñA-ZÁÉÍÓÚÑ\s'-]/g, ''))}
                                             placeholder="Ej: Juan Pérez" required maxLength={100} />
                                         <InputField label="Teléfono de contacto" value={telefonoEntrega}
                                             onChange={e => setTelefonoEntrega(e.target.value.replace(/[^\d\s\-()]/g, ''))}
                                             placeholder="Ej: 3001234567" required maxLength={10} />
-                                        <div>
-                                            <label style={{ display: "block", marginBottom: 6, fontWeight: 700, fontSize: 13, color: C.navy }}>
-                                                Dirección de entrega <span style={{ color: C.danger }}>*</span>
-                                            </label>
-                                            <textarea rows={2} value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)}
-                                                placeholder="Ej: Calle 123 #45-67, Apto 301" required maxLength={250}
-                                                onFocus={() => setTextareaFocused(true)} onBlur={() => setTextareaFocused(false)}
-                                                style={{ ...inputStyle(textareaFocused), resize: "vertical", minHeight: 72 }} />
+                                        <div className="mc-field">
+                                            <label>Dirección de entrega <i>*</i></label>
+                                            <textarea className="mc-input" rows={2} value={direccionEntrega} onChange={e => setDireccionEntrega(e.target.value)}
+                                                placeholder="Ej: Calle 123 #45-67, Apto 301" required maxLength={250} />
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                        </SectionCard>
-
-                        {/* ── Botones ── */}
-                        <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 4 }}>
-                            <button type="button" onClick={() => navigate("/productosLanding")} disabled={cargando}
-                                style={{ background: "#f1f5f9", color: C.muted, border: "none", borderRadius: 10, padding: "11px 24px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
-                                Cancelar
-                            </button>
-                            <button type="submit" disabled={cargando}
-                                style={{ background: cargando ? C.muted : C.navyGrad, color: "#fff", border: "none", borderRadius: 10, padding: "11px 28px", fontSize: 13, fontWeight: 700, cursor: cargando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, transition: "opacity 0.15s" }}
-                                onMouseEnter={e => { if (!cargando) e.currentTarget.style.opacity = "0.88"; }}
-                                onMouseLeave={e => { e.currentTarget.style.opacity = "1"; }}>
-                                {cargando ? (
-                                    <>
-                                        <div style={{ width: 15, height: 15, border: "2.5px solid rgba(255,255,255,0.4)", borderTop: "2.5px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
-                                        Procesando...
-                                    </>
-                                ) : (
-                                    <><FaShoppingCart size={13} /> Confirmar Pedido</>
                                 )}
-                            </button>
-                        </div>
-                    </form>
+                            </SectionCard>
+
+                            {/* ── Botones ── */}
+                            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, flexWrap: "wrap" }}>
+                                <button type="button" className="mc-ghostbtn" onClick={() => navigate("/productosLanding")} disabled={cargando}>Cancelar</button>
+                                <button type="submit" className="mc-save" disabled={cargando}>
+                                    {cargando ? (<><span className="mc-spin" /> Procesando...</>) : (<><FaShoppingCart size={14} /> Confirmar pedido</>)}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
 
