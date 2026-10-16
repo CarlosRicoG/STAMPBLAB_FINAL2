@@ -1,38 +1,48 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "../components/layouts/DashboardLayout";
-import Cotizaciones from "../pages/Cotizaciones";
-import Roles from "../pages/Roles";
-import Insumos from "../pages/Insumos";
-import Productos from "../pages/Productos";
-import Colores from "../pages/Colores";
-import Tallas from "../pages/Tallas";
-import Usuarios from "../pages/Usuarios";
-import Proveedores from "../pages/Proveedores";
-import Tecnicas from "../pages/Tecnicas";
+const Cotizaciones = lazy(() => import("../pages/Cotizaciones"));
+const Roles = lazy(() => import("../pages/Roles"));
+const Insumos = lazy(() => import("../pages/Insumos"));
+const Productos = lazy(() => import("../pages/Productos"));
+const Colores = lazy(() => import("../pages/Colores"));
+const Tallas = lazy(() => import("../pages/Tallas"));
+const Usuarios = lazy(() => import("../pages/Usuarios"));
+const Proveedores = lazy(() => import("../pages/Proveedores"));
+const Tecnicas = lazy(() => import("../pages/Tecnicas"));
 import Home from "../components/landing/landingPage";
-import Servicios from "../components/landing/Servicios";
-import ProductosLanding from "../components/landing/Productos";
-import CotizacionesLanding from "../components/landing/CotizacionesL";
-import RegistroLanding from "../components/auth/Registro";
-import LoginLanding from "../components/auth/Login";
-import RestablecerContraseña from "../components/auth/Restablecercontraseña";
-import RecuperarContraseña from "../components/auth/Recuperarcontraseña";
-import DashboardMedicionesempeño from "../pages/MedicionDesempeño";
-import EditarPerfil from "../components/landing/EditarPerfil";
-import MisCotizaciones from "../components/landing/Miscotizaciones";
-import FormularioCompra from "../components/landing/FormularioCompra";
-import AgregarProducto from "../pages/formularios_dash/AgregarProducto";
-import Ventas from "../pages/Ventas";
+const Servicios = lazy(() => import("../components/landing/Servicios"));
+const ProductosLanding = lazy(() => import("../components/landing/Productos"));
+const CotizacionesLanding = lazy(() => import("../components/landing/CotizacionesL"));
+const RegistroLanding = lazy(() => import("../components/auth/Registro"));
+const LoginLanding = lazy(() => import("../components/auth/Login"));
+const RestablecerContraseña = lazy(() => import("../components/auth/Restablecercontraseña"));
+const RecuperarContraseña = lazy(() => import("../components/auth/Recuperarcontraseña"));
+const DashboardMedicionesempeño = lazy(() => import("../pages/MedicionDesempeño"));
+const EditarPerfil = lazy(() => import("../components/landing/EditarPerfil"));
+const MisCotizaciones = lazy(() => import("../components/landing/Miscotizaciones"));
+const FormularioCompra = lazy(() => import("../components/landing/FormularioCompra"));
+const AgregarProducto = lazy(() => import("../pages/formularios_dash/AgregarProducto"));
+const Ventas = lazy(() => import("../pages/Ventas"));
 import { ProtectedRoute } from "./ProtectedRoute";
-import VentasPendientes from "../pages/VentasPendientes";
-import Compras from "../pages/Compras";
-import Clientes from "../pages/Clientes";
-import MisCompras from "../components/landing/MisCompras";
+const VentasPendientes = lazy(() => import("../pages/VentasPendientes"));
+const Compras = lazy(() => import("../pages/Compras"));
+const Clientes = lazy(() => import("../pages/Clientes"));
+const MisCompras = lazy(() => import("../components/landing/MisCompras"));
+
+// Carga diferida: cada página se descarga al visitarla (bundle inicial mucho más liviano)
+const Cargando = () => (
+    <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
+        <div style={{ width: 44, height: 44, borderRadius: "50%", border: "4px solid #e2e8f0", borderTopColor: "#4f8ef7", animation: "sx-spin .8s linear infinite" }} />
+    </div>
+);
 
 const AppRoutes = () => {
 
 
     return (
+
+        <Suspense fallback={<Cargando />}>
 
         <Routes>
             {/* Ruta raíz redirige al registro */}
@@ -86,6 +96,8 @@ const AppRoutes = () => {
             </Route>
 
         </Routes>
+
+        </Suspense>
 
     );
 };
