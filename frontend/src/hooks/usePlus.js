@@ -10,21 +10,35 @@ import { useEffect } from "react";
 export default function usePlus() {
     useEffect(() => {
         const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+        // Elementos ya revelados: si React re-renderiza su className (p. ej. "item open"),
+        // borra "sx-in" y el elemento volvería a quedar invisible; se lo restauramos.
+        const revealed = new WeakSet();
+        const show = (el) => { revealed.add(el); el.classList.add("sx-in"); };
         const io = new IntersectionObserver(
             (entries) => entries.forEach((e) => {
-                if (e.isIntersecting) { e.target.classList.add("sx-in"); io.unobserve(e.target); }
+                if (e.isIntersecting) { show(e.target); io.unobserve(e.target); }
             }),
             { threshold: 0.12, rootMargin: "0px 0px -6% 0px" }
         );
         const seen = new WeakSet();
         const scan = () => document.querySelectorAll(".sx-reveal:not(.sx-in)").forEach((el) => {
+            if (revealed.has(el)) { el.classList.add("sx-in"); return; }
             if (seen.has(el)) return;
             seen.add(el);
-            if (reduce) el.classList.add("sx-in"); else io.observe(el);
+            if (reduce) show(el); else io.observe(el);
         });
         scan();
-        const mo = new MutationObserver(scan);
-        mo.observe(document.body, { childList: true, subtree: true });
+        const mo = new MutationObserver((muts) => {
+            let added = false;
+            for (const m of muts) {
+                if (m.type === "attributes") {
+                    const el = m.target;
+                    if (revealed.has(el) && !el.classList.contains("sx-in")) el.classList.add("sx-in");
+                } else added = true;
+            }
+            if (added) scan();
+        });
+        mo.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
 
         const onMove = (e) => {
             const t = e.target.closest?.(".sx-card, .sx-glass, .sx-tilt");

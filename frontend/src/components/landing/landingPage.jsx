@@ -144,9 +144,9 @@ const Home = () => {
 
                     <div className="hm-stage" aria-hidden="true">
                         <div className="hm-ring" /><div className="hm-ring hm-ring2" /><div className="hm-orb sx-bob" />
-                        <div className="hm-fcard hm-fc1 sx-bob"><img src={imgBlanca} alt="" /></div>
-                        <div className="hm-fcard hm-fc2 sx-bob"><img src={imgNegra} alt="" /></div>
-                        <div className="hm-fcard hm-fc3 sx-bob"><img src={imgBuzo} alt="" /></div>
+                        <div className="hm-fcard hm-fc1"><img src={imgBlanca} alt="" /></div>
+                        <div className="hm-fcard hm-fc2"><img src={imgNegra} alt="" /></div>
+                        <div className="hm-fcard hm-fc3"><img src={imgBuzo} alt="" /></div>
                         <div className="hm-tag t1 sx-bob"><i>✦</i> Calidad premium</div>
                         <div className="hm-tag t2 sx-bob" style={{ animationDelay: "-2s" }}><i>★</i> Entrega a tiempo</div>
                     </div>

@@ -1,8 +1,10 @@
 import { Outlet } from "react-router-dom";
 import Sidebar from "../dashboard/layout/sidebar";
 import NavAdmin from "../dashboard/layout/NavAdmin";
+import usePlus from "../../hooks/usePlus";
 
 const DashboardLayout = () => {
+    usePlus(); // efectos compartidos (revelado, brillo de tarjetas) para todo el panel
     return (
         <div className="container-fluid vh-100">
             <div className="row h-100">
