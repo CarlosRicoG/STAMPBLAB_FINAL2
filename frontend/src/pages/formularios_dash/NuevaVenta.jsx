@@ -108,7 +108,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                 const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/usuarios`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setUsuarios(res.data);
+                setUsuarios(Array.isArray(res.data) ? res.data : (res.data?.datos || []));
             } catch (err) { console.error(err); }
         };
 

@@ -66,7 +66,7 @@ module.exports = (sequelize, DataTypes) => {
       }
     },
     ComprobanteTransferencia: {
-      type: DataTypes.TEXT,
+      type: DataTypes.TEXT('long'),
       allowNull: true 
     },
     FechaTransferencia: {

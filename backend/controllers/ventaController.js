@@ -17,6 +17,18 @@ const {
 const { Op } = require('sequelize');
 
 // Obtener todas las ventas
+
+// Resuelve UNA variante de inventario: por InventarioID si viene, si no por producto/color/talla(/tela).
+async function resolverVariante(item) {
+    if (item.InventarioID) {
+        const v = await InventarioProducto.findByPk(item.InventarioID);
+        if (v) return v;
+    }
+    const where = { ProductoID: item.ProductoID, ColorID: item.ColorID, TallaID: item.TallaID };
+    if (item.TelaID) where.TelaID = item.TelaID;
+    return InventarioProducto.findOne({ where, order: [['Stock', 'DESC'], ['InventarioID', 'ASC']] });
+}
+
 exports.getAllVentas = async (req, res) => {
     try {
         const page   = Math.max(1, parseInt(req.query.page)  || 1);
@@ -190,13 +202,8 @@ exports.crearVenta = async (req, res) => {
 
         // VALIDAR STOCK ANTES DE CREAR LA VENTA
         for (const item of detalles) {
-            const variante = await InventarioProducto.findOne({
-                where: {
-                    ProductoID: item.ProductoID,
-                    ColorID: item.ColorID,
-                    TallaID: item.TallaID
-                }
-            });
+            const variante = await resolverVariante(item);
+            item._variante = variante;
 
             if (!variante) {
                 return res.status(400).json({
@@ -238,17 +245,7 @@ exports.crearVenta = async (req, res) => {
             });
 
             // DESCONTAR STOCK
-            await InventarioProducto.decrement(
-                'Stock',
-                {
-                    by: item.Cantidad,
-                    where: {
-                        ProductoID: item.ProductoID,
-                        ColorID: item.ColorID,
-                        TallaID: item.TallaID
-                    }
-                }
-            );
+            await item._variante.decrement('Stock', { by: item.Cantidad });
         }
 
         return res.status(201).json({
@@ -305,14 +302,7 @@ exports.updateEstadoVenta = async (req, res) => {
             console.log('\nDEVOLVIENDO STOCK (venta cancelada)...');
 
             for (const detalle of venta.detalles) {
-                await InventarioProducto.increment('Stock', {
-                    by: detalle.Cantidad,
-                    where: {
-                        ProductoID: detalle.ProductoID,
-                        ColorID: detalle.ColorID,
-                        TallaID: detalle.TallaID
-                    }
-                });
+                { const v = await resolverVariante(detalle); if (v) await v.increment('Stock', { by: detalle.Cantidad }); }
 
                 console.log(`   ✓ Devuelto ${detalle.Cantidad} unidades de Producto ${detalle.ProductoID}`);
             }
@@ -361,6 +351,29 @@ exports.updateVenta = async (req, res) => {
 
         // Si se actualizan los detalles (edición completa)
         if (detalles && detalles.length > 0) {
+            // Ajuste de stock: devolver lo de los detalles antiguos y descontar lo nuevo
+            const antiguos = await DetalleVenta.findAll({ where: { VentaID: ventaId } });
+            const ajustar = venta.EstadoID !== 12; // una venta cancelada ya devolvió su stock
+            if (ajustar) {
+                const devueltas = [];
+                for (const d of antiguos) {
+                    const v = await resolverVariante(d);
+                    if (v) { await v.increment('Stock', { by: d.Cantidad }); devueltas.push([v, d.Cantidad]); }
+                }
+                for (const item of detalles) {
+                    const v = await resolverVariante(item);
+                    if (v) await v.reload();
+                    if (!v || v.Stock < item.Cantidad) {
+                        for (const [vv, q] of devueltas) await vv.decrement('Stock', { by: q }); // deshacer
+                        return res.status(400).json({
+                            message: !v
+                                ? `No existe variante para Producto ${item.ProductoID}, Color ${item.ColorID}, Talla ${item.TallaID}`
+                                : `Stock insuficiente. Disponible: ${v.Stock}, Solicitado: ${item.Cantidad}`
+                        });
+                    }
+                }
+            }
+
             // Eliminar detalles antiguos
             await DetalleVenta.destroy({
                 where: { VentaID: ventaId }
@@ -376,6 +389,10 @@ exports.updateVenta = async (req, res) => {
                     ColorID: item.ColorID,
                     TallaID: item.TallaID
                 });
+                if (ajustar) {
+                    const v = await resolverVariante(item);
+                    if (v) await v.decrement('Stock', { by: item.Cantidad });
+                }
             }
 
             // Actualizar totales
@@ -420,14 +437,7 @@ exports.deleteVenta = async (req, res) => {
         // DEVOLVER STOCK si la venta estaba pendiente
         if (venta.EstadoID === 8) {
             for (const detalle of venta.detalles) {
-                await InventarioProducto.increment('Stock', {
-                    by: detalle.Cantidad,
-                    where: {
-                        ProductoID: detalle.ProductoID,
-                        ColorID: detalle.ColorID,
-                        TallaID: detalle.TallaID
-                    }
-                });
+                { const v = await resolverVariante(detalle); if (v) await v.increment('Stock', { by: detalle.Cantidad }); }
                 console.log(`   ✓ Stock devuelto: ${detalle.Cantidad} unidades`);
             }
         }

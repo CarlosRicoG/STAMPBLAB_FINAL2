@@ -141,6 +141,14 @@ exports.deleteEstado = async (req, res) => {
 
         res.json({ message: 'Estado eliminado exitosamente' });
     } catch (error) {
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(400).json({
+                estado: false,
+                mensaje: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)',
+                message: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)'
+            });
+        }
+        
         res.status(500).json({
             message: 'Error al eliminar estado',
             error: error.message

@@ -217,7 +217,15 @@ exports.deleteInsumo = async (req, res) => {
     await insumo.destroy();                                                         // 8
 
     res.json({ message: 'Insumo eliminado exitosamente' });                         // 9
-  } catch (error) {                                                                   // 10
+  } catch (error) {
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(400).json({
+                estado: false,
+                mensaje: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)',
+                message: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)'
+            });
+        }
+                                                                           // 10
     res.status(500).json({
       message: 'Error al eliminar insumo',
       error: error.message

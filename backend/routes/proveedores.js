@@ -12,6 +12,7 @@ router.get('/:nit', proveedorController.getProveedorByNit);
 router.post('/', proveedorController.createProveedor);
 
 // PUT /api/proveedores/:nit - Actualizar un proveedor
+router.patch('/:nit/estado', proveedorController.cambiarEstadoProveedor);
 router.put('/:nit', proveedorController.updateProveedor);
 
 // DELETE /api/proveedores/:nit - Eliminar un proveedor

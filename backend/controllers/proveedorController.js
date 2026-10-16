@@ -165,9 +165,34 @@ exports.deleteProveedor = async (req, res) => {
       accion: 'eliminado' // Indicador para el frontend
     });
   } catch (error) {
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(400).json({
+                estado: false,
+                mensaje: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)',
+                message: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)'
+            });
+        }
+        
     res.status(500).json({
       message: 'Error al eliminar proveedor',
       error: error.message
     });
+  }
+};
+
+// Cambiar solo el estado (activo/inactivo) de un proveedor
+exports.cambiarEstadoProveedor = async (req, res) => {
+  try {
+    const nitParam = (req.params.nit || '').trim();
+    const { Estado } = req.body;
+    if (Estado === undefined || Estado === null) {
+      return res.status(400).json({ message: 'Estado es requerido' });
+    }
+    const proveedor = await Proveedor.findOne({ where: { Nit: nitParam } });
+    if (!proveedor) return res.status(404).json({ message: 'Proveedor no encontrado' });
+    await proveedor.update({ Estado: Boolean(Estado) });
+    res.json({ message: 'Estado actualizado', proveedor });
+  } catch (error) {
+    res.status(500).json({ message: 'Error al cambiar estado', error: error.message });
   }
 };

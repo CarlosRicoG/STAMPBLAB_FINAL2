@@ -37,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: 0,
             comment: 'Precio base del producto sin adicionales'
         },
-        ImagenProducto: DataTypes.STRING
+        ImagenProducto: DataTypes.TEXT('long')
     }, {
         sequelize,
         modelName: 'Producto',

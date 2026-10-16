@@ -265,6 +265,12 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             const whereStock = { ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID }; // 25
             if (telaID) whereStock.TelaID = telaID;                                     // 26
             const variante = await InventarioProducto.findOne({ where: whereStock });   // 27
+            if (!variante || variante.Stock < detalle.Cantidad) {
+                const nombre = detalle.producto?.Nombre || `producto ${detalle.ProductoID}`;
+                return res.status(400).json({
+                    message: `Stock insuficiente para ${nombre}. Disponible: ${variante ? variante.Stock : 0}, requerido: ${detalle.Cantidad}`
+                });
+            }
         }                                                                               // 28
         const nuevaVenta = await Venta.create({                                         // 29
             DocumentoID: cotizacion.DocumentoID, FechaVenta: new Date(),                // 30
@@ -511,20 +517,7 @@ exports.updateCotizacion = async (req, res) => {
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada' }); // 10
         const estadoAnterior = cotizacion.EstadoID;                                     // 11
         const estadoNuevo = EstadoID ? parseInt(EstadoID) : estadoAnterior;             // 12
-        if (estadoAnterior === 2 && estadoNuevo === 4) {                                // 13
-            for (const detalle of cotizacion.detalles) {                                // 14
-                if (!Boolean(detalle.TraePrenda)) {                                     // 15
-                    const colorID = detalle.colores?.[0]?.ColorID;                      // 16
-                    const tallaID = detalle.tallas?.[0]?.TallaID;                       // 17
-                    if (colorID && tallaID) {                                           // 18
-                        await InventarioProducto.increment('Stock', {                   // 19
-                            by: detalle.Cantidad,                                       // 20
-                            where: { ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID } // 21
-                        });                                                             // 22
-                    }                                                                   // 23
-                }                                                                       // 24
-            }                                                                           // 25
-        }                                                                               // 26
+        // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
         await cotizacion.update({                                                       // 27
             ValorTotal: ValorTotal !== undefined ? ValorTotal : cotizacion.ValorTotal,  // 28
             EstadoID: estadoNuevo                                                       // 29
@@ -595,25 +588,8 @@ exports.cancelarCotizacion = async (req, res) => {
         if (cotizacion.EstadoID === 5) return res.status(400).json({
             message: 'No se puede cancelar una cotización ya convertida a venta'
         }); // 10
-        let stockDevuelto = false;                                                      // 11
-        if (cotizacion.EstadoID === 2) {                                                // 12
-            for (const detalle of cotizacion.detalles) {                                // 13
-                if (!Boolean(detalle.TraePrenda)) {                                     // 14
-                    const colorID = detalle.colores?.[0]?.ColorID;                      // 15
-                    const tallaID = detalle.tallas?.[0]?.TallaID;                       // 16
-                    if (colorID && tallaID) {                                           // 17
-                        await InventarioProducto.increment('Stock', {
-                            by: detalle.Cantidad,
-                            where: {
-                                ProductoID: detalle.ProductoID, ColorID: colorID,
-                                TallaID: tallaID
-                            }
-                        }); // 18
-                        stockDevuelto = true;                                           // 19
-                    }                                                                   // 20
-                }                                                                       // 21
-            }                                                                           // 22
-        }                                                                               // 23
+        // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
+        const stockDevuelto = false;
         await cotizacion.update({ EstadoID: 4 });                                       // 24
         return res.status(200).json({                                                   // 25
             message: 'Cotización cancelada exitosamente',                               // 26

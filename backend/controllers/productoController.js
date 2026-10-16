@@ -6,7 +6,7 @@ exports.getAllProductos = async (req, res) => {
     try {
         // ── Parámetros de paginación y búsqueda ──
         const page = Math.max(1, parseInt(req.query.page) || 1);
-        const limit = Math.max(1, parseInt(req.query.limit) || 10);
+        const limit = Math.max(1, parseInt(req.query.limit) || (req.query.page ? 10 : 100000)); // sin page/limit: devuelve todo
         const search = (req.query.search || "").trim();
         const offset = (page - 1) * limit;
 
@@ -216,6 +216,18 @@ exports.deleteProducto = async (req, res) => {
             });
         }
 
+        // No borrar productos con historial (ventas, cotizaciones o compras)
+        const { DetalleVenta, DetalleCotizacion, DetalleCompra } = require('../models');
+        const movimientos = (await DetalleVenta.count({ where: { ProductoID: req.params.id } }))
+            + (await DetalleCotizacion.count({ where: { ProductoID: req.params.id } }))
+            + (await DetalleCompra.count({ where: { ProductoID: req.params.id } }));
+        if (movimientos > 0) {
+            return res.status(400).json({
+                estado: false,
+                mensaje: `No se puede eliminar el producto "${producto.Nombre}": tiene ${movimientos} registro(s) en ventas, cotizaciones o compras.`
+            });
+        }
+
         // Eliminar primero las variantes (inventario)
         await InventarioProducto.destroy({
             where: { ProductoID: req.params.id }
@@ -228,6 +240,14 @@ exports.deleteProducto = async (req, res) => {
             mensaje: 'Producto eliminado exitosamente'
         });
     } catch (error) {
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(400).json({
+                estado: false,
+                mensaje: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)',
+                message: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)'
+            });
+        }
+        
         console.error('Error al eliminar producto:', error);
         res.status(500).json({
             estado: false,

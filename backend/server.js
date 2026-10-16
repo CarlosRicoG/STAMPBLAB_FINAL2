@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 3000;
 
 // ==================== MIDDLEWARES ====================
 // Orígenes permitidos (CORS_ORIGIN, separados por coma)
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,https://stamp-lab-proyecto.vercel.app')
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,https://stamp-lab-proyecto.vercel.app')
     .split(',').map(o => o.trim());
 app.use(cors({
     origin: allowedOrigins,

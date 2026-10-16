@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "../components/layouts/DashboardLayout";
 import Cotizaciones from "../pages/Cotizaciones";
 import Roles from "../pages/Roles";
@@ -22,7 +22,6 @@ import EditarPerfil from "../components/landing/EditarPerfil";
 import MisCotizaciones from "../components/landing/Miscotizaciones";
 import FormularioCompra from "../components/landing/FormularioCompra";
 import AgregarProducto from "../pages/formularios_dash/AgregarProducto";
-import NuevaCotizacion from "../pages/formularios_dash/NuevaCotizacion";
 import Ventas from "../pages/Ventas";
 import { ProtectedRoute } from "./ProtectedRoute";
 import VentasPendientes from "../pages/VentasPendientes";
@@ -69,7 +68,7 @@ const AppRoutes = () => {
                 <Route path="ventas" element={<Ventas></Ventas>} />
                 <Route path="/dashboard/ventas-pendientes" element={<VentasPendientes />} />
                 <Route path="cotizaciones" element={<Cotizaciones />} />
-                <Route path="cotizaciones/nueva" element={<NuevaCotizacion />} />
+                <Route path="cotizaciones/nueva" element={<Navigate to="/dashboard/cotizaciones" replace />} />
                 <Route path="roles" element={<Roles />} />
                 <Route path="insumos" element={<Insumos />} />
                 <Route path="pedidos" element={<Compras />} />

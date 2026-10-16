@@ -9,7 +9,7 @@ const { Op } = require('sequelize');
 exports.getAllUsuarios = async (req, res) => {
     try {
         const page   = Math.max(1, parseInt(req.query.page)  || 1);
-        const limit  = Math.max(1, parseInt(req.query.limit) || 10);
+        const limit  = Math.max(1, parseInt(req.query.limit) || (req.query.page ? 10 : 100000)); // sin page/limit: devuelve todo
         const search = (req.query.search || "").trim();
         const offset = (page - 1) * limit;
 
@@ -314,6 +314,14 @@ exports.deleteUsuario = async (req, res) => {
             mensaje: 'Usuario eliminado exitosamente'
         });
     } catch (error) {
+        if (error.name === 'SequelizeForeignKeyConstraintError') {
+            return res.status(400).json({
+                estado: false,
+                mensaje: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)',
+                message: 'No se puede eliminar: el registro está en uso en otros módulos (ventas, cotizaciones, compras, etc.)'
+            });
+        }
+        
         console.error('Error al eliminar usuario:', error);
         res.status(500).json({
             estado: false,
