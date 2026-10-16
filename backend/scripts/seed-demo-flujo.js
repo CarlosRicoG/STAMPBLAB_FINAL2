@@ -1,7 +1,8 @@
 // Movimientos de ejemplo (compras, ventas, cotizaciones) usando la API real, para que dashboards y listados tengan datos.
 // Requiere el backend corriendo y haber ejecutado seed-base + seed-demo.  Uso: node scripts/seed-demo-flujo.js
 const API = process.env.API_URL || 'http://127.0.0.1:3000/api';
-const call = async (m, p, b, tk) => {
+let TOKEN = '';
+const call = async (m, p, b, tk = TOKEN) => {
     const r = await fetch(API + p, { method: m, headers: { 'Content-Type': 'application/json', ...(tk ? { Authorization: 'Bearer ' + tk } : {}) }, body: b ? JSON.stringify(b) : undefined });
     const t = await r.text(); let j; try { j = JSON.parse(t); } catch { j = t; } return { s: r.status, j };
 };
@@ -11,6 +12,7 @@ const all = (r) => r.j?.datos ?? r.j;
     const login = await call('POST', '/login', { Correo: 'admin@stamplab.com', 'Contraseña': process.env.ADMIN_PASSWORD || 'Admin123*' });
     if (!login.j.token) throw new Error('No se pudo iniciar sesion como admin');
     const tk = login.j.token;
+    TOKEN = tk;
     const ventas = await call('GET', '/ventas?limit=1&page=1');
     if ((ventas.j.total ?? all(ventas).length) > 0) { console.log('Ya hay ventas; no se agregan datos de ejemplo.'); return; }
 

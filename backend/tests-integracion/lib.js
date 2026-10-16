@@ -6,6 +6,7 @@
  */
 const U=process.env.API_URL || 'http://127.0.0.1:3000/api';
 let token='';
+exports.API=U;
 exports.setToken=t=>token=t;
 exports.call=async(m,p,b)=>{const r=await fetch(U+p,{method:m,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:b?JSON.stringify(b):undefined});
  let t=await r.text();let j;try{j=JSON.parse(t)}catch{j=t}return{s:r.status,j}};

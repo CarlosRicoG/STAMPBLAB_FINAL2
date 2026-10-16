@@ -1,18 +1,16 @@
-FROM node:25-alpine AS builder
-RUN apk upgrade --no-cache
-RUN npm install -g npm@latest
+# Etapa 1: compilar el frontend (la URL del backend se incrusta aqui)
+FROM node:22-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm install
-RUN npm audit fix --force
+RUN npm ci
 COPY . .
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 RUN npm run build
 
-FROM node:25-alpine
-RUN apk upgrade --no-cache
-RUN npm install -g npm@latest serve
+# Etapa 2: servir los archivos estaticos (SPA: cualquier ruta devuelve index.html)
+FROM node:22-alpine
+RUN npm install -g serve@14
 WORKDIR /app
 COPY --from=builder /app/dist ./dist
 EXPOSE 3000

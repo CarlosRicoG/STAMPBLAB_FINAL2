@@ -32,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BIGINT,
             allowNull: false,
             references: {
-                model: 'Usuarios',
+                model: 'usuarios',
                 key: 'DocumentoID'
             }
         },
@@ -47,7 +47,7 @@ module.exports = (sequelize, DataTypes) => {
         EstadoID: {
             type: DataTypes.INTEGER,
             references: {
-                model: 'Estados',
+                model: 'estados',
                 key: 'EstadoID'
             }
         }

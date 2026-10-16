@@ -40,7 +40,7 @@ const st=(c)=>(c.s>=200&&c.s<300)?'':' ['+c.s+' '+JSON.stringify(c.j).slice(0,16
  const z=await call('POST','/cotizaciones/completa',body(2));const Z=pk(z,'CotizacionID');if(!Z)console.log('cot crear',st(z));
  let g=await call('GET','/cotizaciones/'+Z);for(const d of g.j.detalles||[])for(const t of d.tecnicas||[])await call('PUT','/cotizaciontecnicas/'+t.CotizacionTecnicaID,{CostoTecnica:8000});
  eq('aprobar',(await call('PUT','/cotizaciones/'+Z,{EstadoID:2})).s,200);eq('aprobar no toca stock',await stock(),20);
- const pdf=await fetch('http://127.0.0.1:3000/api/cotizaciones/'+Z+'/pdf',{headers:{Authorization:'Bearer '+TOKEN}});eq('pdf',pdf.status+' '+pdf.headers.get('content-type'),'200 application/pdf');
+ const pdf=await fetch(require('./lib').API+'/cotizaciones/'+Z+'/pdf',{headers:{Authorization:'Bearer '+TOKEN}});eq('pdf',pdf.status+' '+pdf.headers.get('content-type'),'200 application/pdf');
  await call('PUT','/inventarioproducto/'+IID,{Stock:1,TelaID:Tela,Estado:true});
  eq('convertir sin stock -> 400',(await call('POST','/cotizaciones/'+Z+'/convertir-a-venta')).s,400);
  await call('PUT','/inventarioproducto/'+IID,{Stock:20,TelaID:Tela,Estado:true});

@@ -24,6 +24,12 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
     const cli = (await call('POST', '/login', { Correo: 'cliente@stamplab.com', 'Contraseña': 'Cliente123*' })).j.token;
     const CLI = 1000000002, ADM = 1000000001;
 
+    // La prueba crea sus PROPIOS datos del cliente (no depende de los datos de demostracion) y los borra al final
+    const vProp = await call('POST', '/ventas', { Subtotal: 25000, Total: 25000, detalles: [{ ProductoID: 1, ColorID: 1, TallaID: 1, Cantidad: 1, PrecioUnitario: 25000, InventarioID: 1 }] }, cli);
+    const VPROP = vProp.j?.venta?.VentaID;
+    const cProp = await call('POST', '/cotizaciones/inteligente', { detalles: [{ ProductoID: 1, Cantidad: 1, TraePrenda: false, tecnicas: [] }] }, cli);
+    const CPROP = cProp.j?.venta?.VentaID ?? cProp.j?.cotizacion?.CotizacionID ?? cProp.j?.CotizacionID;
+
     console.log('--- ANONIMO');
     for (const p of ['/productos', '/colores', '/tallas', '/insumos', '/tecnicas', '/partes', '/estados', '/inventarioproducto/producto/1'])
         exp('GET ' + p + ' (catalogo publico)', await call('GET', p), 200);
@@ -39,12 +45,12 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
     si('ventas ajenas en la lista = 0', (mine.j.datos || []).every(v => String(v.DocumentoID) === String(CLI)));
     const otro = await call('GET', '/ventas?documentoID=' + ADM + '&limit=50&page=1', null, cli);
     si('pedir ventas de otro usuario devuelve solo las suyas', (otro.j.datos || []).every(v => String(v.DocumentoID) === String(CLI)));
-    exp('GET /ventas/1 (suya)', await call('GET', '/ventas/1', null, cli), 200);
+    exp('GET /ventas/:id (suya)', await call('GET', '/ventas/' + VPROP, null, cli), 200);
     exp('GET /ventas/999 (no existe)', await call('GET', '/ventas/999', null, cli), 404);
     exp('GET /cotizaciones (todas) bloqueado', await call('GET', '/cotizaciones', null, cli), 403);
     exp('GET /cotizaciones/usuario/propio', await call('GET', '/cotizaciones/usuario/' + CLI, null, cli), 200);
     exp('GET /cotizaciones/usuario/ajeno bloqueado', await call('GET', '/cotizaciones/usuario/' + ADM, null, cli), 403);
-    exp('GET /cotizaciones/1 (suya)', await call('GET', '/cotizaciones/1', null, cli), 200);
+    if (CPROP) exp('GET /cotizaciones/:id (suya)', await call('GET', '/cotizaciones/' + CPROP, null, cli), 200);
     for (const [m, p, b] of [['GET', '/compras'], ['GET', '/proveedores'], ['GET', '/usuarios'], ['GET', '/roles'], ['POST', '/productos', { Nombre: 'x', PrecioBase: 1 }], ['DELETE', '/productos/1'], ['PUT', '/ventas/1', { EstadoID: 12 }], ['PATCH', '/ventas/1/estado', { EstadoID: 12 }], ['DELETE', '/ventas/1'], ['PUT', '/cotizaciones/1', { EstadoID: 2 }], ['POST', '/cotizaciones/1/convertir-a-venta'], ['GET', '/ventas/dashboard'], ['POST', '/usuarios', { DocumentoID: '1', Nombre: 'x', Correo: 'x@x.com', 'Contraseña': 'x', RolID: 1 }], ['DELETE', '/usuarios/' + ADM]])
         exp(m + ' ' + p + ' (solo admin)', await call(m, p, b, cli), 403);
     exp('GET /usuarios/propio', await call('GET', '/usuarios/' + CLI, null, cli), 200);
@@ -69,7 +75,7 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
     await call('DELETE', '/usuarios/888000999', null, adm);
 
     console.log('--- ADMIN');
-    for (const p of ['/ventas?limit=5&page=1', '/ventas/1', '/cotizaciones', '/compras', '/proveedores', '/usuarios', '/roles', '/ventas/dashboard', '/permisos'])
+    for (const p of ['/ventas?limit=5&page=1', '/ventas/' + VPROP, '/cotizaciones', '/compras', '/proveedores', '/usuarios', '/roles', '/ventas/dashboard', '/permisos'])
         exp('GET ' + p, await call('GET', p, null, adm), 200);
     const c = await call('POST', '/colores', { Nombre: 'ZZ Color' }, adm);
     exp('POST /colores', c, 200, 201);
@@ -85,5 +91,8 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
         for (let i = 0; i < 25; i++) { const r = await call('POST', '/login', { Correo: 'noexiste@x.com', 'Contraseña': 'mal' }); if (r.s === 429) { bloqueado = true; console.log('      bloqueado en el intento', i + 1); break; } }
         si('limite de intentos fallidos de login (429)', bloqueado);
     }
+    // limpieza de los datos de prueba
+    if (VPROP) await call('DELETE', '/ventas/' + VPROP, null, adm);
+    if (CPROP) await call('DELETE', '/cotizaciones/' + CPROP, null, adm);
     console.log(bad ? ('\n' + bad + ' FALLOS') : '\nTODO OK');
 })().catch(e => console.log('EXC', e));

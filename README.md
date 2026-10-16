@@ -21,11 +21,15 @@ cd ../frontend && cp .env.example .env && npm install && npm run dev   # http://
 
 ## Con Docker
 ```
-cp .env.example .env              # completar valores
-docker compose up --build
+cp .env.example .env              # completar valores (contraseñas, JWT_SECRET)
+docker compose up --build         # MySQL + API + web: http://localhost:5173  (API en :3000)
 # el contenedor del backend ya corre las migraciones y crea el administrador al arrancar
 docker compose exec backend node scripts/seed-demo.js   # (opcional) datos de demostracion
 ```
+
+Si 3306/3000/5173 ya estan ocupados, cambia `HOST_DB_PORT`, `HOST_BACKEND_PORT`, `HOST_FRONTEND_PORT` en `.env` (y ajusta `CORS_ORIGIN`, `PUBLIC_URL`, `VITE_API_URL`, `FRONTEND_URL` a esos puertos).
+Probado: el stack completo levanta desde cero en Docker y pasa las pruebas de integracion y E2E.
+Para correr las pruebas contra Docker sube `AUTH_MAX_FALLOS` (p. ej. 5000) en `.env`: las pruebas hacen intentos de login fallidos a proposito.
 
 ## Cuentas iniciales
 | Rol | Correo | Contraseña |

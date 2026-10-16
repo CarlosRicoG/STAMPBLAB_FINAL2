@@ -47,12 +47,12 @@ module.exports = (sequelize, DataTypes) => {
         CotizacionID: {
             type: DataTypes.INTEGER,
             allowNull: false,
-            references: { model: 'Cotizaciones', key: 'CotizacionID' }
+            references: { model: 'cotizaciones', key: 'CotizacionID' }
         },
         ProductoID: {
             type: DataTypes.INTEGER,
             allowNull: true,
-            references: { model: 'Productos', key: 'ProductoID' }
+            references: { model: 'productos', key: 'ProductoID' }
         },
         Cantidad: {
             type: DataTypes.INTEGER,

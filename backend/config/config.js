@@ -2,6 +2,8 @@ require('dotenv').config();
 
 const common = {
   dialect: 'mysql',
+  // SQL en consola solo si DB_LOGGING=1 (por defecto silencioso)
+  logging: process.env.DB_LOGGING === '1' ? console.log : false,
   // BIGINT (documentos de identidad de hasta 15 digitos) como numero JS, no como texto
   dialectOptions: { supportBigNumbers: true, bigNumberStrings: false },
   define: {
