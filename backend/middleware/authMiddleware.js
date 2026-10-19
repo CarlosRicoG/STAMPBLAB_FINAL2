@@ -10,7 +10,9 @@ const verificarToken = (req, res, next) => {
         if (!token) {
             return res.status(403).json({ mensaje: 'Token no proporcionado' });
         }
-        req.usuario = jwt.verify(token.replace('Bearer ', ''), JWT_SECRET);
+        const datos = jwt.verify(token.replace('Bearer ', ''), JWT_SECRET);
+        if (datos.tipo) throw new Error('token de otro tipo (p. ej. recuperación) no sirve como sesión');
+        req.usuario = datos;
         next();
     } catch (error) {
         return res.status(401).json({ mensaje: 'Token inválido o expirado' });

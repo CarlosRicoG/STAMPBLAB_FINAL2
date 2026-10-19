@@ -121,13 +121,22 @@ describe('createUsuario', () => {
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ estado: false }));
     });
 
+    test('rechaza una contraseña débil (menos de 8, sin letras o sin números)', async () => {
+        for (const clave of ['1234', 'soloLetrasLargas', '123456789012']) {
+            const res = mockRes();
+            await controller.createUsuario({ body: { DocumentoID: '111', Nombre: 'Luis', Correo: 'l@mail.com', Contraseña: clave, RolID: 2 } }, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ mensaje: expect.stringContaining('contraseña') }));
+        }
+    });
+
     test('retorna 400 si el correo ya está registrado', async () => {
         Usuario.findOne.mockResolvedValue({ Correo: 'ya@existe.com' }); // simula correo duplicado
 
         const req = {
             body: {
                 DocumentoID: '111', Nombre: 'Luis', Correo: 'ya@existe.com',
-                Contraseña: '1234', RolID: 2
+                Contraseña: 'Segura1234', RolID: 2
             }
         };
         const res = mockRes();
@@ -231,7 +240,7 @@ describe('login', () => {
         expect(res.status).toHaveBeenCalledWith(400);
     });
 
-    test('retorna 404 si el usuario no existe', async () => {
+    test('usuario inexistente responde 401 con el MISMO mensaje que una clave mala (no revela quién existe)', async () => {
         Usuario.findOne.mockResolvedValue(null);
 
         const req = { body: { Correo: 'noexiste@mail.com', Contraseña: '1234' } };
@@ -239,7 +248,8 @@ describe('login', () => {
 
         await controller.login(req, res);
 
-        expect(res.status).toHaveBeenCalledWith(404);
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ mensaje: 'Correo o contraseña incorrectos' }));
     });
 
     test('retorna 401 si la contraseña es incorrecta', async () => {
@@ -253,7 +263,7 @@ describe('login', () => {
 
         expect(res.status).toHaveBeenCalledWith(401);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
-            mensaje: 'Contraseña incorrecta'
+            mensaje: 'Correo o contraseña incorrectos'
         }));
     });
 

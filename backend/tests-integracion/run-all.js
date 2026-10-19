@@ -5,7 +5,7 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const pruebas = ['seguridad.js', 'validaciones.js', 'stock-flujos.js', 'cancelar-pedido.js'];
+const pruebas = ['seguridad.js', 'validaciones.js', 'stock-flujos.js', 'cancelar-pedido.js', 'recuperacion.js', 'concurrencia.js'];
 const extra = process.argv.slice(2);
 let fallaron = 0;
 

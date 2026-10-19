@@ -15,21 +15,20 @@ const {
 } = require('../models');
 
 const { ESTADO_VENTA } = require('../config/estados');
+const inventario = require('../services/inventario');
 const log = require('../utils/log');
 const { Op } = require('sequelize');
 
 // Obtener todas las ventas
 
-// Resuelve UNA variante de inventario: por InventarioID si viene, si no por producto/color/talla(/tela).
-async function resolverVariante(item) {
-    if (item.InventarioID) {
-        const v = await InventarioProducto.findByPk(item.InventarioID);
-        if (v) return v;
+// Errores de negocio (stock, datos) -> respuesta 4xx; el resto -> 500
+const responderError = (res, error, mensaje) => {
+    if (error && error.esErrorNegocio) {
+        return res.status(error.status || 400).json({ error: error.message, message: error.message, mensaje: error.message });
     }
-    const where = { ProductoID: item.ProductoID, ColorID: item.ColorID, TallaID: item.TallaID };
-    if (item.TelaID) where.TelaID = item.TelaID;
-    return InventarioProducto.findOne({ where, order: [['Stock', 'DESC'], ['InventarioID', 'ASC']] });
-}
+    console.error(mensaje + ':', error);
+    return res.status(500).json({ message: mensaje, error: error.message });
+};
 
 exports.getAllVentas = async (req, res) => {
     try {
@@ -166,83 +165,47 @@ exports.getVentaById = async (req, res) => {
     }
 };
 
-// CREAR VENTA CON DESCUENTO DE STOCK
-// CREAR VENTA CON DESCUENTO DE STOCK
+// CREAR VENTA CON DESCUENTO DE STOCK (transacción: o se hace todo o nada; sin sobreventa por compras simultáneas)
 exports.crearVenta = async (req, res) => {
+    const {
+        DocumentoID, Subtotal, Total, EstadoID, detalles,
+        // CAMPOS OPCIONALES DE MÉTODO DE PAGO
+        metodoPago, comprobanteTransferencia, fechaTransferencia,
+        nombreReceptor, telefonoEntrega, direccionEntrega
+    } = req.body;
+
+    // Validaciones básicas
+    if (!DocumentoID || !detalles || detalles.length === 0) {
+        return res.status(400).json({ error: "Faltan datos obligatorios", message: "Faltan datos obligatorios" });
+    }
+    if (metodoPago === 'transferencia' && !comprobanteTransferencia) {
+        return res.status(400).json({ error: "Debe proporcionar el comprobante de transferencia", message: "Debe proporcionar el comprobante de transferencia" });
+    }
+    if (metodoPago === 'contraentrega' && (!nombreReceptor || !telefonoEntrega || !direccionEntrega)) {
+        return res.status(400).json({
+            error: "Complete todos los datos de entrega (nombre, teléfono y dirección)",
+            message: "Complete todos los datos de entrega (nombre, teléfono y dirección)"
+        });
+    }
+
+    const t = await sequelize.transaction();
     try {
-        const {
-            DocumentoID,
-            Subtotal,
-            Total,
-            EstadoID,
-            detalles,
-            // CAMPOS OPCIONALES DE MÉTODO DE PAGO
-            metodoPago,
-            comprobanteTransferencia,
-            fechaTransferencia,
-            nombreReceptor,
-            telefonoEntrega,
-            direccionEntrega
-        } = req.body;
+        // Bloquea las variantes, valida y descuenta el stock (asigna InventarioID a cada línea)
+        await inventario.reservar(detalles, t);
 
-        // Validaciones básicas
-        if (!DocumentoID || !detalles || detalles.length === 0) {
-            return res.status(400).json({ error: "Faltan datos obligatorios" });
-        }
-
-        // 🔹 VALIDAR MÉTODO DE PAGO SOLO SI SE PROPORCIONA
-        if (metodoPago) {
-            if (metodoPago === 'transferencia') {
-                if (!comprobanteTransferencia) {
-                    return res.status(400).json({
-                        error: "Debe proporcionar el comprobante de transferencia"
-                    });
-                }
-            }
-
-            if (metodoPago === 'contraentrega') {
-                if (!nombreReceptor || !telefonoEntrega || !direccionEntrega) {
-                    return res.status(400).json({
-                        error: "Complete todos los datos de entrega (nombre, teléfono y dirección)"
-                    });
-                }
-            }
-        }
-
-        // VALIDAR STOCK ANTES DE CREAR LA VENTA
-        for (const item of detalles) {
-            const variante = await resolverVariante(item);
-            item._variante = variante;
-
-            if (!variante) {
-                return res.status(400).json({
-                    error: `No existe variante para Producto ${item.ProductoID}, Color ${item.ColorID}, Talla ${item.TallaID}`
-                });
-            }
-
-            if (variante.Stock < item.Cantidad) {
-                return res.status(400).json({
-                    error: `Stock insuficiente. Disponible: ${variante.Stock}, Solicitado: ${item.Cantidad}`
-                });
-            }
-        }
-
-        // 🔹 CREAR LA VENTA (método de pago es opcional)
         const nuevaVenta = await Venta.create({
             DocumentoID,
             Subtotal,
             Total,
             EstadoID: EstadoID || ESTADO_VENTA.PENDIENTE, // Pendiente por defecto
-            // Solo incluir si se proporciona
             MetodoPago: metodoPago || null,
             ComprobanteTransferencia: metodoPago === 'transferencia' ? comprobanteTransferencia : null,
             FechaTransferencia: metodoPago === 'transferencia' ? (fechaTransferencia || new Date()) : null,
             NombreReceptor: metodoPago === 'contraentrega' ? nombreReceptor : null,
             TelefonoEntrega: metodoPago === 'contraentrega' ? telefonoEntrega : null,
             DireccionEntrega: metodoPago === 'contraentrega' ? direccionEntrega : null
-        });
+        }, { transaction: t });
 
-        // Crear detalles y descontar stock
         for (const item of detalles) {
             await DetalleVenta.create({
                 VentaID: nuevaVenta.VentaID,
@@ -250,160 +213,91 @@ exports.crearVenta = async (req, res) => {
                 Cantidad: item.Cantidad,
                 PrecioUnitario: item.PrecioUnitario,
                 ColorID: item.ColorID,
-                TallaID: item.TallaID
-            });
-
-            // DESCONTAR STOCK
-            await item._variante.decrement('Stock', { by: item.Cantidad });
+                TallaID: item.TallaID,
+                InventarioID: item.InventarioID || null
+            }, { transaction: t });
         }
 
-        return res.status(201).json({
-            message: "Venta creada correctamente",
-            venta: nuevaVenta
-        });
-
+        await t.commit();
+        return res.status(201).json({ message: "Venta creada correctamente", venta: nuevaVenta });
     } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            message: "Error al crear venta",
-            error: error.message
-        });
+        await t.rollback();
+        return responderError(res, error, 'Error al crear venta');
     }
 };
 
 
-// 🆕 ACTUALIZAR ESTADO DE VENTA (con lógica de devolución de stock si se cancela)
+// 🆕 ACTUALIZAR ESTADO DE VENTA (devuelve el stock si se cancela una venta pendiente; seguro ante clics repetidos)
 exports.updateEstadoVenta = async (req, res) => {
+    const { EstadoID } = req.body;
+    const ventaId = req.params.id;
+    if (!EstadoID) return res.status(400).json({ message: 'EstadoID es requerido' });
+
+    const estadoNuevo = parseInt(EstadoID);
+    const estadoDestino = await Estado.findByPk(estadoNuevo);
+    if (!estadoDestino || estadoDestino.Tipo !== 'venta') {
+        return res.status(400).json({ message: 'Estado de venta no válido' });
+    }
+
+    const t = await sequelize.transaction();
     try {
-        const { EstadoID } = req.body;
-        const ventaId = req.params.id;
-
-        if (!EstadoID) {
-            return res.status(400).json({ message: 'EstadoID es requerido' });
-        }
-
-        const venta = await Venta.findByPk(ventaId, {
-            include: [
-                {
-                    model: DetalleVenta,
-                    as: 'detalles'
-                }
-            ]
-        });
-
-        if (!venta) {
-            return res.status(404).json({ message: 'Venta no encontrada' });
-        }
+        // Se bloquea la fila de la venta: peticiones simultáneas sobre la misma venta se ejecutan de a una
+        const venta = await Venta.findByPk(ventaId, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
 
         const estadoAnterior = venta.EstadoID;
-        const estadoNuevo = parseInt(EstadoID);
-
-        // El estado debe existir y ser de tipo 'venta'
-        const estadoDestino = await Estado.findByPk(estadoNuevo);
-        if (!estadoDestino || estadoDestino.Tipo !== 'venta') {
-            return res.status(400).json({ message: 'Estado de venta no válido' });
-        }
-
         if (estadoAnterior === estadoNuevo) {
+            await t.rollback();
             return res.json({ message: 'La venta ya se encuentra en ese estado', venta, stockDevuelto: false });
         }
-
-        // Una venta cancelada ya liberó (o no) su stock: reactivarla dejaría el inventario descuadrado
+        // Una venta cancelada ya liberó su stock: reactivarla dejaría el inventario descuadrado
         if (estadoAnterior === ESTADO_VENTA.CANCELADA) {
+            await t.rollback();
             return res.status(400).json({ message: 'La venta está cancelada y no puede cambiar de estado' });
         }
 
-        log('\n' + '='.repeat(60));
-        log('CAMBIO DE ESTADO DE VENTA');
-        log('='.repeat(60));
-        log(`Venta ID: ${ventaId}`);
-        log(`Estado anterior: ${estadoAnterior}`);
-        log(`Estado nuevo: ${estadoNuevo}`);
+        log(`Cambio de estado de venta #${ventaId}: ${estadoAnterior} -> ${estadoNuevo}`);
 
-        // LÓGICA: Si se cancela una venta pendiente, DEVOLVER el stock
-        // EstadoID 12 = Cancelada
-        if (estadoAnterior === ESTADO_VENTA.PENDIENTE && estadoNuevo === ESTADO_VENTA.CANCELADA) {
-            log('\nDEVOLVIENDO STOCK (venta cancelada)...');
-
-            for (const detalle of venta.detalles) {
-                { const v = await resolverVariante(detalle); if (v) await v.increment('Stock', { by: detalle.Cantidad }); }
-
-                log(`   ✓ Devuelto ${detalle.Cantidad} unidades de Producto ${detalle.ProductoID}`);
-            }
+        const devuelveStock = estadoAnterior === ESTADO_VENTA.PENDIENTE && estadoNuevo === ESTADO_VENTA.CANCELADA;
+        if (devuelveStock) {
+            const detalles = await DetalleVenta.findAll({ where: { VentaID: ventaId }, transaction: t });
+            await inventario.devolver(detalles, t);
         }
 
-        // Actualizar el estado
-        await venta.update({ EstadoID: estadoNuevo });
-
-        log('='.repeat(60) + '\n');
-
-        res.json({
-            message: 'Estado actualizado exitosamente',
-            venta,
-            stockDevuelto: estadoAnterior === ESTADO_VENTA.PENDIENTE && estadoNuevo === ESTADO_VENTA.CANCELADA
-        });
-
+        await venta.update({ EstadoID: estadoNuevo }, { transaction: t });
+        await t.commit();
+        return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock });
     } catch (error) {
-        console.error('Error al actualizar estado:', error);
-        res.status(500).json({
-            message: 'Error al actualizar estado',
-            error: error.message
-        });
+        await t.rollback();
+        return responderError(res, error, 'Error al actualizar estado');
     }
 };
 
 // ACTUALIZAR VENTA COMPLETA (con detalles)
 exports.updateVenta = async (req, res) => {
+    const { EstadoID, Subtotal, Total, detalles } = req.body;
+    const ventaId = req.params.id;
+
+    // Si solo se actualiza el estado: misma lógica (y devolución de stock) que PATCH /:id/estado
+    if (EstadoID && !detalles) return exports.updateEstadoVenta(req, res);
+
+    const t = await sequelize.transaction();
     try {
-        const { EstadoID, Subtotal, Total, detalles } = req.body;
-        const ventaId = req.params.id;
-
-        const venta = await Venta.findByPk(ventaId);
-
-        if (!venta) {
-            return res.status(404).json({ message: 'Venta no encontrada' });
-        }
-
-        // Si solo se actualiza el estado: misma lógica (y devolución de stock) que PATCH /:id/estado
-        if (EstadoID && !detalles) {
-            return exports.updateEstadoVenta(req, res);
-        }
-
+        const venta = await Venta.findByPk(ventaId, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
         if (venta.EstadoID === ESTADO_VENTA.CANCELADA) {
+            await t.rollback();
             return res.status(400).json({ message: 'No se puede editar una venta cancelada' });
         }
 
-        // Si se actualizan los detalles (edición completa)
         if (detalles && detalles.length > 0) {
-            // Ajuste de stock: devolver lo de los detalles antiguos y descontar lo nuevo
-            const antiguos = await DetalleVenta.findAll({ where: { VentaID: ventaId } });
-            const ajustar = venta.EstadoID !== ESTADO_VENTA.CANCELADA; // una venta cancelada ya devolvió su stock
-            if (ajustar) {
-                const devueltas = [];
-                for (const d of antiguos) {
-                    const v = await resolverVariante(d);
-                    if (v) { await v.increment('Stock', { by: d.Cantidad }); devueltas.push([v, d.Cantidad]); }
-                }
-                for (const item of detalles) {
-                    const v = await resolverVariante(item);
-                    if (v) await v.reload();
-                    if (!v || v.Stock < item.Cantidad) {
-                        for (const [vv, q] of devueltas) await vv.decrement('Stock', { by: q }); // deshacer
-                        return res.status(400).json({
-                            message: !v
-                                ? `No existe variante para Producto ${item.ProductoID}, Color ${item.ColorID}, Talla ${item.TallaID}`
-                                : `Stock insuficiente. Disponible: ${v.Stock}, Solicitado: ${item.Cantidad}`
-                        });
-                    }
-                }
-            }
+            // Devuelve lo de los detalles antiguos y descuenta lo nuevo, todo en la misma transacción:
+            // si no alcanza el stock se deshace todo sin dejar nada a medias
+            const antiguos = await DetalleVenta.findAll({ where: { VentaID: ventaId }, transaction: t });
+            await inventario.devolver(antiguos, t);
+            await inventario.reservar(detalles, t);
 
-            // Eliminar detalles antiguos
-            await DetalleVenta.destroy({
-                where: { VentaID: ventaId }
-            });
-
-            // Crear nuevos detalles
+            await DetalleVenta.destroy({ where: { VentaID: ventaId }, transaction: t });
             for (const item of detalles) {
                 await DetalleVenta.create({
                     VentaID: ventaId,
@@ -411,78 +305,44 @@ exports.updateVenta = async (req, res) => {
                     Cantidad: item.Cantidad,
                     PrecioUnitario: item.PrecioUnitario,
                     ColorID: item.ColorID,
-                    TallaID: item.TallaID
-                });
-                if (ajustar) {
-                    const v = await resolverVariante(item);
-                    if (v) await v.decrement('Stock', { by: item.Cantidad });
-                }
+                    TallaID: item.TallaID,
+                    InventarioID: item.InventarioID || null
+                }, { transaction: t });
             }
-
-            // Actualizar totales
             await venta.update({
                 Subtotal: Subtotal || venta.Subtotal,
                 Total: Total || venta.Total,
                 EstadoID: EstadoID || venta.EstadoID
-            });
+            }, { transaction: t });
         }
 
-        res.json({
-            message: 'Venta actualizada exitosamente',
-            venta
-        });
+        await t.commit();
+        return res.json({ message: 'Venta actualizada exitosamente', venta });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({
-            message: 'Error al actualizar venta',
-            error: error.message
-        });
+        await t.rollback();
+        return responderError(res, error, 'Error al actualizar venta');
     }
 };
 
-// Eliminar una venta (con devolución de stock)
+// Eliminar una venta (con devolución de stock si estaba pendiente)
 exports.deleteVenta = async (req, res) => {
+    const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id, {
-            include: [
-                {
-                    model: DetalleVenta,
-                    as: 'detalles'
-                }
-            ]
-        });
+        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
 
-        if (!venta) {
-            return res.status(404).json({ message: 'Venta no encontrada' });
-        }
+        const devuelve = venta.EstadoID === ESTADO_VENTA.PENDIENTE;
+        const detalles = await DetalleVenta.findAll({ where: { VentaID: venta.VentaID }, transaction: t });
+        if (devuelve) await inventario.devolver(detalles, t);
 
-        log('\n🗑️ ELIMINANDO VENTA Y DEVOLVIENDO STOCK...');
+        await DetalleVenta.destroy({ where: { VentaID: venta.VentaID }, transaction: t });
+        await venta.destroy({ transaction: t });
 
-        // DEVOLVER STOCK si la venta estaba pendiente
-        if (venta.EstadoID === ESTADO_VENTA.PENDIENTE) {
-            for (const detalle of venta.detalles) {
-                { const v = await resolverVariante(detalle); if (v) await v.increment('Stock', { by: detalle.Cantidad }); }
-                log(`   ✓ Stock devuelto: ${detalle.Cantidad} unidades`);
-            }
-        }
-
-        // Eliminar detalles
-        await DetalleVenta.destroy({
-            where: { VentaID: req.params.id }
-        });
-
-        // Eliminar venta
-        await venta.destroy();
-
-        res.json({
-            message: 'Venta eliminada exitosamente',
-            stockDevuelto: venta.EstadoID === ESTADO_VENTA.PENDIENTE
-        });
+        await t.commit();
+        return res.json({ message: 'Venta eliminada exitosamente', stockDevuelto: devuelve });
     } catch (error) {
-        res.status(500).json({
-            message: 'Error al eliminar venta',
-            error: error.message
-        });
+        await t.rollback();
+        return responderError(res, error, 'Error al eliminar venta');
     }
 };
 

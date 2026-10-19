@@ -129,7 +129,7 @@ const Servicios = () => {
                 .svc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 820px; margin: 0 auto; position: relative; z-index: 1; }
                 .svc-stat { padding: 24px 16px; text-align: center; }
                 .svc-stat b { display: block; font: 900 clamp(2rem, 4vw, 2.9rem)/1 'Outfit'; color: #fff; letter-spacing: -.03em; }
-                .svc-stat span { display: block; margin-top: 8px; font: 600 11px 'Outfit'; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); }
+                .svc-stat > span { display: block; margin-top: 8px; font: 600 11px 'Outfit'; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); }
                 .svc-marq { margin-top: 56px; padding-bottom: 70px; }
                 .svc-marq-item { font: 900 clamp(1.6rem, 4vw, 2.6rem) 'Outfit'; letter-spacing: -.02em; display: inline-flex; align-items: center; gap: 56px; }
                 .svc-marq-item i { color: #4f8ef7; font-style: normal; font-size: .6em; }

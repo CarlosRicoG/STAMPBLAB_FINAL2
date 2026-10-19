@@ -12,3 +12,5 @@ backend/uploads/productos/*
 backend/uploads/tecnicas/*
 !backend/uploads/productos/.gitkeep
 !backend/uploads/tecnicas/.gitkeep
+e2e/capturas/
+e2e/node_modules/

@@ -23,8 +23,6 @@ const eq = (n, a, b) => { const ok = a === b; if (!ok) bad++; console.log((ok ? 
     const V = v.j.venta.VentaID;
     eq('stock tras pedido de 2', await stock(), s0 - 2);
 
-    const ajena = await call('PATCH', '/ventas/1/cancelar', null, cli);
-    // la venta 1 es del cliente demo en el seed; probar con una de otro usuario creando una como admin a nombre del admin
     const vAdm = await call('POST', '/ventas', { DocumentoID: '1000000001', Subtotal: 25000, Total: 25000, EstadoID: 8, detalles: [det[0]].map(d => ({ ...d, Cantidad: 1 })) }, adm);
     const VA = vAdm.j.venta.VentaID;
     eq('cliente NO puede cancelar pedido ajeno', (await call('PATCH', '/ventas/' + VA + '/cancelar', null, cli)).s, 403);

@@ -1,9 +1,12 @@
 // routes/auth.js
+const { validarContrasena, huella } = require('../utils/contrasenas');
 const { validar, esquemas } = require('../middleware/validar');
 const log = require('../utils/log');
 const express = require('express');
 const JWT_SECRET = require('../config/jwt');
 const router = express.Router();
+// Hash real de relleno: el login de un correo inexistente tarda lo mismo que el de uno existente
+const HASH_FALSO = require('bcryptjs').hashSync('relleno-no-es-una-clave-real', 10);
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
@@ -28,10 +31,11 @@ router.post('/login', validar(esquemas.login), async (req, res) => {
             where: { Correo: Correo }
         });
 
+        // Misma respuesta (401) exista o no el correo: no se puede averiguar quién está registrado
         if (!usuario) {
-            log('Usuario no encontrado:', Correo);
-            return res.status(404).json({
-                mensaje: 'Usuario no encontrado'
+            await bcrypt.compare(Contraseña, HASH_FALSO); // gasta el mismo tiempo que con un usuario real
+            return res.status(401).json({
+                mensaje: 'Correo o contraseña incorrectos'
             });
         }
 
@@ -41,9 +45,8 @@ router.post('/login', validar(esquemas.login), async (req, res) => {
         const passwordValida = await bcrypt.compare(Contraseña, usuario.Contraseña);
 
         if (!passwordValida) {
-            log('Contraseña incorrecta para:', Correo);
             return res.status(401).json({
-                mensaje: 'Contraseña incorrecta'
+                mensaje: 'Correo o contraseña incorrectos'
             });
         }
 
@@ -186,7 +189,7 @@ router.post('/recuperar-password', async (req, res) => {
 
         // Generar token temporal (válido por 1 hora)
         const token = jwt.sign(
-            { id: usuario.DocumentoID, tipo: 'recuperacion' },
+            { id: usuario.DocumentoID, tipo: 'recuperacion', ph: huella(usuario.Contraseña) },
             JWT_SECRET,
             { expiresIn: '1h' }
         );
@@ -268,11 +271,9 @@ router.post('/restablecer-password', async (req, res) => {
             });
         }
 
-        // Validar longitud de contraseña
-        if (nuevaContraseña.length < 4) {
-            return res.status(400).json({ 
-                mensaje: 'La contraseña debe tener al menos 4 caracteres' 
-            });
+        const errorClave = validarContrasena(nuevaContraseña);
+        if (errorClave) {
+            return res.status(400).json({ mensaje: errorClave });
         }
 
         // Verificar el token
@@ -298,6 +299,13 @@ router.post('/restablecer-password', async (req, res) => {
         if (!usuario) {
             return res.status(404).json({ 
                 mensaje: 'Usuario no encontrado' 
+            });
+        }
+
+        // El enlace es de UN solo uso: si la contraseña ya cambió, la huella no coincide
+        if (!decoded.ph || decoded.ph !== huella(usuario.Contraseña)) {
+            return res.status(401).json({
+                mensaje: 'Este enlace ya fue utilizado o venció. Solicita uno nuevo.'
             });
         }
 

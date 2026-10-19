@@ -46,6 +46,11 @@ module.exports = (sequelize, DataTypes) => {
         TallaID: {
             type: DataTypes.INTEGER
         },
+        // Variante exacta de inventario que se descontó (para devolver el stock al mismo lugar)
+        InventarioID: {
+            type: DataTypes.INTEGER,
+            allowNull: true
+        },
 
         Cantidad: {
             type: DataTypes.INTEGER,

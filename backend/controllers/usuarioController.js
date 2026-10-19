@@ -1,3 +1,4 @@
+const { validarContrasena } = require('../utils/contrasenas');
 const { ESTADO_VENTA } = require('../config/estados');
 const log = require('../utils/log');
 const { Usuario, Rol } = require('../models');
@@ -104,7 +105,7 @@ exports.createUsuario = async (req, res) => {
         log('\n' + '='.repeat(60));
         log('CREAR USUARIO - INICIO');
         log('='.repeat(60));
-        log('Body:', JSON.stringify(req.body, null, 2));
+        log('Body:', JSON.stringify({ ...req.body, Contraseña: '***' }, null, 2));
 
         // Validación de datos obligatorios
         if (!DocumentoID || !Nombre || !Correo || !Contraseña || !RolID) {
@@ -112,6 +113,11 @@ exports.createUsuario = async (req, res) => {
                 estado: false,
                 mensaje: 'Los campos DocumentoID, Nombre, Correo, Contraseña y RolID son obligatorios'
             });
+        }
+
+        const errorClave = validarContrasena(Contraseña);
+        if (errorClave) {
+            return res.status(400).json({ estado: false, mensaje: errorClave });
         }
 
         // Validacion: Verificar si ya existe un administrador y se intenta crear otro
@@ -248,6 +254,10 @@ exports.updateUsuario = async (req, res) => {
 
         // Si se envió contraseña nueva, hashearla
         if (Contraseña && Contraseña.trim() !== '') {
+            const errorClave = validarContrasena(Contraseña);
+            if (errorClave) {
+                return res.status(400).json({ estado: false, mensaje: errorClave });
+            }
             datosActualizar.Contraseña = await bcrypt.hash(Contraseña, 10);
         }
 
@@ -371,7 +381,7 @@ exports.deleteUsuario = async (req, res) => {
 // ==================== LOGIN ====================
 exports.login = async (req, res) => {
     try {
-        log('🔑 Login - req.body:', req.body);
+        log('🔑 Login:', { Correo: req.body.Correo || req.body.correo });
 
         const Correo = req.body.Correo || req.body.correo;
         const Contraseña = req.body.Contraseña || req.body.contraseña;
@@ -385,10 +395,11 @@ exports.login = async (req, res) => {
 
         const usuario = await db.Usuario.findOne({ where: { Correo } });
 
+        // Misma respuesta (401) exista o no el correo: no se puede averiguar quién está registrado
         if (!usuario) {
-            return res.status(404).json({
+            return res.status(401).json({
                 estado: false,
-                mensaje: 'Usuario no encontrado'
+                mensaje: 'Correo o contraseña incorrectos'
             });
         }
 
@@ -396,7 +407,7 @@ exports.login = async (req, res) => {
         if (!passwordValida) {
             return res.status(401).json({
                 estado: false,
-                mensaje: 'Contraseña incorrecta'
+                mensaje: 'Correo o contraseña incorrectos'
             });
         }
 

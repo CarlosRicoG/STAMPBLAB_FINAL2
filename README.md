@@ -54,12 +54,19 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 ## Pruebas
 | Que | Como | Cuantas |
 |---|---|---|
-| Backend (unitarias, sin BD) | `cd backend && npm test` | 158 |
-| Backend (integracion: stock, seguridad, validaciones, cancelar) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba) | 4 conjuntos |
+| Backend (unitarias, sin BD) | `cd backend && npm test` | 165 |
+| Backend (integracion: seguridad, validaciones, stock, cancelar, recuperacion, **concurrencia**) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba) | 6 conjuntos |
 | Frontend (token automatico, roles, estados, efectos) | `cd frontend && npm test` | 22 |
-| E2E con navegador real (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
+| E2E modulos (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
+| E2E **recorrido completo** cliente -> administrador (registro, cotiza con diseno, precio, aprueba, convierte, compra con comprobante, estados, cancela) | `cd e2e && node journey.js` | 50 |
+| E2E **estados vacios** (todas las pantallas sin datos; requiere una instancia con BD vacia) | `cd e2e && BASE_URL=... API_URL=... node vacios.js` | 30 |
+
+Variables utiles al probar: `API_URL`, `BASE_URL`, y `JWT_SECRET` (la prueba de recuperacion firma el enlace con el secreto real del servidor; en Docker usa el de tu .env).
 
 Para dejar la BD en el estado que esperan las pruebas: `cd backend && npm run db:reset && node scripts/seed-demo-flujo.js`.
+
+## Inventario y concurrencia
+Todo movimiento de stock por ventas/cotizaciones pasa por `backend/services/inventario.js`: transaccion + bloqueo de filas (`SELECT ... FOR UPDATE`) + una variante exacta por linea (`detalleventa.InventarioID`). Garantiza que dos compradores a la vez no venden la misma unidad, que cancelar/borrar el mismo pedido varias veces devuelve el stock una sola vez, y que una cotizacion no se convierte dos veces. `tests-integracion/concurrencia.js` lo vigila.
 
 ## Imagenes
 - Las fotos de productos y tecnicas se guardan como **archivos** en `backend/uploads/` (la BD solo guarda la ruta) y la API devuelve `PUBLIC_URL/uploads/...`. Maximo 5 MB por imagen (png/jpg/webp/gif).

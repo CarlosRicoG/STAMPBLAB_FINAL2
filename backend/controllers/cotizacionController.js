@@ -4,6 +4,8 @@ const {
     Color, Insumo, Producto, Parte, Venta, DetalleVenta, InventarioProducto, sequelize
 } = require('../models');
 const { ESTADO_COTIZACION, ESTADO_VENTA } = require('../config/estados');
+const inventario = require('../services/inventario');
+const { ErrorNegocio } = inventario;
 const { Op } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
@@ -41,6 +43,7 @@ exports.createCotizacionInteligente = async (req, res) => {
             }); // 19
         }                                                                               // 20
     } catch (error) {                                                                   // 21
+        if (error.esErrorNegocio) return res.status(error.status || 400).json({ message: error.message });
         console.error('ERROR EN COTIZACIÓN INTELIGENTE:', error.message);               // 22
         res.status(500).json({                                                          // 23
             message: 'Error al procesar la solicitud',                                  // 24
@@ -55,82 +58,54 @@ exports.createCotizacionInteligente = async (req, res) => {
 // CREAR VENTA DIRECTA (SIN DISEÑOS) - CON FIX TraePrenda
 // ============================================
 async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detalles, usuario }) {
-    try {                                                                               // 1
-        let subtotal = 0;                                                               // 2
-        const detallesCalculados = [];                                                  // 3
-        for (const detalle of detalles) {                                               // 4
-            if (detalle.TraePrenda) continue;                                           // 5
-            const colorID = detalle.colores?.[0]?.ColorID;                              // 6
-            const tallaID = detalle.tallas?.[0]?.TallaID;                               // 7
-            const telaID = detalle.insumos?.[0]?.InsumoID;                              // 8
-            const cantidad = parseInt(detalle.Cantidad);                                // 9
-            if (!colorID || !tallaID) return res.status(400).json({ message: 'Se requiere Color y Talla' }); // 10
-            const whereConditions = { ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID }; // 11
-            if (telaID !== undefined && telaID !== null) whereConditions.TelaID = telaID; // 12
-            const variante = await InventarioProducto.findOne({ where: whereConditions }); // 13
-            if (!variante) return res.status(400).json({ message: `No existe variante en inventario` }); // 14
-            if (variante.Stock < cantidad) return res.status(400).json({ message: `Stock insuficiente` }); // 15
-        }                                                                               // 16
-        for (const detalle of detalles) {                                               // 17
-            if (detalle.TraePrenda) {                                                   // 18
-                subtotal += 0;                                                          // 19
-                detallesCalculados.push({
-                    ProductoID: null, ColorID: null, TallaID: null,
-                    TelaID: null, Cantidad: parseInt(detalle.Cantidad),
-                    PrecioUnitario: 0, TraePrenda: true, PrendaDescripcion:
-                        detalle.PrendaDescripcion || ""
-                }); // 20
-                continue;                                                               // 21
-            }                                                                           // 22
-            const producto = await Producto.findByPk(detalle.ProductoID);               // 23
-            if (!producto) throw new Error(`Producto ${detalle.ProductoID} no encontrado`); // 24
-            const tallaID = detalle.tallas?.[0]?.TallaID;                               // 25
-            const insumoID = detalle.insumos?.[0]?.InsumoID;                            // 26
-            const colorID = detalle.colores?.[0]?.ColorID;                              // 27
-            const precioUnitario = (parseFloat(producto.PrecioBase) || 0) +
-                (parseFloat((await Talla.findByPk(tallaID))?.Precio) || 0) +
-                (parseFloat((await Insumo.findByPk(insumoID))?.PrecioTela) || 0); // 28
-            subtotal += precioUnitario * detalle.Cantidad;                              // 29
-            detallesCalculados.push({
-                ProductoID: detalle.ProductoID,
-                ColorID: colorID || null, TallaID: tallaID || null,
-                TelaID: insumoID || null, Cantidad: detalle.Cantidad,
-                PrecioUnitario: precioUnitario, TraePrenda: false, PrendaDescripcion: ""
-            }); // 30
-        }                                                                               // 31
+    // 1) Precios y líneas (solo lecturas)
+    let subtotal = 0;
+    const lineas = [];
+    for (const detalle of detalles) {
+        const cantidad = parseInt(detalle.Cantidad);
+        if (detalle.TraePrenda) {
+            lineas.push({ ProductoID: null, ColorID: null, TallaID: null, TelaID: null, Cantidad: cantidad, PrecioUnitario: 0, TraePrenda: true });
+            continue;
+        }
+        const colorID = detalle.colores?.[0]?.ColorID;
+        const tallaID = detalle.tallas?.[0]?.TallaID;
+        const insumoID = detalle.insumos?.[0]?.InsumoID;
+        if (!colorID || !tallaID) throw new ErrorNegocio('Se requiere Color y Talla');
+        const producto = await Producto.findByPk(detalle.ProductoID);
+        if (!producto) throw new ErrorNegocio(`Producto ${detalle.ProductoID} no encontrado`, 404);
+        const precioUnitario = (parseFloat(producto.PrecioBase) || 0)
+            + (parseFloat((await Talla.findByPk(tallaID))?.Precio) || 0)
+            + (parseFloat((await Insumo.findByPk(insumoID))?.PrecioTela) || 0);
+        subtotal += precioUnitario * cantidad;
+        lineas.push({
+            ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID, TelaID: insumoID || null,
+            Cantidad: cantidad, PrecioUnitario: precioUnitario, TraePrenda: false, Nombre: producto.Nombre
+        });
+    }
+
+    // 2) Todo en una transacción: descuenta stock (con bloqueo, sin sobreventa), crea la venta y sus detalles
+    const tx = await sequelize.transaction();
+    try {
+        await inventario.reservar(lineas, tx);
         const nuevaVenta = await Venta.create({
-            DocumentoID,
-            FechaVenta: FechaCotizacion || new Date(), Subtotal:
-                subtotal, Total: subtotal, EstadoID: ESTADO_VENTA.PENDIENTE
-        }); // 32
-        for (const detalle of detallesCalculados) {                                     // 33
+            DocumentoID, FechaVenta: FechaCotizacion || new Date(),
+            Subtotal: subtotal, Total: subtotal, EstadoID: ESTADO_VENTA.PENDIENTE
+        }, { transaction: tx });
+        for (const l of lineas) {
             await DetalleVenta.create({
-                VentaID: nuevaVenta.VentaID,
-                ProductoID: detalle.ProductoID, ColorID: detalle.ColorID,
-                TallaID: detalle.TallaID, ...(detalle.TelaID ?
-                    { TelaID: detalle.TelaID } : {}),
-                Cantidad: detalle.Cantidad, PrecioUnitario: detalle.PrecioUnitario
-            }); // 34
-        }                                                                               // 35
-        for (const detalle of detallesCalculados) {                                     // 36
-            if (detalle.TraePrenda || !detalle.ColorID || !detalle.TallaID) continue;   // 37
-            const whereConditions = {
-                ProductoID: detalle.ProductoID,
-                ColorID: detalle.ColorID, TallaID: detalle.TallaID
-            }; // 38
-            if (detalle.TelaID) whereConditions.TelaID = detalle.TelaID;                // 39
-            await InventarioProducto.decrement('Stock', {
-                by: detalle.Cantidad, where: whereConditions
-            }); // 40
-        }                                                                               // 41
+                VentaID: nuevaVenta.VentaID, ProductoID: l.ProductoID, ColorID: l.ColorID, TallaID: l.TallaID,
+                InventarioID: l.InventarioID || null, Cantidad: l.Cantidad, PrecioUnitario: l.PrecioUnitario
+            }, { transaction: tx });
+        }
+        await tx.commit();
         return res.status(201).json({
-            tipo: 'venta',
-            message: 'Venta pendiente creada exitosamente',
-            venta: nuevaVenta, detalles: detallesCalculados
-        }); // 42
-    } catch (error) {                                                                   // 43
-        throw error;                                                                    // 44
-    }                                                                                   // 45
+            tipo: 'venta', message: 'Venta pendiente creada exitosamente',
+            venta: nuevaVenta, detalles: lineas
+        });
+    } catch (error) {
+        await tx.rollback();
+        throw error;
+    }
 }
 
 
@@ -138,24 +113,25 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
 // CREAR COTIZACIÓN CON DISEÑOS (SIN DESCUENTO DE STOCK)
 // ============================================
 async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizacion, detalles, usuario }) {
+    const tx = await sequelize.transaction(); // si algo falla a mitad de camino no queda una cotización incompleta
     try {                                                                               // 1
         const nuevaCotizacion = await Cotizacion.create({                               // 2
             DocumentoID, FechaCotizacion: FechaCotizacion || new Date(),                // 3
             ValorTotal: 0, EstadoID: ESTADO_COTIZACION.PENDIENTE                                                  // 4
-        });                                                                             // 5
+        }, { transaction: tx });                                                        // 5
         for (let i = 0; i < detalles.length; i++) {                                     // 6
             const detalle = detalles[i];                                                // 7
             const nuevoDetalle = await DetalleCotizacion.create({                       // 8
                 CotizacionID: nuevaCotizacion.CotizacionID, ProductoID: detalle.ProductoID, // 9
                 Cantidad: detalle.Cantidad, TraePrenda: Boolean(detalle.TraePrenda),    // 10
                 PrendaDescripcion: detalle.PrendaDescripcion || null                    // 11
-            });                                                                         // 12
+            }, { transaction: tx });                                                    // 12
             if (detalle.tecnicas?.length > 0) {                                         // 13
                 await CotizacionTecnica.bulkCreate(detalle.tecnicas.map(t => ({         // 14
                     DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID,              // 15
                     TecnicaID: t.TecnicaID, ParteID: t.ParteID, ImagenDiseño: t.ImagenDiseño, // 16
                     Observaciones: t.Observaciones, CostoTecnica: t.CostoTecnica || 0   // 17
-                })));                                                                   // 18
+                })), { transaction: tx });                                                                   // 18
             }                                                                           // 19
             if (!detalle.TraePrenda) {                                                  // 20
                 if (detalle.tallas?.length > 0) await CotizacionTalla.bulkCreate(detalle.
@@ -163,20 +139,21 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
                         DetalleCotizacionID: nuevoDetalle.
                             DetalleCotizacionID, TallaID: t.TallaID, Cantidad:
                             t.Cantidad, PrecioTalla: t.PrecioTalla || 0
-                    }))); // 21
+                    })), { transaction: tx }); // 21
                 if (detalle.colores?.length > 0) await CotizacionColor.bulkCreate(detalle.
                     colores.map(c => ({
                         DetalleCotizacionID: nuevoDetalle.
                             DetalleCotizacionID, ColorID: c.ColorID, Cantidad: c.Cantidad
-                    }))); // 22
+                    })), { transaction: tx }); // 22
                 if (detalle.insumos?.length > 0) await CotizacionInsumo.bulkCreate(detalle.
                     insumos.map(i => ({
                         DetalleCotizacionID: nuevoDetalle.
                             DetalleCotizacionID, InsumoID: i.InsumoID, CantidadRequerida:
                             i.CantidadRequerida
-                    }))); // 23
+                    })), { transaction: tx }); // 23
             }                                                                           // 24
         }                                                                               // 25
+        await tx.commit();
         const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { // 26
             include: [                                                                  // 27
                 { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },     // 28
@@ -207,6 +184,7 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
         });                                                                             // 31
         return res.status(201).json({ tipo: 'cotizacion', message: 'Cotización creada exitosamente', cotizacion: cotizacionCompleta }); // 32
     } catch (error) {                                                                   // 33
+        if (!tx.finished) await tx.rollback();
         throw error;                                                                    // 34
     }                                                                                   // 35
 }
@@ -273,9 +251,8 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             message: 'La cotización no tiene productos asociados'
         });
 
-        // 1) Calcular lo que se necesita de cada variante (agrupado: dos líneas pueden usar la misma)
+        // 1) Líneas de la venta con su precio
         const lineas = [];
-        const requerido = new Map();
         for (const detalle of cotizacion.detalles) {
             const traePrenda = Boolean(detalle.TraePrenda);
             const colorID = detalle.colores?.[0]?.ColorID || null;
@@ -283,31 +260,23 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             const telaID = detalle.insumos?.[0]?.InsumoID || null;
             const usaInventario = !traePrenda && detalle.ProductoID && colorID && tallaID;
             lineas.push({ detalle, colorID, tallaID, telaID, usaInventario, precioUnitario: precioUnitarioDetalle(detalle) });
-            if (usaInventario) {
-                const key = `${detalle.ProductoID}|${colorID}|${tallaID}|${telaID || ''}`;
-                const r = requerido.get(key) || { ProductoID: detalle.ProductoID, colorID, tallaID, telaID, cantidad: 0, detalle };
-                r.cantidad += parseInt(detalle.Cantidad) || 0;
-                requerido.set(key, r);
-            }
         }
 
         // 2) Todo dentro de una transacción: si algo falla no queda una venta a medias
         const resultado = await sequelize.transaction(async (t) => {
-            for (const r of requerido.values()) {
-                const where = { ProductoID: r.ProductoID, ColorID: r.colorID, TallaID: r.tallaID };
-                if (r.telaID) where.TelaID = r.telaID;
-                const variante = await InventarioProducto.findOne({ where, transaction: t, lock: t.LOCK.UPDATE });
-                if (!variante || variante.Stock < r.cantidad) {
-                    const d = r.detalle;
-                    const desc = [d.producto?.Nombre || `Producto ${r.ProductoID}`, d.colores?.[0]?.color?.Nombre, d.tallas?.[0]?.talla?.Nombre].filter(Boolean).join(' / ');
-                    const err = new Error(variante
-                        ? `Stock insuficiente para ${desc}. Disponible: ${variante.Stock}, requerido: ${r.cantidad}`
-                        : `No existe en inventario la variante ${desc}`);
-                    err.status = 400;
-                    throw err;
-                }
-                await variante.decrement('Stock', { by: r.cantidad, transaction: t });
-            }
+            // La cotización se vuelve a leer BAJO BLOQUEO: dos clics simultáneos no pueden crear dos ventas
+            const fresca = await Cotizacion.findByPk(cotizacion.CotizacionID, { transaction: t, lock: t.LOCK.UPDATE });
+            if (fresca.EstadoID === ESTADO_COTIZACION.PROCESADA) throw new ErrorNegocio('Esta cotización ya fue convertida a venta');
+            if (fresca.EstadoID !== ESTADO_COTIZACION.APROBADA) throw new ErrorNegocio('Solo se pueden convertir cotizaciones aprobadas');
+
+            const lineasInv = lineas.filter((l) => l.usaInventario).map((l) => ({
+                ProductoID: l.detalle.ProductoID, ColorID: l.colorID, TallaID: l.tallaID, TelaID: l.telaID,
+                Cantidad: parseInt(l.detalle.Cantidad) || 0, _linea: l,
+                Nombre: [l.detalle.producto?.Nombre || `Producto ${l.detalle.ProductoID}`, l.detalle.colores?.[0]?.color?.Nombre, l.detalle.tallas?.[0]?.talla?.Nombre].filter(Boolean).join(' / ')
+            }));
+            await inventario.reservar(lineasInv, t);
+            for (const li of lineasInv) li._linea.inventarioID = li.InventarioID;
+
             const total = lineas.reduce((s, l) => s + l.precioUnitario * (parseInt(l.detalle.Cantidad) || 0), 0);
             const venta = await Venta.create({
                 DocumentoID: cotizacion.DocumentoID, FechaVenta: new Date(),
@@ -316,7 +285,7 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             for (const l of lineas) {
                 await DetalleVenta.create({
                     VentaID: venta.VentaID, ProductoID: l.detalle.ProductoID || null,
-                    ColorID: l.colorID, TallaID: l.tallaID,
+                    ColorID: l.colorID, TallaID: l.tallaID, InventarioID: l.inventarioID || null,
                     Cantidad: l.detalle.Cantidad, PrecioUnitario: l.precioUnitario
                 }, { transaction: t });
             }
@@ -329,7 +298,7 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             cotizacionID: cotizacion.CotizacionID
         });
     } catch (error) {                                                                   // 58
-        if (error.status === 400) return res.status(400).json({ message: error.message });
+        if (error.esErrorNegocio || error.status === 400) return res.status(error.status || 400).json({ message: error.message });
         res.status(500).json({ message: 'Error al convertir cotización', error: error.message }); // 59
     }                                                                                   // 60
 };
