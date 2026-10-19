@@ -51,6 +51,12 @@ module.exports = (sequelize, DataTypes) => {
         model: 'roles',
         key: 'RolID'
       }
+    },
+    // Contador de versión de sesión: al cambiar la contraseña sube y los tokens anteriores dejan de valer
+    SesionesVersion: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0
     }
   }, {
     sequelize,

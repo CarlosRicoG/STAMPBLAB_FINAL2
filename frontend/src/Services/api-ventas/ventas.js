@@ -84,3 +84,19 @@ export const getDashboardData = async (filtros = {}) => {
         throw error;
     }
 };
+// Descarga el comprobante PDF de una venta (cliente dueño o admin)
+export const descargarComprobante = async (ventaID) => {
+    const token = localStorage.getItem("token");
+    const response = await axios.get(`${API_URL}/${ventaID}/factura`, {
+        responseType: "blob",
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    const url = URL.createObjectURL(response.data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `comprobante_venta_${ventaID}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+};

@@ -4,6 +4,7 @@ import FooterComponent from "./footer";
 import NavbarComponent from "./NavBarLanding";
 import { FaBoxOpen, FaEye, FaCreditCard, FaTruck, FaStore, FaReceipt, FaCalendarAlt, FaShoppingBag, FaWallet, FaCheckCircle, FaClock, FaChevronRight, FaArrowRight } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { descargarComprobante } from "../../Services/api-ventas/ventas";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
 
@@ -100,7 +101,10 @@ const ModalDetalle = ({ venta, onClose }) => {
                     </div>
                 ))}
             </div>
-            <div className="mc-mfoot"><button type="button" className="mc-cta" onClick={onClose}>Cerrar</button></div>
+            <div className="mc-mfoot">
+                <button type="button" className="mc-btn" onClick={() => descargarComprobante(venta.VentaID).catch(() => Swal.fire({ icon: "error", title: "No se pudo descargar el comprobante" }))}><FaReceipt size={13} /> Descargar comprobante</button>
+                <button type="button" className="mc-cta" onClick={onClose}>Cerrar</button>
+            </div>
         </McModal>
     );
 };

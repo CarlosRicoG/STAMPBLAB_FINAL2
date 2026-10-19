@@ -1,3 +1,4 @@
+if (process.env.NODE_ENV === "production" && !process.argv.includes("--forzar")) { console.error("seed-demo crea cuentas con contraseñas conocidas: bloqueado en producción (usa --forzar si de verdad lo quieres)."); process.exit(1); }
 // Datos de demostracion para que ningun modulo se vea vacio. Idempotente (findOrCreate).
 // Uso: node scripts/seed-base.js && node scripts/seed-demo.js
 const bcrypt = require('bcryptjs');

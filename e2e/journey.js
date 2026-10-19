@@ -27,6 +27,7 @@ const setVal = (pg, sel, v) => pg.evaluate((s, v) => { const el = document.query
 const click = (pg, re) => pg.evaluate((src) => { const b = [...document.querySelectorAll('button')].filter((x) => x.offsetParent).find((x) => new RegExp(src, 'i').test((x.innerText || x.title || '').trim())); b?.click(); return !!b; }, re.source);
 const swalText = (pg) => pg.evaluate(() => document.querySelector('.swal2-popup')?.innerText.replace(/\s+/g, ' ') || '');
 const cierraSwal = async (pg) => { await pg.evaluate(() => document.querySelector('.swal2-confirm')?.click()); await sleep(500); };
+const esperaTexto = (pg, t, ms = 12000) => pg.waitForFunction((x) => document.body.innerText.includes(x), { timeout: ms }, t).catch(() => {});
 const texto = (pg) => pg.evaluate(() => document.body.innerText.replace(/\s+/g, ' '));
 const foto = (pg, n) => pg.screenshot({ path: path.join(SHOTS, n + '.png') });
 async function pagina(ctx) {
@@ -121,7 +122,7 @@ async function login(pg, [c, p]) {
         console.log('\n③ El administrador atiende la cotización');
         pg = await pagina(ctxAdm);
         await login(pg, ADMIN);
-        await pg.goto(BASE + '/dashboard/cotizaciones', { waitUntil: 'networkidle2' }); await sleep(1500);
+        await pg.goto(BASE + '/dashboard/cotizaciones', { waitUntil: 'networkidle2' }); await esperaTexto(pg, 'Cliente Recorrido'); await sleep(500);
         ok('la cotización nueva aparece en el panel', /Cliente Recorrido/.test(await texto(pg)));
         await foto(pg, '3-admin-cotizaciones');
         if (cot) {
@@ -131,7 +132,7 @@ async function login(pg, [c, p]) {
             const sinPrecio = await api('PUT', '/cotizaciones/' + cot.CotizacionID, { EstadoID: 2 }, admToken);
             ok('aprobar SIN asignar costo al diseño es rechazado', sinPrecio.s === 400, 'estado ' + sinPrecio.s);
             ok('(precio) el administrador asigna el costo del diseño', (await api('PUT', '/cotizaciontecnicas/' + diseno.CotizacionTecnicaID, { CostoTecnica: 12000 }, admToken)).s === 200);
-            await pg.goto(BASE + '/dashboard/cotizaciones', { waitUntil: 'networkidle2' }); await sleep(1200);
+            await pg.goto(BASE + '/dashboard/cotizaciones', { waitUntil: 'networkidle2' }); await esperaTexto(pg, '#' + cot.CotizacionID); await sleep(500);
             ok('aprobar desde el panel', await pg.evaluate((id) => { const fila = [...document.querySelectorAll('tbody tr')].find((tr) => tr.innerText.includes('#' + id)); const b = fila && [...fila.querySelectorAll('button')].find((x) => /aprobar/i.test(x.title)); b?.click(); return !!b; }, cot.CotizacionID)); await sleep(2500);
             await cierraSwal(pg);
             const aprob = (await api('GET', '/cotizaciones/' + cot.CotizacionID, null, admToken)).j;

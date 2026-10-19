@@ -1,3 +1,4 @@
+import { descargarComprobante } from "../Services/api-ventas/ventas";
 import React, { useEffect, useState } from 'react';
 import { FaCreditCard, FaTruck, FaInfoCircle, FaTimes, FaUser, FaReceipt, FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaIdCard, FaCheck, FaBan, FaSearchPlus, FaDownload, FaBoxOpen, FaStore } from 'react-icons/fa';
 import { ESTADO_VENTA } from "../config/estados";
@@ -590,6 +591,7 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra }) => {
 
                 {/* Footer */}
                 <div className="vt-mfoot">
+                    <button className="vt-btn-ghost" onClick={() => descargarComprobante(venta.VentaID).catch(() => alert("No se pudo descargar el comprobante"))}>Descargar comprobante</button>
                     {footerExtra}
                     <button className={footerExtra ? "vt-btn-ghost" : "vt-btn-primary"} onClick={onClose}>Cerrar</button>
                 </div>

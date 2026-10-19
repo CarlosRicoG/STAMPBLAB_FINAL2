@@ -42,8 +42,15 @@ export function getUser() {
     return user ? JSON.parse(user) : null;
 }
 
-// Cerrar sesión
-export function logout() {
+// Cerrar sesión: avisa al servidor (para que el token deje de valer de verdad) y limpia el navegador
+export async function cerrarSesion() {
+    try {
+        await axios.post(`${API_URL}/logout`, null, { timeout: 4000 }); // el token se adjunta solo (authInterceptors)
+    } catch { /* sin conexión o token ya vencido: igual se cierra localmente */ }
     localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
     localStorage.removeItem("user");
 }
+
+// Compatibilidad con el nombre anterior
+export const logout = cerrarSesion;

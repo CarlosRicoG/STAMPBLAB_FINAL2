@@ -43,6 +43,7 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin123*}
       MAIL_USER: ${MAIL_USER:-}
       MAIL_PASS: ${MAIL_PASS:-}
+      MAIL_MODO: ${MAIL_MODO:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       AUTH_MAX_FALLOS: ${AUTH_MAX_FALLOS:-15}
       NODE_ENV: ${NODE_ENV:-development}

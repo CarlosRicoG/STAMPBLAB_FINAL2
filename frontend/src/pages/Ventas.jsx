@@ -209,6 +209,8 @@ const Ventas = () => {
                                     ventas.map((venta, idx) => {
                                         const cancelada = venta.EstadoID === ESTADO_VENTA.CANCELADA;
                                         const entregada = venta.EstadoID === ESTADO_VENTA.ENTREGADA;
+                                        // Solo se pueden eliminar pedidos pendientes o cancelados; el resto es historial (se cancelan)
+                                        const puedeEliminar = venta.EstadoID === ESTADO_VENTA.PENDIENTE || cancelada;
                                         return (
                                             <tr key={venta.VentaID} className="vt-row" style={{ animationDelay: `${Math.min(idx, 10) * 25}ms`, opacity: loading ? 0.55 : 1 }}>
                                                 <td><span className="vt-id">#{venta.VentaID}</span></td>
@@ -242,8 +244,10 @@ const Ventas = () => {
                                                             disabled={cancelada}>
                                                             <FaSyncAlt size={12} />
                                                         </button>
-                                                        <button className="vt-ibtn vt-ibtn-del" onClick={() => handleEliminar(venta)} title="Eliminar"
-                                                            disabled={deletingId === venta.VentaID}>
+                                                        <button className="vt-ibtn vt-ibtn-del" onClick={() => handleEliminar(venta)}
+                                                            title={puedeEliminar ? "Eliminar" : "Un pedido pagado, en producción o entregado es historial y no se elimina (puedes cancelarlo)"}
+                                                            aria-label="Eliminar pedido"
+                                                            disabled={deletingId === venta.VentaID || !puedeEliminar}>
                                                             <FaTrash size={11} />
                                                         </button>
                                                     </div>

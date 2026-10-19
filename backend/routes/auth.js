@@ -1,6 +1,8 @@
 // routes/auth.js
 const { validarContrasena, huella } = require('../utils/contrasenas');
 const { validar, esquemas } = require('../middleware/validar');
+const sesion = require('../services/sesion');
+const verificarToken = require('../middleware/authMiddleware');
 const log = require('../utils/log');
 const express = require('express');
 const JWT_SECRET = require('../config/jwt');
@@ -51,11 +53,7 @@ router.post('/login', validar(esquemas.login), async (req, res) => {
         }
 
         // Crear token JWT
-        const token = jwt.sign(
-            { id: usuario.DocumentoID, rol: usuario.RolID },
-            JWT_SECRET, // Usa variable de entorno en producción
-            { expiresIn: '2h' }
-        );
+        const token = sesion.emitir(usuario);
 
         log('Login exitoso:', usuario.Nombre);
 
@@ -131,11 +129,7 @@ router.post('/registro', validar(esquemas.registro), async (req, res) => {
         log('Usuario registrado:', nuevoUsuario.Correo);
 
         // Crear token automáticamente después del registro
-        const token = jwt.sign(
-            { id: nuevoUsuario.DocumentoID, rol: nuevoUsuario.RolID },
-            JWT_SECRET,
-            { expiresIn: '2h' }
-        );
+        const token = sesion.emitir(nuevoUsuario);
 
         // No enviar la contraseña en la respuesta
         const usuarioRespuesta = nuevoUsuario.toJSON();
@@ -260,6 +254,18 @@ router.post('/recuperar-password', async (req, res) => {
 });
 
 
+// ==================== CERRAR SESIÓN ====================
+// Revoca el token: aunque alguien lo haya copiado, ya no sirve
+router.post('/logout', verificarToken, async (req, res) => {
+    try {
+        await sesion.revocar(req.usuario);
+        res.json({ mensaje: 'Sesión cerrada', estado: true });
+    } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+        res.status(500).json({ mensaje: 'No se pudo cerrar la sesión' });
+    }
+});
+
 // ==================== RESTABLECER CONTRASEÑA ====================
 router.post('/restablecer-password', async (req, res) => {
     try {
@@ -313,9 +319,11 @@ router.post('/restablecer-password', async (req, res) => {
         const hashedPassword = await bcrypt.hash(nuevaContraseña, 10);
 
         // Actualizar contraseña
-        await usuario.update({ 
-            Contraseña: hashedPassword 
+        await usuario.update({
+            Contraseña: hashedPassword
         });
+        // Cualquier sesión abierta con la clave anterior deja de valer
+        await sesion.revocarTodas(usuario.DocumentoID);
 
         log('Contraseña actualizada para:', usuario.Correo);
 

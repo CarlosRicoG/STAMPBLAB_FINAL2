@@ -14,6 +14,7 @@ const {
     sequelize
 } = require('../models');
 
+const notificaciones = require('../services/notificaciones');
 const { ESTADO_VENTA } = require('../config/estados');
 const inventario = require('../services/inventario');
 const log = require('../utils/log');
@@ -219,6 +220,7 @@ exports.crearVenta = async (req, res) => {
         }
 
         await t.commit();
+        notificaciones.pedidoRecibido(nuevaVenta.VentaID); // correo al cliente (sin esperar; un fallo no afecta la venta)
         return res.status(201).json({ message: "Venta creada correctamente", venta: nuevaVenta });
     } catch (error) {
         await t.rollback();
@@ -266,6 +268,7 @@ exports.updateEstadoVenta = async (req, res) => {
 
         await venta.update({ EstadoID: estadoNuevo }, { transaction: t });
         await t.commit();
+        notificaciones.pedidoEstado(venta.VentaID); // correo al cliente con el nuevo estado
         return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock });
     } catch (error) {
         await t.rollback();
@@ -330,6 +333,13 @@ exports.deleteVenta = async (req, res) => {
     try {
         const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
+
+        // Un pedido pagado, en producción o entregado es historial contable: no se borra, se cancela
+        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE && venta.EstadoID !== ESTADO_VENTA.CANCELADA) {
+            await t.rollback();
+            const message = 'No se puede eliminar un pedido ya pagado, en producción o entregado porque es historial. Si fue un error, cancélalo.';
+            return res.status(400).json({ message, mensaje: message });
+        }
 
         const devuelve = venta.EstadoID === ESTADO_VENTA.PENDIENTE;
         const detalles = await DetalleVenta.findAll({ where: { VentaID: venta.VentaID }, transaction: t });

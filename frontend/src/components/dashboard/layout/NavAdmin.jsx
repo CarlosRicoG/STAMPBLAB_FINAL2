@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { FaUserCircle, FaSignOutAlt, FaPencilAlt, FaEye, FaEyeSlash, FaSave } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { cerrarSesion } from "../../../Services/api-auth/auth";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/usuarios`;
 
@@ -222,9 +223,8 @@ const NavAdmin = () => {
         }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+    const handleLogout = async () => {
+        await cerrarSesion();
         navigate("/login");
     };
 

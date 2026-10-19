@@ -3,6 +3,7 @@ const {
     CotizacionTalla, CotizacionColor, CotizacionInsumo, Tecnica, Talla,
     Color, Insumo, Producto, Parte, Venta, DetalleVenta, InventarioProducto, sequelize
 } = require('../models');
+const notificaciones = require('../services/notificaciones');
 const { ESTADO_COTIZACION, ESTADO_VENTA } = require('../config/estados');
 const inventario = require('../services/inventario');
 const { ErrorNegocio } = inventario;
@@ -98,6 +99,7 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
             }, { transaction: tx });
         }
         await tx.commit();
+        notificaciones.pedidoRecibido(nuevaVenta.VentaID);
         return res.status(201).json({
             tipo: 'venta', message: 'Venta pendiente creada exitosamente',
             venta: nuevaVenta, detalles: lineas
@@ -154,6 +156,7 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
             }                                                                           // 24
         }                                                                               // 25
         await tx.commit();
+        notificaciones.cotizacionRecibida(nuevaCotizacion.CotizacionID);
         const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { // 26
             include: [                                                                  // 27
                 { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },     // 28
@@ -293,6 +296,7 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             return venta;
         });
 
+        notificaciones.pedidoRecibido(resultado.VentaID);
         return res.status(201).json({
             message: 'Cotización convertida a venta exitosamente', venta: resultado,
             cotizacionID: cotizacion.CotizacionID
@@ -544,6 +548,8 @@ exports.updateCotizacion = async (req, res) => {
             ValorTotal: ValorTotal !== undefined ? ValorTotal : cotizacion.ValorTotal,  // 28
             EstadoID: estadoNuevo                                                       // 29
         });                                                                             // 30
+        // Aviso al cliente cuando cambia el estado (aprobada, rechazada, cancelada...)
+        if (estadoNuevo !== estadoAnterior) notificaciones.cotizacionEstado(cotizacion.CotizacionID);
         res.json({ message: 'Cotización actualizada exitosamente', cotizacion });       // 31
     } catch (error) {                                                                   // 32
         res.status(500).json({ message: 'Error al actualizar cotización', error: error.message }); // 33
@@ -613,7 +619,8 @@ exports.cancelarCotizacion = async (req, res) => {
         if (cotizacion.EstadoID === ESTADO_COTIZACION.CANCELADA) return res.status(400).json({ message: 'La cotización ya está cancelada' });
         // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
         const stockDevuelto = false;
-        await cotizacion.update({ EstadoID: ESTADO_COTIZACION.CANCELADA });                                       // 24
+        await cotizacion.update({ EstadoID: ESTADO_COTIZACION.CANCELADA });
+        notificaciones.cotizacionEstado(cotizacion.CotizacionID);                                       // 24
         return res.status(200).json({                                                   // 25
             message: 'Cotización cancelada exitosamente',                               // 26
             cotizacionID: cotizacion.CotizacionID, estadoNuevo: 'Cancelada', stockDevuelto // 27

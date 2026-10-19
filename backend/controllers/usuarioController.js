@@ -1,6 +1,7 @@
 const { validarContrasena } = require('../utils/contrasenas');
 const { ESTADO_VENTA } = require('../config/estados');
 const log = require('../utils/log');
+const sesion = require('../services/sesion');
 const { Usuario, Rol } = require('../models');
 const JWT_SECRET = require('../config/jwt');
 const bcrypt = require('bcryptjs');
@@ -262,6 +263,8 @@ exports.updateUsuario = async (req, res) => {
         }
 
         await usuario.update(datosActualizar);
+        // Cambiaron la clave: las sesiones abiertas con la anterior dejan de valer
+        if (datosActualizar.Contraseña) await sesion.revocarTodas(usuario.DocumentoID);
 
         // Obtener usuario actualizado con rol
         const usuarioActualizado = await Usuario.findByPk(req.params.id, {
@@ -411,11 +414,7 @@ exports.login = async (req, res) => {
             });
         }
 
-        const token = jwt.sign(
-            { id: usuario.DocumentoID, rol: usuario.RolID },
-            JWT_SECRET,
-            { expiresIn: '2h' }
-        );
+        const token = sesion.emitir(usuario);
 
 
         res.json({

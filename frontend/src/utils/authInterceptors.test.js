@@ -65,6 +65,28 @@ describe("authInterceptors (fetch)", () => {
     });
 });
 
+describe("authInterceptors (renovación de sesión)", () => {
+    it("guarda el token nuevo cuando el servidor lo manda en X-Token-Renovado (fetch)", async () => {
+        localStorage.setItem("token", "viejo");
+        fetchSimulado.mockImplementation(async () => new Response("{}", { status: 200, headers: { "X-Token-Renovado": "nuevo123" } }));
+        await window.fetch("http://api.test/api/ventas");
+        expect(localStorage.getItem("token")).toBe("nuevo123");
+    });
+
+    it("NO revive una sesión que el usuario ya cerró (sin token local no se guarda el renovado)", async () => {
+        fetchSimulado.mockImplementation(async () => new Response("{}", { status: 200, headers: { "X-Token-Renovado": "intruso" } }));
+        await window.fetch("http://api.test/api/ventas");
+        expect(localStorage.getItem("token")).toBeNull();
+    });
+
+    it("guarda el token nuevo en respuestas de axios", async () => {
+        localStorage.setItem("token", "viejo");
+        let res = { headers: { "x-token-renovado": "nuevoAxios" } };
+        for (const h of axios.interceptors.response.handlers) if (h && h.fulfilled) res = await h.fulfilled(res);
+        expect(localStorage.getItem("token")).toBe("nuevoAxios");
+    });
+});
+
 describe("authInterceptors (axios)", () => {
     const ejecutarInterceptor = async (config) => {
         let resultado = config;

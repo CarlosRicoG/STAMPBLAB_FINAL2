@@ -4,6 +4,7 @@ const express = require('express');
 const router = express.Router();
 const ventaController = require('../controllers/ventaController');
 const { verificarToken, admin, esAdmin } = require('../middleware/authMiddleware');
+const facturaController = require('../controllers/facturaController');
 const { Venta } = require('../models');
 
 // Un cliente solo ve y crea SUS ventas; el administrador ve todo.
@@ -62,6 +63,9 @@ router.delete('/:id', admin, ventaController.deleteVenta);
 
 // Actualizar solo el estado (con lógica de devolución de stock)
 router.patch('/:id/estado', admin, ventaController.updateEstadoVenta);
+
+// GET /api/ventas/:id/factura - comprobante de venta en PDF (el dueño del pedido o un administrador)
+router.get('/:id/factura', verificarToken, ventaPropiaOAdmin, facturaController.descargarComprobante);
 
 // PATCH /api/ventas/:id/cancelar - cancelar un pedido (devuelve el stock si estaba pendiente)
 router.patch('/:id/cancelar', verificarToken, ventaPropiaOAdmin, soloPendienteSiCliente, (req, res) => {

@@ -195,16 +195,29 @@ describe('VentaController - Pruebas Unitarias', () => {
             expect(mockTx.rollback).toHaveBeenCalled();
         });
 
-        test('borrar una venta pagada NO devuelve stock', async () => {
+        test.each([9, 10, 13, 11])('NO se puede eliminar un pedido en estado %i (es historial): 400, nada se borra ni se devuelve', async (estado) => {
+            const destroyMock = jest.fn();
+            Venta.findByPk.mockResolvedValue({ VentaID: 1, EstadoID: estado, destroy: destroyMock });
+            DetalleVenta.destroy.mockClear();
+            const res = mockRes();
+            await controller.deleteVenta({ params: { id: '1' } }, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(destroyMock).not.toHaveBeenCalled();
+            expect(DetalleVenta.destroy).not.toHaveBeenCalled();
+            expect(inventario.devolver).not.toHaveBeenCalled();
+            expect(mockTx.rollback).toHaveBeenCalled();
+        });
+
+        test('un pedido CANCELADO sí se puede eliminar y NO devuelve stock otra vez', async () => {
             const destroyMock = jest.fn().mockResolvedValue(true);
-            Venta.findByPk.mockResolvedValue({ VentaID: 1, EstadoID: 9, destroy: destroyMock });
+            Venta.findByPk.mockResolvedValue({ VentaID: 1, EstadoID: 12, destroy: destroyMock });
             DetalleVenta.findAll.mockResolvedValue([]);
             DetalleVenta.destroy.mockResolvedValue(true);
             const res = mockRes();
             await controller.deleteVenta({ params: { id: '1' } }, res);
             expect(destroyMock).toHaveBeenCalled();
             expect(inventario.devolver).not.toHaveBeenCalled();
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Venta eliminada exitosamente' }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: 'Venta eliminada exitosamente', stockDevuelto: false }));
         });
 
         test('borrar una venta PENDIENTE devuelve el stock', async () => {

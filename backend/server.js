@@ -5,6 +5,7 @@ const cors = require("cors");
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { admin, adminParaEscritura } = require('./middleware/authMiddleware');
+const auditoria = require('./services/auditoria');
 const app = express();
 
 
@@ -19,7 +20,8 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http:/
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
     origin: allowedOrigins,
-    credentials: true
+    credentials: true,
+    exposedHeaders: ['X-Token-Renovado']
 }));
 
 // Normaliza los mensajes de error: toda respuesta 4xx/5xx trae "message" y "mensaje"
@@ -164,6 +166,9 @@ const limiteAuth = rateLimit({
 });
 app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password', '/api/usuarios/login'], limiteAuth);
 
+// Auditoría: registra quién hizo qué en toda acción que modifica datos (antes de las rutas)
+app.use('/api', auditoria.middleware());
+
 // ==================== USAR RUTAS ====================
 // admin = token valido + rol Administrador. adminParaEscritura = lectura publica (catalogo de la tienda),
 // pero crear/editar/borrar solo administradores.
@@ -208,6 +213,12 @@ app.get('/api/cotizaciones/:cotizacionID/pdf', admin, cotizacionPdfController.de
 app.use('/api/ventas', ventasRoutes);
 app.use('/api/detalleventas', admin, detalleventasRoutes);
 app.use('/api/estados', adminParaEscritura, estadosRoutes);
+app.use('/api/auditoria', admin, require('./routes/auditoria'));
+
+// Buzón de pruebas (solo con MAIL_MODO=archivo y fuera de producción): lista los últimos correos "enviados"
+if (require('./services/correo').modo() === 'archivo') {
+    app.get('/api/correos-prueba', admin, (req, res) => res.json({ datos: require('./services/correo').buzon }));
+}
 
 // ==================== MANEJO DE ERRORES ====================
 

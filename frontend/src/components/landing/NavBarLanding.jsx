@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { FaUserCircle, FaTimes, FaShoppingBag, FaFileInvoice, FaEdit, FaSignOutAlt } from "react-icons/fa";
 import logo from "../../assets/images/nuevo_logo_stamplab.png";
+import { cerrarSesion } from "../../Services/api-auth/auth";
 
 /* ── Tokens de color ── */
 const C = {
@@ -92,9 +93,8 @@ const NavbarComponent = () => {
         } else { setIsAuthenticated(false); setUserData(null); }
     };
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
+    const handleLogout = async () => {
+        await cerrarSesion();
         setIsAuthenticated(false);
         setUserData(null);
         setShowPerfil(false);

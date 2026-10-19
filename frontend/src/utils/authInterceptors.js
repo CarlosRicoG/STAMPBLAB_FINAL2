@@ -20,6 +20,13 @@ const obtenerToken = () => {
     try { return localStorage.getItem("token"); } catch { return null; }
 };
 
+// Renovación deslizante: si al token le queda poco, el servidor manda uno nuevo en la cabecera X-Token-Renovado.
+// Solo se guarda si todavía hay una sesión abierta (no revive una sesión que el usuario acaba de cerrar).
+function guardarRenovado(nuevo) {
+    if (!nuevo || !obtenerToken()) return;
+    try { localStorage.setItem("token", nuevo); } catch { /* sin storage */ }
+}
+
 // Rutas donde un 401/403 NO significa "sesión vencida" (credenciales incorrectas, etc.)
 const esRutaPublicaAuth = (url) => /\/api\/(login|registro|recuperar-password|restablecer-password|usuarios\/login)/.test(String(url));
 
@@ -47,7 +54,10 @@ axios.interceptors.request.use((config) => {
     return config;
 });
 axios.interceptors.response.use(
-    (res) => res,
+    (res) => {
+        guardarRenovado(res?.headers?.["x-token-renovado"]);
+        return res;
+    },
     (error) => {
         cerrarSesionSiVencio(error?.response?.status, error?.config?.url);
         return Promise.reject(error);
@@ -68,6 +78,7 @@ window.fetch = async (input, init = {}) => {
         nuevoInit = { ...init, headers };
     }
     const res = await fetchOriginal(input, nuevoInit);
+    guardarRenovado(res.headers?.get?.("x-token-renovado"));
     cerrarSesionSiVencio(res.status, url);
     return res;
 };
