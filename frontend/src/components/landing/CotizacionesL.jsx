@@ -783,9 +783,9 @@ const CotizacionLanding = () => {
                                     <div>
                                         <Label required>Cantidad de prendas</Label>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                                            <button onClick={() => setFormProducto(p => ({ ...p, Cantidad: Math.max(1, (parseInt(p.Cantidad) || 1) - 1) }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaMinus size={10} /></button>
-                                            <InputBase type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: parseInt(e.target.value) || 1 })} style={{ textAlign: "center", width: 80 }} />
-                                            <button onClick={() => setFormProducto(p => ({ ...p, Cantidad: (parseInt(p.Cantidad) || 1) + 1 }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaPlus size={10} /></button>
+                                            <button aria-label="Disminuir cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: Math.max(1, (parseInt(p.Cantidad) || 1) - 1) }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaMinus size={10} /></button>
+                                            <InputBase aria-label="Cantidad" type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: parseInt(e.target.value) || 1 })} style={{ textAlign: "center", width: 80 }} />
+                                            <button aria-label="Aumentar cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: (parseInt(p.Cantidad) || 1) + 1 }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaPlus size={10} /></button>
                                         </div>
                                     </div>
                                 </div>
@@ -812,7 +812,7 @@ const CotizacionLanding = () => {
                                     {/* Color */}
                                     <div>
                                         <Label required>Color</Label>
-                                        <SelectBase value={formProducto.ColorID} onChange={e => setFormProducto({ ...formProducto, ColorID: e.target.value, TallaID: "", TipoTela: "" })}>
+                                        <SelectBase aria-label="Color" value={formProducto.ColorID} onChange={e => setFormProducto({ ...formProducto, ColorID: e.target.value, TallaID: "", TipoTela: "" })}>
                                             <option value="">{coloresDisponibles.length === 0 ? "Sin colores disponibles" : "Selecciona color..."}</option>
                                             {coloresDisponibles.map(c => <option key={c.ColorID} value={c.ColorID}>{c.Nombre}</option>)}
                                         </SelectBase>
@@ -820,7 +820,7 @@ const CotizacionLanding = () => {
                                     {/* Talla */}
                                     <div>
                                         <Label required>Talla</Label>
-                                        <SelectBase value={formProducto.TallaID} onChange={e => setFormProducto({ ...formProducto, TallaID: e.target.value, TipoTela: "" })} style={{ opacity: !formProducto.ColorID ? 0.6 : 1 }}>
+                                        <SelectBase aria-label="Talla" value={formProducto.TallaID} onChange={e => setFormProducto({ ...formProducto, TallaID: e.target.value, TipoTela: "" })} style={{ opacity: !formProducto.ColorID ? 0.6 : 1 }}>
                                             <option value="">{!formProducto.ColorID ? "Primero selecciona color" : tallasDisponibles.length === 0 ? "Sin tallas disponibles" : "Selecciona talla..."}</option>
                                             {tallasDisponibles.map(t => <option key={t.TallaID} value={t.TallaID}>{t.Nombre}{t.Precio ? ` (+$${t.Precio?.toLocaleString('es-CO')})` : ""}</option>)}
                                         </SelectBase>
@@ -828,7 +828,7 @@ const CotizacionLanding = () => {
                                     {/* Tela */}
                                     <div>
                                         <Label required>Tipo de Tela</Label>
-                                        <SelectBase value={formProducto.TipoTela} onChange={e => setFormProducto({ ...formProducto, TipoTela: e.target.value })} style={{ opacity: (!formProducto.ColorID || !formProducto.TallaID) ? 0.6 : 1 }}>
+                                        <SelectBase aria-label="Tipo de tela" value={formProducto.TipoTela} onChange={e => setFormProducto({ ...formProducto, TipoTela: e.target.value })} style={{ opacity: (!formProducto.ColorID || !formProducto.TallaID) ? 0.6 : 1 }}>
                                             <option value="">{(!formProducto.ColorID || !formProducto.TallaID) ? "Primero selecciona color y talla" : telasDisponibles.length === 0 ? "Sin telas disponibles" : "Selecciona tela..."}</option>
                                             {telasDisponibles.map(t => <option key={t.InsumoID} value={t.InsumoID}>{t.Nombre}{t.PrecioTela ? ` (+$${t.PrecioTela?.toLocaleString('es-CO')})` : ""}</option>)}
                                         </SelectBase>
@@ -837,9 +837,9 @@ const CotizacionLanding = () => {
                                     <div>
                                         <Label required>Cantidad</Label>
                                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                            <button onClick={() => setFormProducto(p => ({ ...p, Cantidad: Math.max(1, (parseInt(p.Cantidad) || 1) - 1) }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaMinus size={10} /></button>
-                                            <InputBase type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: parseInt(e.target.value) || 1 })} style={{ textAlign: "center", flex: 1 }} />
-                                            <button onClick={() => setFormProducto(p => ({ ...p, Cantidad: (parseInt(p.Cantidad) || 1) + 1 }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaPlus size={10} /></button>
+                                            <button aria-label="Disminuir cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: Math.max(1, (parseInt(p.Cantidad) || 1) - 1) }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaMinus size={10} /></button>
+                                            <InputBase aria-label="Cantidad" type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: parseInt(e.target.value) || 1 })} style={{ textAlign: "center", flex: 1 }} />
+                                            <button aria-label="Aumentar cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: (parseInt(p.Cantidad) || 1) + 1 }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaPlus size={10} /></button>
                                         </div>
                                         {validacionStock.stockDisponible !== undefined && (
                                             <p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted }}>Stock disponible: <strong>{validacionStock.stockDisponible}</strong> unidades</p>
@@ -873,7 +873,7 @@ const CotizacionLanding = () => {
                                 {/* Técnica */}
                                 <div>
                                     <Label required>Técnica de estampado</Label>
-                                    <SelectBase value={disenoActual.TecnicaID} onChange={e => { setDisenoActual({ ...disenoActual, TecnicaID: e.target.value }); setErroresDiseño(p => ({ ...p, TecnicaID: undefined, duplicado: undefined })); }} style={{ borderColor: erroresDiseño.TecnicaID ? C.danger : C.border }}>
+                                    <SelectBase aria-label="Técnica de estampado" value={disenoActual.TecnicaID} onChange={e => { setDisenoActual({ ...disenoActual, TecnicaID: e.target.value }); setErroresDiseño(p => ({ ...p, TecnicaID: undefined, duplicado: undefined })); }} style={{ borderColor: erroresDiseño.TecnicaID ? C.danger : C.border }}>
                                         <option value="">Selecciona técnica...</option>
                                         {tecnicas.filter(t => t.Estado).map(t => <option key={t.TecnicaID} value={t.TecnicaID}>{t.Nombre}</option>)}
                                     </SelectBase>
@@ -882,7 +882,7 @@ const CotizacionLanding = () => {
                                 {/* Parte */}
                                 <div>
                                     <Label required>Parte de la prenda</Label>
-                                    <SelectBase value={disenoActual.ParteID} onChange={e => { setDisenoActual({ ...disenoActual, ParteID: e.target.value }); setErroresDiseño(p => ({ ...p, ParteID: undefined, duplicado: undefined })); }} style={{ borderColor: erroresDiseño.ParteID ? C.danger : C.border }}>
+                                    <SelectBase aria-label="Parte de la prenda" value={disenoActual.ParteID} onChange={e => { setDisenoActual({ ...disenoActual, ParteID: e.target.value }); setErroresDiseño(p => ({ ...p, ParteID: undefined, duplicado: undefined })); }} style={{ borderColor: erroresDiseño.ParteID ? C.danger : C.border }}>
                                         <option value="">Selecciona parte...</option>
                                         {partes.map(p => <option key={p.ParteID} value={p.ParteID}>{p.Nombre}</option>)}
                                     </SelectBase>

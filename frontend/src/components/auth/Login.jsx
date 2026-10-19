@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { loginUsuario } from "../../Services/api-auth/auth";
-import fondo from "../../assets/images/imagenfondo.png";
+import fondo from "../../assets/images/imagenfondo.webp";
 import logo from "../../assets/images/nuevo_logo_stamplab.png";
 import NavbarComponent from "../landing/NavBarLanding";
 import FooterComponent from "../landing/footer";

@@ -7,9 +7,9 @@ import { getProductos } from "../../Services/api-productos/productos";
 import { getTallas } from "../../Services/api-productos/atributos";
 import usePlus from "../../hooks/usePlus";
 import "./landing.css";
-import imgBlanca from "../../assets/images/camisablanca.png";
-import imgNegra from "../../assets/images/camisanegra.png";
-import imgBuzo from "../../assets/images/buzo.png";
+import imgBlanca from "../../assets/images/camisablanca.webp";
+import imgNegra from "../../assets/images/camisanegra.webp";
+import imgBuzo from "../../assets/images/buzo.webp";
 
 const coloresHex = {
     "Rojo":"#ef4444","Azul":"#3b82f6","Verde":"#22c55e","Amarillo":"#eab308",
@@ -125,11 +125,11 @@ const Home = () => {
                 <div className="hm-hero-grid">
                     <div className="sx-hero-in">
                         <span className="hm-badge"><i className="hm-dot sx-pulse" /> StampLab · Desde 2022</span>
-                        <div>
-                            <h1 className="hm-h1">DISEÑA</h1>
-                            <h1 className="hm-h1 sx-outline-text">TU ESTILO,</h1>
-                            <h1 className="hm-h1 sx-gradient-text">ESTAMPA TU IDENTIDAD.</h1>
-                        </div>
+                        <h1 style={{ margin: 0 }}>
+                            <span className="hm-h1">DISEÑA</span>
+                            <span className="hm-h1 sx-outline-text">TU ESTILO,</span>
+                            <span className="hm-h1 sx-gradient-text">ESTAMPA TU IDENTIDAD.</span>
+                        </h1>
                         <p className="hm-lead">Serigrafía, sublimación, vinil textil y bordado. Cuéntanos tu idea y la hacemos realidad.</p>
                         <div className="hm-cta">
                             <button className="sx-btn" onClick={() => navigate("/productosLanding")}>Ver productos <ArrowR color="#fff"/></button>

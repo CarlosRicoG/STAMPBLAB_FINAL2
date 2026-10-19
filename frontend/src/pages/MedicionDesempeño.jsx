@@ -163,19 +163,19 @@ const DashboardMedicionDesempeño = () => {
             const canvas = await html2canvas(dashRef.current, {
                 scale: 2, useCORS: true, logging: false, backgroundColor: "#f8fafc",
             });
-            const imgData = canvas.toDataURL("image/png");
+            const imgData = canvas.toDataURL("image/jpeg", 0.82); // JPEG comprimido: el PNG a 2x pesaba ~10 MB
             const pdf     = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
             const pageW   = pdf.internal.pageSize.getWidth();
             const pageH   = pdf.internal.pageSize.getHeight();
             const imgH    = (canvas.height * pageW) / canvas.width;
 
             if (imgH <= pageH) {
-                pdf.addImage(imgData, "PNG", 0, 0, pageW, imgH);
+                pdf.addImage(imgData, "JPEG", 0, 0, pageW, imgH);
             } else {
                 let yOffset = 0;
                 while (yOffset < imgH) {
                     if (yOffset > 0) pdf.addPage();
-                    pdf.addImage(imgData, "PNG", 0, -yOffset, pageW, imgH);
+                    pdf.addImage(imgData, "JPEG", 0, -yOffset, pageW, imgH);
                     yOffset += pageH;
                 }
             }

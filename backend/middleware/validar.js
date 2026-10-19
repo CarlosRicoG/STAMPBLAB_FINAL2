@@ -3,7 +3,7 @@
  * Uso:  router.post('/', validar(esquemas.venta), controlador)
  * Responde 400 con { estado:false, mensaje, message, errores:[...] } si el cuerpo no cumple.
  */
-const Joi = require('@hapi/joi');
+const Joi = require('joi');
 
 const mensajes = {
     'any.required': '{{#label}} es obligatorio',

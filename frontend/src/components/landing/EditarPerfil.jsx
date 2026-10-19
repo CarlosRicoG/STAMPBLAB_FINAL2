@@ -4,7 +4,7 @@ import FooterComponent from "./footer";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { getUsuarioById, updateUsuario } from "../../Services/api-usuarios/usuarios";
-import fondoPerfil from "../../assets/images/estampadoslies.png";
+import fondoPerfil from "../../assets/images/estampadoslies.webp";
 import { FaUserEdit, FaLock, FaIdCard, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaUser, FaCheckCircle, FaExclamationCircle, FaSave } from "react-icons/fa";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, Avatar, MiCuentaHero } from "./miCuentaKit";
@@ -135,7 +135,7 @@ const EditarPerfil = () => {
                                     <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg,#4f8ef7,#7c3aed)", color: "#fff", display: "grid", placeItems: "center", boxShadow: "0 8px 18px rgba(79,142,247,.4)" }}>
                                         <FaUserEdit size={16} />
                                     </div>
-                                    <p style={{ margin: 0, fontWeight: 800, fontSize: 22, color: "#1a2540", letterSpacing: "-0.02em" }}>Editar Perfil</p>
+                                    <h1 style={{ margin: 0, fontWeight: 800, fontSize: 22, color: "#1a2540", letterSpacing: "-0.02em" }}>Editar Perfil</h1>
                                 </div>
                                 <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Actualiza tu información personal</p>
                             </div>

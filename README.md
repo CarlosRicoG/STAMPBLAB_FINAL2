@@ -59,6 +59,8 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 | Frontend (token automatico, roles, estados, efectos) | `cd frontend && npm test` | 22 |
 | E2E modulos (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
 | E2E **recorrido completo** cliente -> administrador (registro, cotiza con diseno, precio, aprueba, convierte, compra con comprobante, estados, cancela) | `cd e2e && node journey.js` | 50 |
+| E2E **movil (390px) + accesibilidad** (sin scroll lateral, alt, nombres de botones, etiquetas, h1, idioma) | `cd e2e && node responsive-a11y.js` | 20 |
+| E2E **exportar PDF** del panel de indicadores | `cd e2e && node pdf-export.js` | 2 |
 | E2E **estados vacios** (todas las pantallas sin datos; requiere una instancia con BD vacia) | `cd e2e && BASE_URL=... API_URL=... node vacios.js` | 30 |
 
 Variables utiles al probar: `API_URL`, `BASE_URL`, y `JWT_SECRET` (la prueba de recuperacion firma el enlace con el secreto real del servidor; en Docker usa el de tu .env).

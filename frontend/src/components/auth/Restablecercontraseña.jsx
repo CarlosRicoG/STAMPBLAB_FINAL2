@@ -4,7 +4,7 @@ import NavbarComponent from "../landing/NavBarLanding";
 import FooterComponent from "../landing/footer";
 import axios from "axios";
 import Swal from "sweetalert2";
-import fondo from "../../assets/images/imagenfondo.png";
+import fondo from "../../assets/images/imagenfondo.webp";
 import { FaArrowLeft, FaLock, FaKey, FaExclamationTriangle, FaExclamation, FaCheck, FaTimes, FaShieldAlt, FaRedoAlt } from "react-icons/fa";
 import { AuthShell, AuthField, AuthButton, StrengthMeter } from "./Login";
 
