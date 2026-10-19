@@ -42,13 +42,23 @@ const upload = multer({
     storage,
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
     fileFilter: (req, file, cb) => {
-        const allowed = /jpeg|jpg|png|gif|webp/;
-        cb(null, allowed.test(path.extname(file.originalname).toLowerCase()));
+        // Extensión Y tipo declarado deben ser de imagen (JPG, PNG, GIF, WEBP)
+        const extensionOk = /^\.(jpe?g|png|gif|webp)$/.test(path.extname(file.originalname).toLowerCase());
+        const tipoOk = /^image\/(jpeg|png|gif|webp)$/.test(file.mimetype);
+        if (extensionOk && tipoOk) return cb(null, true);
+        cb(new Error('Formato no permitido: sube una imagen JPG, PNG, GIF o WEBP'));
     }
 });
 
+// Convierte los errores de multer (formato, tamaño) en respuestas 400 claras
+const subirImagen = (req, res, next) => upload.single('imagen')(req, res, (err) => {
+    if (!err) return next();
+    const mensaje = err.code === 'LIMIT_FILE_SIZE' ? 'La imagen supera el máximo permitido de 5 MB' : err.message;
+    return res.status(400).json({ message: mensaje, mensaje });
+});
+
 // ── Subir imagen de diseño ──
-router.post('/upload-diseno', verificarToken, upload.single('imagen'), (req, res) => {
+router.post('/upload-diseno', verificarToken, subirImagen, (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No se recibió imagen' });
     res.json({ filename: req.file.filename });
 });
