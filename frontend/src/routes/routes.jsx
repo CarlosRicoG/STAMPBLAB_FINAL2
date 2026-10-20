@@ -24,7 +24,6 @@ const MisCotizaciones = lazy(() => import("../components/landing/Miscotizaciones
 const FormularioCompra = lazy(() => import("../components/landing/FormularioCompra"));
 const AgregarProducto = lazy(() => import("../pages/formularios_dash/AgregarProducto"));
 const Ventas = lazy(() => import("../pages/Ventas"));
-const Auditoria = lazy(() => import("../pages/Auditoria"));
 import { ProtectedRoute } from "./ProtectedRoute";
 const VentasPendientes = lazy(() => import("../pages/VentasPendientes"));
 const Compras = lazy(() => import("../pages/Compras"));
@@ -77,7 +76,6 @@ const AppRoutes = () => {
                 {/* Rutas del Dashboard */}
                 <Route index element={<DashboardMedicionesempeño />} />
                 <Route path="ventas" element={<Ventas></Ventas>} />
-                <Route path="auditoria" element={<Auditoria />} />
                 <Route path="/dashboard/ventas-pendientes" element={<VentasPendientes />} />
                 <Route path="cotizaciones" element={<Cotizaciones />} />
                 <Route path="cotizaciones/nueva" element={<Navigate to="/dashboard/cotizaciones" replace />} />

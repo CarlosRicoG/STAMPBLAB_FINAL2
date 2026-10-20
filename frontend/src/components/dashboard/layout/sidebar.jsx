@@ -23,7 +23,6 @@ const menuItems = [
         items: [
             { to: "/dashboard/usuarios", label: "Usuarios", icon: <FaUsers size={13} /> },
             { to: "/dashboard/clientes", label: "Clientes", icon: <FaUsers size={13} /> },
-            { to: "/dashboard/auditoria", label: "Historial", icon: <FaClipboardList size={13} /> },
         ]
     },
     {
