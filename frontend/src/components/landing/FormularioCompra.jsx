@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FaShoppingCart, FaCreditCard, FaTruck, FaBoxOpen, FaQrcode, FaEyeSlash, FaChevronDown, FaCloudUploadAlt, FaCheckCircle, FaPalette, FaLock } from "react-icons/fa";
 import Swal from "sweetalert2";
@@ -89,6 +89,7 @@ const FormularioCompra = () => {
     const [telas, setTelas] = useState([]);
     const [variantesProducto, setVariantesProducto] = useState([]);
     const [cargando, setCargando] = useState(false);
+    const enviandoRef = useRef(false); // seguro contra doble clic
 
     /* ── Focused states ── */
 
@@ -239,6 +240,8 @@ const FormularioCompra = () => {
         e.preventDefault();
         if (!usuario) { Swal.fire("Error", "No hay usuario autenticado.", "error"); return; }
         if (!validarFormularioCompleto()) return;
+        if (enviandoRef.current) return;
+        enviandoRef.current = true;
         setCargando(true);
         try {
             const precios = calcularPrecioTotal();
@@ -266,7 +269,7 @@ const FormularioCompra = () => {
             navigate("/productosLanding");
         } catch (error) {
             Swal.fire({ icon: "error", title: "Error", text: error?.response?.data?.message || "Error al procesar tu pedido.", confirmButtonColor: C.danger });
-        } finally { setCargando(false); }
+        } finally { enviandoRef.current = false; setCargando(false); }
     };
 
     if (!producto) return null;

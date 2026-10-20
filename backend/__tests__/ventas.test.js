@@ -3,7 +3,7 @@ const mockTx = { commit: jest.fn(), rollback: jest.fn(), LOCK: { UPDATE: 'UPDATE
 
 jest.mock('../models', () => ({
     Venta: { findAll: jest.fn(), findByPk: jest.fn(), create: jest.fn(), count: jest.fn() },
-    Usuario: {},
+    Usuario: { findByPk: jest.fn().mockResolvedValue({ DocumentoID: 1 }) },
     DetalleVenta: { findAll: jest.fn(), create: jest.fn(), destroy: jest.fn() },
     DetalleCompra: { findAll: jest.fn() },
     Compra: {},

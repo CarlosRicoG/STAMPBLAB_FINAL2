@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const cotizacionController = require('../controllers/cotizacionController');
 const { verificarToken, admin, esAdmin, propioOAdmin } = require('../middleware/authMiddleware');
-const { Cotizacion } = require('../models');
+const { Cotizacion, Tecnica, Parte } = require('../models');
 
 // Un cliente solo ve sus cotizaciones; el administrador ve todo.
 const cotizacionPropiaOAdmin = async (req, res, next) => {
@@ -18,9 +18,23 @@ const cotizacionPropiaOAdmin = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 // Cliente: la cotizacion siempre queda a su nombre.
-const cotizacionDelCliente = (req, res, next) => {
-    if (!esAdmin(req)) req.body.DocumentoID = req.usuario.id;
-    next();
+const cotizacionDelCliente = async (req, res, next) => {
+    try {
+        if (esAdmin(req)) return next();
+        req.body.DocumentoID = req.usuario.id;
+        for (const d of Array.isArray(req.body.detalles) ? req.body.detalles : []) {
+            if (!d || typeof d !== 'object') continue;
+            delete d.PrecioUnitario; // el cliente no fija precios
+            for (const t of Array.isArray(d.tecnicas) ? d.tecnicas : []) {
+                if (!t || typeof t !== 'object') continue;
+                t.CostoTecnica = 0; // lo asigna el administrador al revisar el diseño
+                if (!(await Tecnica.findByPk(t.TecnicaID, { attributes: ['TecnicaID'] })) || !(await Parte.findByPk(t.ParteID, { attributes: ['ParteID'] }))) {
+                    return res.status(400).json({ message: 'La técnica o la parte del diseño no existe. Actualiza la página e inténtalo de nuevo.' });
+                }
+            }
+        }
+        next();
+    } catch (e) { next(e); }
 };
 const multer = require('multer');
 const path = require('path');

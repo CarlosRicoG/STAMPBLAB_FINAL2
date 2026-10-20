@@ -60,7 +60,7 @@ async function login(pg, [c, p]) {
         await pg.goto(BASE + '/signup', { waitUntil: 'networkidle2' }); await sleep(1200);
         const vals = ['Cliente Recorrido', doc, correo, '3105559999', 'Carrera 5 # 6-7', clave, clave];
         for (let i = 0; i < vals.length; i++) await pg.evaluate((n, v) => { const el = document.querySelectorAll('form input')[n]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }, i, vals[i]);
-        await pg.evaluate(() => document.querySelector('form').requestSubmit()); await sleep(3500);
+        await pg.evaluate(() => document.querySelector('form').requestSubmit()); await pg.waitForFunction(() => /Registro exitoso/i.test(document.querySelector('.swal2-container')?.innerText || ''), { timeout: 12000 }).catch(() => {}); await sleep(300);
         ok('registro exitoso', /Registro exitoso/i.test(await swalText(pg)));
         limpiar.push(['usuario', doc]);
         await login(pg, [correo, clave]);
@@ -109,6 +109,7 @@ async function login(pg, [c, p]) {
         ok('clic en "Generar cotización"', await click(pg, /Generar cotizaci/)); await sleep(3500);
         const exito = await texto(pg);
         ok('aparece la confirmación con número de cotización', /Cotizaci[oó]n generada|Estamos cotizando|#\d+/i.test(exito), exito.slice(0, 160));
+        ok('la confirmación muestra el detalle: producto, color, talla, tela y el diseño (técnica y parte)', /Esto fue lo que pediste/i.test(exito) && /Camiseta/.test(exito) && /Color:/.test(exito) && /Talla:/.test(exito) && /Tela:/.test(exito) && /Dise.o 1:/.test(exito), exito.slice(0, 400));
         await foto(pg, '2-cotizar-exito');
         const cotsCli = (await api('GET', '/cotizaciones/usuario/' + doc, null, tokenCli)).j;
         const lista = cotsCli.datos || cotsCli;

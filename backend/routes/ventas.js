@@ -5,11 +5,11 @@ const router = express.Router();
 const ventaController = require('../controllers/ventaController');
 const { verificarToken, admin, esAdmin } = require('../middleware/authMiddleware');
 const facturaController = require('../controllers/facturaController');
-const { Venta } = require('../models');
+const { Venta, Producto, Talla } = require('../models');
 
 // Un cliente solo ve y crea SUS ventas; el administrador ve todo.
 const soloSuyas = (req, res, next) => {
-    if (!esAdmin(req)) req.query.documentoID = String(req.usuario.id);
+    if (!esAdmin(req)) req.documentoForzado = String(req.usuario.id); // (req.query es de solo lectura en Express 5)
     next();
 };
 const ventaPropiaOAdmin = async (req, res, next) => {
@@ -41,6 +41,28 @@ const ventaDelCliente = (req, res, next) => {
     next();
 };
 
+// Cliente: el precio no se confía al navegador. Cada línea debe costar al menos precio base + talla del catálogo
+// (la tela puede sumar más) y el subtotal/total se recalculan aquí, no se toman de lo que envíe el cliente.
+const preciosDelCliente = async (req, res, next) => {
+    try {
+        if (esAdmin(req)) return next();
+        let suma = 0;
+        for (const d of req.body.detalles || []) {
+            const producto = await Producto.findByPk(d.ProductoID, { attributes: ['ProductoID', 'PrecioBase'] });
+            if (!producto) return res.status(404).json({ message: `Producto ${d.ProductoID} no encontrado` });
+            const talla = d.TallaID ? await Talla.findByPk(d.TallaID, { attributes: ['Precio'] }) : null;
+            const minimo = (parseFloat(producto.PrecioBase) || 0) + (parseFloat(talla?.Precio) || 0);
+            const unitario = Number(d.PrecioUnitario);
+            if (!Number.isFinite(unitario) || unitario + 0.5 < minimo) {
+                return res.status(400).json({ message: 'El precio de un producto no coincide con el catálogo. Actualiza la página e inténtalo de nuevo.' });
+            }
+            suma += unitario * Number(d.Cantidad);
+        }
+        req.body.Subtotal = suma;
+        req.body.Total = suma;
+        next();
+    } catch (e) { next(e); }
+};
 
 router.get('/dashboard', admin, ventaController.getDashboardData);
 router.get('/dashboard/data', admin, ventaController.getDashboardData);
@@ -52,7 +74,7 @@ router.get('/', verificarToken, soloSuyas, ventaController.getAllVentas);
 router.get('/:id', verificarToken, ventaPropiaOAdmin, ventaController.getVentaById);
 
 // POST /api/ventas - Crear una nueva venta con detalles
-router.post('/', verificarToken, ventaDelCliente, validar(esquemas.venta), ventaController.crearVenta);
+router.post('/', verificarToken, ventaDelCliente, validar(esquemas.venta), preciosDelCliente, ventaController.crearVenta);
 
 // PUT /api/ventas/:id - Actualizar una venta
 router.put('/:id', admin, validar(esquemas.ventaEdicion), ventaController.updateVenta);

@@ -41,7 +41,8 @@ exports.getAllVentas = async (req, res) => {
 
         // ── Filtro por estado ──
         const whereVenta = {};
-        if (req.query.documentoID) whereVenta.DocumentoID = req.query.documentoID; // ventas de un cliente
+        const documentoFiltro = req.documentoForzado || req.query.documentoID;
+        if (documentoFiltro) whereVenta.DocumentoID = documentoFiltro; // ventas de un cliente
         if (estado === "pendientes") {
             whereVenta.EstadoID = ESTADO_VENTA.PENDIENTE;
         } else if (estado === "procesadas") {
@@ -189,6 +190,10 @@ exports.crearVenta = async (req, res) => {
         });
     }
 
+    if (!(await Usuario.findByPk(DocumentoID, { attributes: ['DocumentoID'] }))) {
+        return res.status(400).json({ error: "El cliente de la venta no existe", message: "El cliente de la venta no existe" });
+    }
+
     const t = await sequelize.transaction();
     try {
         // Bloquea las variantes, valida y descuenta el stock (asigna InventarioID a cada línea)
@@ -236,6 +241,7 @@ exports.updateEstadoVenta = async (req, res) => {
     if (!EstadoID) return res.status(400).json({ message: 'EstadoID es requerido' });
 
     const estadoNuevo = parseInt(EstadoID);
+    if (!Number.isInteger(estadoNuevo)) return res.status(400).json({ message: 'Estado de venta no válido' });
     const estadoDestino = await Estado.findByPk(estadoNuevo);
     if (!estadoDestino || estadoDestino.Tipo !== 'venta') {
         return res.status(400).json({ message: 'Estado de venta no válido' });

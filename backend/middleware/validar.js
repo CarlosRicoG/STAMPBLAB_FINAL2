@@ -55,10 +55,10 @@ const esquemas = {
 
     registro: Joi.object({
         DocumentoID: documento.required(),
-        Nombre: Joi.string().trim().min(2).max(100).required().label('El nombre'),
+        Nombre: Joi.string().trim().min(2).max(100).pattern(/^[^<>]*$/).required().messages({ 'string.pattern.base': 'El nombre no puede contener los símbolos < o >' }).label('El nombre'),
         Correo: correo.required(),
         Telefono: telefono,
-        Direccion: Joi.string().trim().allow('', null).max(200).label('La dirección'),
+        Direccion: Joi.string().trim().allow('', null).max(200).pattern(/^[^<>]*$/).messages({ 'string.pattern.base': 'La dirección no puede contener los símbolos < o >' }).label('La dirección'),
         Contraseña: Joi.string().min(8).max(100).pattern(/[A-Za-z]/).pattern(/\d/).required()
             .messages({ 'string.pattern.base': 'La contraseña debe incluir letras y números' }).label('La contraseña'),
     }),

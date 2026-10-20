@@ -247,7 +247,9 @@ const CotizacionLanding = () => {
     const [numeroCotizacion, setNumeroCotizacion] = useState(null);
     const [tipoCotizacion, setTipoCotizacion] = useState("");
     const [mensajeExito, setMensajeExito] = useState("");
+    const [resumenExito, setResumenExito] = useState([]);
     const [enviando, setEnviando] = useState(false);
+    const enviandoRef = useRef(false); // seguro contra doble clic (el estado tarda un ciclo en actualizarse)
     const [arrastrando, setArrastrando] = useState(false);
     usePlus();
     const previewUrl = useMemo(() => (disenoActual.ImagenDiseno ? URL.createObjectURL(disenoActual.ImagenDiseno) : null), [disenoActual.ImagenDiseno]);
@@ -515,6 +517,8 @@ const CotizacionLanding = () => {
     const handleGenerarCotizacion = async () => {
         if (!usuario) { setMostrarLoginModal(true); return; }
         if (productosEnCotizacion.length === 0) { Swal.fire("Atención", "Debes agregar al menos un producto.", "warning"); return; }
+        if (enviandoRef.current) return;
+        enviandoRef.current = true;
         setEnviando(true);
         try {
             const productosConImgs = await Promise.all(productosEnCotizacion.map(async (prod) => {
@@ -554,13 +558,19 @@ const CotizacionLanding = () => {
             setTipoCotizacion(response.tipo === 'cotizacion' ? 'cotización' : 'venta');
             setNumeroCotizacion(response.tipo === 'cotizacion' ? response?.cotizacion?.CotizacionID : response?.venta?.VentaID);
             setMensajeExito(response.mensaje || "");
+            setResumenExito(productosEnCotizacion.map((p) => ({
+                nombre: p.TraePrenda ? "Tu propia prenda" : (p.producto?.Nombre || "Producto"),
+                prenda: p.TraePrenda ? p.PrendaDescripcion : "",
+                color: p.color?.Nombre, talla: p.talla?.Nombre, tela: p.tela?.Nombre, cantidad: p.Cantidad,
+                disenos: p.disenos.map((d) => ({ tecnica: d.tecnica?.Nombre, parte: d.parte?.Nombre, subparte: d.Subparte, observacion: d.Observacion, imagen: d.ImagenPreviewUrl })),
+            })));
             setMostrarExito(true);
             setProductosEnCotizacion([]); setDisenosAgregados([]); setProductoSeleccionado(null);
             setTraePrenda(false); setDisenoEditando(null);
             setFormProducto({ ColorID: "", TallaID: "", TipoTela: "", Cantidad: 1, PrendaDescripcion: "" });
         } catch (err) {
             Swal.fire({ icon: "error", title: "Error", text: err?.response?.data?.message || err?.message || "Error al procesar", confirmButtonColor: C.danger });
-        } finally { setEnviando(false); }
+        } finally { enviandoRef.current = false; setEnviando(false); }
     };
 
     const validacionStock = validarStockDisponible();
@@ -678,7 +688,7 @@ const CotizacionLanding = () => {
             {/* Éxito */}
             <Modal open={mostrarExito} onClose={() => setMostrarExito(false)}
                 title={tipoCotizacion === 'cotización' ? '¡Cotización generada!' : '¡Pedido registrado!'}
-                accentColor="linear-gradient(90deg,#16a34a,#15803d)" maxWidth={460}
+                accentColor="linear-gradient(90deg,#16a34a,#15803d)" maxWidth={560}
                 footer={<Btn variant="success" style={{ background: C.success, color: "#ffff" }} onClick={() => setMostrarExito(false)}><FaCheck size={12} /> Entendido</Btn>}>
                 <div style={{ textAlign: "center", padding: "8px 0", position: "relative" }}>
                     <Confetti />
@@ -691,6 +701,30 @@ const CotizacionLanding = () => {
                         <p style={{ margin: 0, fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Número de {tipoCotizacion}</p>
                         <p className="sx-gradient-text" style={{ margin: 0, fontSize: 32, fontWeight: 900, fontFamily: "'Outfit',sans-serif" }}>#{numeroCotizacion}</p>
                     </div>
+                    {resumenExito.length > 0 && (
+                        <div data-testid="resumen-cotizacion" style={{ textAlign: "left", marginTop: 18, fontFamily: "'Outfit',sans-serif" }}>
+                            <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", color: C.muted, margin: "0 0 8px", textTransform: "uppercase" }}>Esto fue lo que pediste</p>
+                            {resumenExito.map((p, i) => (
+                                <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10, background: "#f8fafc" }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontWeight: 700, color: C.navy, fontSize: 14 }}>
+                                        <span>{p.nombre}</span><span style={{ color: C.muted, fontWeight: 600 }}>{p.cantidad} {p.cantidad === 1 ? "unidad" : "unidades"}</span>
+                                    </div>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
+                                        {[p.prenda && `Prenda: ${p.prenda}`, p.color && `Color: ${p.color}`, p.talla && `Talla: ${p.talla}`, p.tela && `Tela: ${p.tela}`].filter(Boolean).map((t) => (
+                                            <span key={t} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 99, padding: "2px 10px", fontSize: 12, color: C.navy }}>{t}</span>
+                                        ))}
+                                    </div>
+                                    {p.disenos.map((d, j) => (
+                                        <div key={j} style={{ display: "flex", gap: 10, alignItems: "center", borderTop: "1px dashed #e2e8f0", paddingTop: 8, marginTop: 8, fontSize: 13, color: C.muted }}>
+                                            {d.imagen && <img src={d.imagen} alt="Diseño" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />}
+                                            <span><b style={{ color: C.navy }}>Diseño {j + 1}:</b> {d.tecnica || "Técnica"} en {d.parte || "parte"}{d.subparte ? ` (${d.subparte})` : ""}{d.observacion ? ` · ${d.observacion}` : ""}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                            <p style={{ fontSize: 12, color: C.muted, margin: "4px 0 0" }}>Puedes volver a verlo en <b>Mis cotizaciones</b>. Te avisaremos por correo cuando tengamos tu precio.</p>
+                        </div>
+                    )}
                 </div>
             </Modal>
 
@@ -784,7 +818,7 @@ const CotizacionLanding = () => {
                                         <Label required>Cantidad de prendas</Label>
                                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                                             <button aria-label="Disminuir cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: Math.max(1, (parseInt(p.Cantidad) || 1) - 1) }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaMinus size={10} /></button>
-                                            <InputBase aria-label="Cantidad" type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: parseInt(e.target.value) || 1 })} style={{ textAlign: "center", width: 80 }} />
+                                            <InputBase aria-label="Cantidad" type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: Math.min(10000, Math.max(1, parseInt(e.target.value) || 1)) })} style={{ textAlign: "center", width: 80 }} />
                                             <button aria-label="Aumentar cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: (parseInt(p.Cantidad) || 1) + 1 }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaPlus size={10} /></button>
                                         </div>
                                     </div>
@@ -838,7 +872,7 @@ const CotizacionLanding = () => {
                                         <Label required>Cantidad</Label>
                                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                                             <button aria-label="Disminuir cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: Math.max(1, (parseInt(p.Cantidad) || 1) - 1) }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaMinus size={10} /></button>
-                                            <InputBase aria-label="Cantidad" type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: parseInt(e.target.value) || 1 })} style={{ textAlign: "center", flex: 1 }} />
+                                            <InputBase aria-label="Cantidad" type="number" min="1" value={formProducto.Cantidad} onChange={e => setFormProducto({ ...formProducto, Cantidad: Math.min(10000, Math.max(1, parseInt(e.target.value) || 1)) })} style={{ textAlign: "center", flex: 1 }} />
                                             <button aria-label="Aumentar cantidad" onClick={() => setFormProducto(p => ({ ...p, Cantidad: (parseInt(p.Cantidad) || 1) + 1 }))} style={{ width: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`, background: C.bg, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: C.navy }}><FaPlus size={10} /></button>
                                         </div>
                                         {validacionStock.stockDisponible !== undefined && (

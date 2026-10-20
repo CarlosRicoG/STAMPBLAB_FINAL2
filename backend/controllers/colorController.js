@@ -46,6 +46,9 @@ const createColor = async (req, res) => {
         if (!Nombre || Nombre.trim() === "") {
             return res.status(400).json({ estado: false, mensaje: "El nombre es obligatorio" });
         }
+        if (Nombre.trim().length > 50) {
+            return res.status(400).json({ estado: false, mensaje: "El nombre no puede pasar de 50 caracteres" });
+        }
 
         if (await existeNombre(Nombre.trim())) {
             return res.status(400).json({ estado: false, mensaje: `Ya existe un color llamado "${Nombre.trim()}"` });
@@ -66,6 +69,9 @@ const updateColor = async (req, res) => {
 
         if (!Nombre || Nombre.trim() === "") {
             return res.status(400).json({ estado: false, mensaje: "El nombre es obligatorio" });
+        }
+        if (Nombre.trim().length > 50) {
+            return res.status(400).json({ estado: false, mensaje: "El nombre no puede pasar de 50 caracteres" });
         }
 
         const color = await Color.findByPk(req.params.id);

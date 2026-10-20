@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "../components/layouts/DashboardLayout";
+const NoEncontrada = lazy(() => import("../pages/NoEncontrada"));
 const Cotizaciones = lazy(() => import("../pages/Cotizaciones"));
 const Roles = lazy(() => import("../pages/Roles"));
 const Insumos = lazy(() => import("../pages/Insumos"));
@@ -37,7 +38,22 @@ const Cargando = () => (
     </div>
 );
 
+// Al volver con el botón "atrás" tras cerrar sesión el navegador puede mostrar la página guardada en memoria:
+// si ya no hay sesión, se recarga para que cada pantalla aplique su control de acceso.
+const useRecargarSinSesion = () => {
+    useEffect(() => {
+        const alVolver = (e) => {
+            let hayToken = true;
+            try { hayToken = !!localStorage.getItem("token"); } catch { /* sin acceso al almacenamiento */ }
+            if (e.persisted && !hayToken) window.location.reload();
+        };
+        window.addEventListener("pageshow", alVolver);
+        return () => window.removeEventListener("pageshow", alVolver);
+    }, []);
+};
+
 const AppRoutes = () => {
+    useRecargarSinSesion();
 
 
     return (
@@ -58,9 +74,9 @@ const AppRoutes = () => {
             <Route path="/login" element={<LoginLanding />} />
             <Route path="/recuperarcontraseña" element={<RecuperarContraseña />} />
             <Route path="/restablecercontraseña" element={<RestablecerContraseña />} />
-            <Route path="/editarperfil" element={<EditarPerfil />} />
-            <Route path="/miscompras" element={<MisCompras />} />
-            <Route path="/miscotizaciones" element={<MisCotizaciones />} />
+            <Route path="/editarperfil" element={<ProtectedRoute><EditarPerfil /></ProtectedRoute>} />
+            <Route path="/miscompras" element={<ProtectedRoute><MisCompras /></ProtectedRoute>} />
+            <Route path="/miscotizaciones" element={<ProtectedRoute><MisCotizaciones /></ProtectedRoute>} />
             <Route path="/formularioCompra" element={<FormularioCompra />} />
 
 
@@ -94,6 +110,8 @@ const AppRoutes = () => {
                 <Route path="mediciondesempeño" element={<DashboardMedicionesempeño />} />
 
             </Route>
+
+            <Route path="*" element={<NoEncontrada />} />
 
         </Routes>
 

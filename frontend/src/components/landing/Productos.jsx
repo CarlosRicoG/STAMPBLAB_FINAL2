@@ -506,6 +506,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
     const [fecha, setFecha] = useState("");
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const enviandoRef = useRef(false); // seguro contra doble clic
     const fileInputRef = useRef(null);
     const total = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
 
@@ -613,6 +614,8 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
             return;
         }
 
+        if (enviandoRef.current) return;
+        enviandoRef.current = true;
         setLoading(true);
         try {
             let comprobanteBase64 = null;
@@ -654,6 +657,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
         } catch (err) {
             swalTop({ icon: "error", title: "Error al procesar", text: err.message, confirmButtonColor: C.accent });
         } finally {
+            enviandoRef.current = false;
             setLoading(false);
         }
     };

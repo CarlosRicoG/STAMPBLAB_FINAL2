@@ -5,7 +5,6 @@ const cors = require("cors");
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { admin, adminParaEscritura } = require('./middleware/authMiddleware');
-const auditoria = require('./services/auditoria');
 const app = express();
 
 
@@ -39,6 +38,7 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '12mb' }));
+app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); }); // cuerpo vacío o de otro tipo: no rompe los controladores
 app.use(express.urlencoded({ limit: '12mb', extended: true }));
 const path = require('path');
 const fs = require('fs');
@@ -166,9 +166,6 @@ const limiteAuth = rateLimit({
 });
 app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password', '/api/usuarios/login'], limiteAuth);
 
-// Auditoría: registra quién hizo qué en toda acción que modifica datos (antes de las rutas)
-app.use('/api', auditoria.middleware());
-
 // ==================== USAR RUTAS ====================
 // admin = token valido + rol Administrador. adminParaEscritura = lectura publica (catalogo de la tienda),
 // pero crear/editar/borrar solo administradores.
@@ -213,7 +210,6 @@ app.get('/api/cotizaciones/:cotizacionID/pdf', admin, cotizacionPdfController.de
 app.use('/api/ventas', ventasRoutes);
 app.use('/api/detalleventas', admin, detalleventasRoutes);
 app.use('/api/estados', adminParaEscritura, estadosRoutes);
-app.use('/api/auditoria', admin, require('./routes/auditoria'));
 
 // Buzón de pruebas (solo con MAIL_MODO=archivo y fuera de producción): lista los últimos correos "enviados"
 if (require('./services/correo').modo() === 'archivo') {
@@ -233,6 +229,11 @@ app.use((req, res) => {
 
 // Error interno del servidor (500)
 app.use((err, req, res, next) => {
+    const estado = err.status || err.statusCode;
+    if (estado >= 400 && estado < 500) {
+        const mensaje = estado === 413 ? 'El contenido enviado es demasiado grande' : 'La solicitud no es válida';
+        return res.status(estado).json({ message: mensaje, mensaje });
+    }
     console.error('Error:', err.stack);
     res.status(500).json({
         message: 'Error interno del servidor',

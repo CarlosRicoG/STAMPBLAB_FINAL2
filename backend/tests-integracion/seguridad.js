@@ -61,7 +61,7 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
     si('intento de subirse a admin NO funciona (rol sigue ' + rolDespues + ')', rolDespues === 2);
     exp('PUT perfil ajeno bloqueado', await call('PUT', '/usuarios/' + ADM, { Nombre: 'hack' }, cli), 403);
 
-    const v = await call('POST', '/ventas', { DocumentoID: String(ADM), Subtotal: 1, Total: 1, EstadoID: 9, detalles: [{ ProductoID: 1, ColorID: 1, TallaID: 1, Cantidad: 1, PrecioUnitario: 1 }] }, cli);
+    const v = await call('POST', '/ventas', { DocumentoID: String(ADM), Subtotal: 99999, Total: 99999, EstadoID: 9, detalles: [{ ProductoID: 1, ColorID: 1, TallaID: 1, Cantidad: 1, PrecioUnitario: 99999 }] }, cli);
     exp('POST /ventas como cliente', v, 201);
     const vid = v.j?.venta?.VentaID;
     const chk = await call('GET', '/ventas/' + vid, null, adm);

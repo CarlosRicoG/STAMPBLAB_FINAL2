@@ -55,22 +55,22 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 | Que | Como | Cuantas |
 |---|---|---|
 | Backend (unitarias, sin BD) | `cd backend && npm test` | 165 |
-| Backend (integracion: seguridad, validaciones, stock, cancelar, recuperacion, sesiones, auditoria, correos, comprobante, **concurrencia**) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba; con `MAIL_MODO=archivo` prueba los correos) | 9 conjuntos |
+| Backend (integracion: seguridad, validaciones, stock, cancelar, recuperacion, sesiones, correos, comprobante, **abuso** (entradas hostiles), **concurrencia**) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba; con `MAIL_MODO=archivo` prueba los correos) | 9 conjuntos |
 | Frontend (token automatico, roles, estados, efectos) | `cd frontend && npm test` | 22 |
 | E2E modulos (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
 | E2E **recorrido completo** cliente -> administrador (registro, cotiza con diseno, precio, aprueba, convierte, compra con comprobante, estados, cancela) | `cd e2e && node journey.js` | 50 |
 | E2E **movil (390px) + accesibilidad** (sin scroll lateral, alt, nombres de botones, etiquetas, h1, idioma) | `cd e2e && node responsive-a11y.js` | 20 |
 | E2E **exportar PDF** del panel de indicadores | `cd e2e && node pdf-export.js` | 2 |
+| E2E **interfaz hostil** (formularios vacíos/basura, XSS, doble clic, cantidades absurdas, sesión borrada, rutas ajenas, botón atrás) | `cd e2e && node abuso-ui.js` | 35 |
 | E2E **estados vacios** (todas las pantallas sin datos; requiere una instancia con BD vacia) | `cd e2e && BASE_URL=... API_URL=... node vacios.js` | 30 |
 
 Variables utiles al probar: `API_URL`, `BASE_URL`, y `JWT_SECRET` (la prueba de recuperacion firma el enlace con el secreto real del servidor; en Docker usa el de tu .env).
 
 Para dejar la BD en el estado que esperan las pruebas: `cd backend && npm run db:reset && node scripts/seed-demo-flujo.js`.
 
-## Sesiones, auditoría, correos y comprobante
+## Sesiones, correos y comprobante
 
 - **Sesiones:** cada token tiene un id; `POST /api/logout` lo invalida y cambiar/recuperar la contraseña cierra todas las sesiones del usuario. El token se renueva solo mientras se usa (cabecera `X-Token-Renovado`). Duración: `SESION_DURACION` (por defecto 2h).
-- **Historial (auditoría):** toda escritura queda registrada (quién, qué, cuándo; sin contraseñas). Panel: *Historial* en el menú de administración (`GET /api/auditoria`).
 - **Correos al cliente:** pedido recibido, cambios de estado y cotizaciones. `MAIL_USER`/`MAIL_PASS` envían de verdad; `MAIL_MODO=archivo` los guarda en memoria (solo desarrollo); sin configuración solo se registran en consola y nada falla.
 - **Comprobante PDF:** `GET /api/ventas/:id/factura` (cliente dueño o administrador); botón *Descargar comprobante* en Mis compras y en el detalle del pedido. No es factura electrónica DIAN.
 - **Pedidos entregados:** el administrador no puede eliminar pedidos pagados, en producción o entregados (son historial); solo cancelarlos.
