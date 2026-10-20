@@ -16,6 +16,18 @@ const EXTENSIONES = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg
 const MAX_BYTES = 5 * 1024 * 1024;
 const CARPETAS = ['productos', 'tecnicas'];
 
+/** El contenido real del archivo debe coincidir con el tipo declarado (no basta con la extensión o el tipo MIME). */
+function esImagenReal(buffer, tipo) {
+    if (!buffer || buffer.length < 12) return false;
+    const t = tipo.toLowerCase();
+    if (t === 'image/png') return buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+    if (t === 'image/jpeg' || t === 'image/jpg') return buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    if (t === 'image/gif') return buffer.subarray(0, 4).toString('latin1') === 'GIF8';
+    if (t === 'image/webp') return buffer.subarray(0, 4).toString('latin1') === 'RIFF' && buffer.subarray(8, 12).toString('latin1') === 'WEBP';
+    return false;
+}
+const errorImagen = (mensaje) => { const err = new Error(mensaje); err.status = 400; return err; };
+
 const urlBase = () =>
     (process.env.PUBLIC_URL || `http://localhost:${process.env.PORT || 3000}`).replace(/\/$/, '');
 
@@ -35,16 +47,14 @@ function normalizar(valor, carpeta) {
     if (typeof valor !== 'string' || !valor) return valor;
     const v = valor.trim();
 
+    if (/^data:/i.test(v) && !/^data:image\//i.test(v)) throw errorImagen('El archivo debe ser una imagen (PNG, JPG, WEBP o GIF)');
     const m = /^data:(image\/[a-z0-9.+-]+);base64,(.+)$/is.exec(v);
     if (m) {
         const ext = EXTENSIONES[m[1].toLowerCase()];
         if (!ext) return v; // svg u otro: se conserva como estaba
         const buffer = Buffer.from(m[2], 'base64');
-        if (buffer.length > MAX_BYTES) {
-            const err = new Error('La imagen supera el máximo permitido de 5 MB');
-            err.status = 400;
-            throw err;
-        }
+        if (buffer.length > MAX_BYTES) throw errorImagen('La imagen supera el máximo permitido de 5 MB');
+        if (!esImagenReal(buffer, m[1])) throw errorImagen('El archivo no es una imagen válida (su contenido no coincide con el formato)');
         fs.mkdirSync(path.join(RAIZ, carpeta), { recursive: true });
         const nombre = `${crypto.randomBytes(12).toString('hex')}.${ext}`;
         fs.writeFileSync(path.join(RAIZ, carpeta, nombre), buffer);

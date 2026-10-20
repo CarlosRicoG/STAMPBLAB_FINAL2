@@ -3,6 +3,7 @@ import NavbarComponent from "./NavBarLanding";
 import FooterComponent from "./footer";
 import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
+import { errorContrasena } from "../../utils/validarContrasena";
 import { getUsuarioById, updateUsuario } from "../../Services/api-usuarios/usuarios";
 import fondoPerfil from "../../assets/images/estampadoslies.webp";
 import { FaUserEdit, FaLock, FaIdCard, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaUser, FaCheckCircle, FaExclamationCircle, FaSave } from "react-icons/fa";
@@ -66,7 +67,7 @@ const EditarPerfil = () => {
     const validarCorreo = (v) => { const c = String(v || "").trim(); if (!c) return "El correo es obligatorio."; if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c)) return "Correo inválido."; return ""; };
     const validarTelefono = (v) => { const t = String(v || "").trim(); if (!t) return "El teléfono es obligatorio."; if (!/^\d+$/.test(t)) return "Solo números."; if (t.length < 7 || t.length > 10) return "Entre 7 y 10 dígitos."; return ""; };
     const validarDireccion = (v) => { const d = String(v || "").trim(); if (!d) return "La dirección es obligatoria."; return ""; };
-    const validarContraseña = (v) => { if (!v) return ""; if (v.length < 4) return "Mínimo 4 caracteres."; return ""; };
+    const validarContraseña = (v) => { if (!v) return ""; return errorContrasena(v); };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -160,7 +161,7 @@ const EditarPerfil = () => {
 
                                 <div className="mc-fsec" style={{ marginBottom: 24 }}>
                                     <p className="mc-fsec-h"><span><FaLock /></span> Seguridad</p>
-                                    <InputField label="Nueva Contraseña" type="password" name="Contraseña" value={formData.Contraseña} onChange={handleChange} disabled={saving} error={errors.Contraseña} placeholder="Dejar vacío para mantener la actual" hint="Opcional · Mínimo 4 caracteres" />
+                                    <InputField label="Nueva Contraseña" type="password" name="Contraseña" value={formData.Contraseña} onChange={handleChange} disabled={saving} error={errors.Contraseña} placeholder="Dejar vacío para mantener la actual" hint="Opcional · 8 a 100 caracteres, con letras y números" />
                                 </div>
 
                                 <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>

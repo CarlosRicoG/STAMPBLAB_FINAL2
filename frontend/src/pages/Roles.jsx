@@ -3,6 +3,7 @@ import RolesForm from "./formularios_dash/RolesForm";
 import { FaPlusCircle, FaEdit, FaTrash, FaSyncAlt, FaUserShield, FaLock, FaExclamationTriangle } from "react-icons/fa";
 import { getRoles, createRol, updateRol, deleteRol } from "../Services/api-roles/roles";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../utils/escapeHtml";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -293,7 +294,7 @@ const Roles = () => {
     try {
       const result = await Swal.fire({
         title: "¿Eliminar rol?",
-        html: `¿Estás seguro de eliminar el rol <strong>"${nombreRol}"</strong>?<br><small>Esta acción no se puede revertir</small>`,
+        html: `¿Estás seguro de eliminar el rol <strong>"${escapeHtml(nombreRol)}"</strong>?<br><small>Esta acción no se puede revertir</small>`,
         icon: "warning", showCancelButton: true,
         confirmButtonColor: C.danger, cancelButtonColor: C.navy,
         confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar",
@@ -324,7 +325,7 @@ const Roles = () => {
     try {
       const result = await Swal.fire({
         title: "¿Cambiar estado?",
-        html: `¿Seguro que deseas cambiar el estado del rol <strong>"${rol.Nombre}"</strong> a <strong>${estadoTexto}</strong>?`,
+        html: `¿Seguro que deseas cambiar el estado del rol <strong>"${escapeHtml(rol.Nombre)}"</strong> a <strong>${escapeHtml(estadoTexto)}</strong>?`,
         icon: "question", showCancelButton: true,
         confirmButtonColor: C.navy, cancelButtonColor: C.danger,
         confirmButtonText: "Sí, cambiar", cancelButtonText: "Cancelar",
@@ -458,9 +459,15 @@ const Roles = () => {
                           <button className="cf-p-ibtn cf-p-i-edit" onClick={() => handleEdit(r)} title="Editar rol" aria-label={`Editar rol ${r.Nombre}`}>
                             <FaEdit size={12} />
                           </button>
-                          <button className="cf-p-ibtn cf-p-i-del" onClick={() => handleEliminar(r.RolID)} title="Eliminar rol" aria-label={`Eliminar rol ${r.Nombre}`}>
-                            <FaTrash size={12} />
-                          </button>
+                          {esProtegido(r.Nombre) ? (
+                            <button className="cf-p-ibtn cf-p-i-del" disabled title="Los roles del sistema (Administrador y Cliente) no se pueden eliminar" aria-label={`El rol ${r.Nombre} es del sistema y no se puede eliminar`}>
+                              <FaLock size={12} />
+                            </button>
+                          ) : (
+                            <button className="cf-p-ibtn cf-p-i-del" onClick={() => handleEliminar(r.RolID)} title="Eliminar rol" aria-label={`Eliminar rol ${r.Nombre}`}>
+                              <FaTrash size={12} />
+                            </button>
+                          )}
                           <button className="cf-p-ibtn cf-p-i-state" onClick={() => handleCambiarEstado(r)} title="Cambiar estado" aria-label={`Cambiar estado del rol ${r.Nombre}`}>
                             <FaSyncAlt size={12} />
                           </button>

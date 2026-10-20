@@ -233,8 +233,9 @@ const TallasForm = ({ onClose, onSave, tallaEdit, tallasExistentes = [] }) => {
         const trimmed = valor.trim();
         if (!trimmed) return "El nombre no puede estar vacío.";
         if (trimmed.length < 1) return "El nombre debe tener al menos 1 carácter.";
-        if (trimmed.length > 4) return "El nombre no puede tener más de 4 caracteres.";
-        if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(trimmed)) return "Solo se permiten letras y espacios.";
+        if (trimmed.length > 10) return "El nombre no puede tener más de 10 caracteres.";
+        if (/[<>]/.test(trimmed)) return "El nombre no puede contener los caracteres < ni >.";
+        if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s]+$/.test(trimmed)) return "Solo se permiten letras, números y espacios.";
         const isDuplicate = tallasExistentes.some(
             t => t.Nombre.toLowerCase().trim() === trimmed.toLowerCase() && t.TallaID !== tallaEdit?.TallaID
         );
@@ -357,8 +358,8 @@ const TallasForm = ({ onClose, onSave, tallaEdit, tallasExistentes = [] }) => {
                                     value={formData.Nombre}
                                     onChange={handleChange}
                                     onBlur={handleBlur}
-                                    placeholder="Ej: S, M, L, XL, XXL"
-                                    maxLength={4}
+                                    placeholder="Ej: S, M, XL, 10, 38"
+                                    maxLength={10}
                                     className={`cf-p-input${estado("Nombre")}`}
                                     aria-invalid={!!(touched.Nombre && errors.Nombre)}
                                     aria-describedby={touched.Nombre && errors.Nombre ? "cf-p-talla-nombre-err" : undefined}

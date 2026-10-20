@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../../utils/escapeHtml";
 import { FaArrowLeft, FaCheck, FaPlus, FaTrash, FaImage, FaEdit, FaBoxOpen } from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { createProducto, getProductoById, updateProducto } from "../../Services/api-productos/productos";
@@ -215,11 +216,11 @@ const AgregarProducto = () => {
         const v = variantes[idx];
         Swal.fire({
             title: "Editar Variante",
-            html: `<p style="font-weight:700;color:#1a2540;margin-bottom:16px">${v.nombreColor} — ${v.nombreTalla}</p>
+            html: `<p style="font-weight:700;color:#1a2540;margin-bottom:16px">${escapeHtml(v.nombreColor)} — ${escapeHtml(v.nombreTalla)}</p>
         <label style="font-size:12px;font-weight:700;color:#374151">Tela</label>
         <select id="tela" class="form-select mb-3">
           <option value="">Sin tela</option>
-          ${telas.map(t => `<option value="${t.InsumoID}" ${v.TelaID === t.InsumoID ? "selected" : ""}>${t.Nombre} ($${parseFloat(t.PrecioTela || 0).toLocaleString()})</option>`).join("")}
+          ${telas.map(t => `<option value="${t.InsumoID}" ${v.TelaID === t.InsumoID ? "selected" : ""}>${escapeHtml(t.Nombre)} ($${parseFloat(t.PrecioTela || 0).toLocaleString()})</option>`).join("")}
         </select>
         <label style="font-size:12px;font-weight:700;color:#374151">Stock</label>
         <input type="number" id="stock" class="form-control mb-3" value="${v.Stock}" min="0">
@@ -259,9 +260,9 @@ const AgregarProducto = () => {
     };
 
     const handleGuardarVariantes = async () => {
-        if (variantes.length === 0 && !modoEdicion) {
-            const r = await Swal.fire({ title: "Sin variantes", text: "¿Guardar sin variantes?", icon: "question", showCancelButton: true, confirmButtonText: "Sí", cancelButtonText: "Cancelar" });
-            if (!r.isConfirmed) return;
+        if (variantes.length === 0) {
+            Swal.fire({ icon: "warning", title: "Falta agregar una variante", text: "Un producto debe tener al menos una variante (color, talla y tela opcional). Agrega una variante antes de finalizar.", confirmButtonColor: C.navy });
+            return;
         }
         setCargando(true);
         try {
@@ -357,7 +358,7 @@ const AgregarProducto = () => {
                 {paso === 1 && (
                     <div style={{ maxWidth: 680, margin: "0 auto", background: "#fff", borderRadius: 18, padding: "32px 36px", boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", animation: "fadeIn 0.3s ease" }}>
                         <SectionTitle>Información del Producto</SectionTitle>
-                        <form onSubmit={handleGuardarProducto}>
+                        <form onSubmit={handleGuardarProducto} noValidate>
 
                             {/* Nombre */}
                             <div style={{ marginBottom: 20 }}>
@@ -444,7 +445,7 @@ const AgregarProducto = () => {
                             </div>
 
                             {editandoProd ? (
-                                <form onSubmit={handleGuardarProducto}>
+                                <form onSubmit={handleGuardarProducto} noValidate>
                                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
                                         <div>
                                             <Label required>Nombre</Label>

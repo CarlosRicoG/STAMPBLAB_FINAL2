@@ -254,7 +254,6 @@ const DashboardMedicionDesempeño = () => {
                     </span>
                     {[
                         { value: filtros.mes,        onChange: v => handleFiltro("mes", v),        placeholder: "Todos los meses",    options: MESES.map(m => ({ value: m.valor, label: m.nombre })) },
-                        { value: filtros.tecnicaId,  onChange: v => handleFiltro("tecnicaId", v),  placeholder: "Todas las técnicas", options: tecnicas.map(t => ({ value: t.TecnicaID, label: t.Nombre })) },
                         { value: filtros.productoId, onChange: v => handleFiltro("productoId", v), placeholder: "Todos los productos", options: productos.map(p => ({ value: p.ProductoID, label: p.Nombre })) },
                     ].map((sel, i) => (
                         <select key={i} className="fsel" value={sel.value} onChange={e => sel.onChange(e.target.value)}

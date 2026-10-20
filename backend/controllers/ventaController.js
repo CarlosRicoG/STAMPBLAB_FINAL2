@@ -15,7 +15,7 @@ const {
 } = require('../models');
 
 const notificaciones = require('../services/notificaciones');
-const { ESTADO_VENTA } = require('../config/estados');
+const { ESTADO_VENTA, TRANSICIONES_VENTA } = require('../config/estados');
 const inventario = require('../services/inventario');
 const log = require('../utils/log');
 const { Op } = require('sequelize');
@@ -190,8 +190,12 @@ exports.crearVenta = async (req, res) => {
         });
     }
 
-    if (!(await Usuario.findByPk(DocumentoID, { attributes: ['DocumentoID'] }))) {
+    const cliente = await Usuario.findByPk(DocumentoID, { attributes: ['DocumentoID', 'RolID'] });
+    if (!cliente) {
         return res.status(400).json({ error: "El cliente de la venta no existe", message: "El cliente de la venta no existe" });
+    }
+    if (Number(cliente.RolID) === 1) {
+        return res.status(400).json({ error: "No se puede asignar un pedido al administrador; elige un cliente", message: "No se puede asignar un pedido al administrador; elige un cliente" });
     }
 
     const t = await sequelize.transaction();
@@ -263,6 +267,15 @@ exports.updateEstadoVenta = async (req, res) => {
             await t.rollback();
             return res.status(400).json({ message: 'La venta está cancelada y no puede cambiar de estado' });
         }
+        // Solo se avanza por el camino normal (Pendiente → Pagada → En Producción → Lista → Entregada) o se cancela
+        if (!(TRANSICIONES_VENTA[estadoAnterior] || []).includes(estadoNuevo)) {
+            await t.rollback();
+            const estadoActual = await Estado.findByPk(estadoAnterior);
+            const message = estadoAnterior === ESTADO_VENTA.ENTREGADA
+                ? 'El pedido ya fue entregado y no puede cambiar de estado.'
+                : `No se puede pasar el pedido de "${estadoActual?.Nombre || estadoAnterior}" a "${estadoDestino.Nombre}". Sigue el orden: Pendiente, Pagada, En Producción, Lista para Entrega y Entregada.`;
+            return res.status(400).json({ message, mensaje: message });
+        }
 
         log(`Cambio de estado de venta #${ventaId}: ${estadoAnterior} -> ${estadoNuevo}`);
 
@@ -297,6 +310,18 @@ exports.updateVenta = async (req, res) => {
         if (venta.EstadoID === ESTADO_VENTA.CANCELADA) {
             await t.rollback();
             return res.status(400).json({ message: 'No se puede editar una venta cancelada' });
+        }
+        // Productos y precios solo se editan mientras el pedido está pendiente; después es historial
+        if (detalles && detalles.length > 0 && venta.EstadoID !== ESTADO_VENTA.PENDIENTE) {
+            await t.rollback();
+            const message = 'Solo se pueden editar los productos de un pedido mientras está pendiente.';
+            return res.status(400).json({ message, mensaje: message });
+        }
+        // Con detalles el estado no se cambia por aquí (para eso está el cambio de estado, que valida el orden)
+        if (EstadoID && Number(EstadoID) !== venta.EstadoID) {
+            await t.rollback();
+            const message = 'Para cambiar el estado usa la opción "Cambiar estado" del pedido.';
+            return res.status(400).json({ message, mensaje: message });
         }
 
         if (detalles && detalles.length > 0) {

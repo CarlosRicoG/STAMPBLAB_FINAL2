@@ -1,4 +1,5 @@
 const { Insumo, Producto, DetalleCompra, InventarioProducto } = require('../models');
+const { existeNombreEquivalente } = require('../utils/nombres');
 
 // =========================================================
 // Obtener todos los insumos (Nodos: 1 al 4)
@@ -59,6 +60,10 @@ exports.createInsumo = async (req, res) => {
       }
     }
 
+    if (await existeNombreEquivalente(Insumo, 'InsumoID', Nombre, null)) {
+      return res.status(400).json({ message: 'Ya existe un insumo con ese nombre (se ignoran mayúsculas y tildes).' });
+    }
+
     // Si es tela, PrecioTela es obligatorio y debe ser número >= 0
     if (String(Tipo).toLowerCase() === 'tela') {                                        // 7
       if (PrecioTela === undefined || PrecioTela === null || PrecioTela === '') {       // 8
@@ -114,6 +119,10 @@ exports.updateInsumo = async (req, res) => {
       if (!Number.isInteger(st) || st < 0) {
         return res.status(400).json({ message: 'El Stock debe ser un número entero mayor o igual a 0.' });
       }
+    }
+
+    if (Nombre && await existeNombreEquivalente(Insumo, 'InsumoID', Nombre, insumo.InsumoID)) {
+      return res.status(400).json({ message: 'Ya existe un insumo con ese nombre (se ignoran mayúsculas y tildes).' });
     }
 
     // Si el tipo se cambia a 'Tela', entonces precio debe ser válido

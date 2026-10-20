@@ -345,7 +345,7 @@ const RolesForm = ({ onClose, onSave, rolEdit = null, rolesExistentes = [] }) =>
             </div>
           )}
 
-          <form className="cf-p-fcard" onSubmit={handleSubmit}>
+          <form className="cf-p-fcard" onSubmit={handleSubmit} noValidate>
             <div className="cf-p-fhead">
               <div className="cf-p-fhead-ic" aria-hidden="true"><FaUserShield /></div>
               <div>

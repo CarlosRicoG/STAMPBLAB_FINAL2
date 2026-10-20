@@ -102,7 +102,7 @@ async function login(pg, c, p) {
         ok('agregar un diseño sin técnica ni parte se rechaza con mensaje', /obligatori|selecciona|requerid|debes|elige/i.test(await texto(pg) + await swalText(pg)), (await texto(pg)).slice(0, 100));
         await cierraSwal(pg);
         await pick(3, 1); await pick(4, 1);
-        await pg.evaluate(() => { const ta = document.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, '<b onmouseover=window.__xss=2>negrita</b> \'; DROP TABLE x;-- ' + 'ñ'.repeat(150)); ta.dispatchEvent(new Event('input', { bubbles: true })); });
+        await pg.evaluate(() => { const ta = document.querySelector('textarea'); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(ta, 'Logo "grande" 5 < 6 \'; DROP TABLE x;-- ' + 'ñ'.repeat(150)); ta.dispatchEvent(new Event('input', { bubbles: true })); });
         await (await pg.$('input[type=file]')).uploadFile(path.join(__dirname, 'diseno-prueba.png')); await sleep(700);
         await click(pg, /Agregar diseño/); await sleep(1000);
         await pg.evaluate(() => { const c = [...document.querySelectorAll('input[aria-label=Cantidad]')].find((e) => e.offsetParent); if (c) { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(c, '-5'); c.dispatchEvent(new Event('input', { bubbles: true })); c.dispatchEvent(new Event('change', { bubbles: true })); } });

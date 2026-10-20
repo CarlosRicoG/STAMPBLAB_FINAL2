@@ -5,6 +5,7 @@ import {
     FaBoxOpen, FaTshirt, FaUser, FaChevronDown
 } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../../utils/escapeHtml";
 import {
     createCotizacionCompleta, getColores, getTallas, getTelas, getTecnicas, getPartes
 } from "../../Services/api-cotizacion-landing/cotizacion-landing";
@@ -350,7 +351,8 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
             const [uR, pR, cR, tR, teR, tecR, parR] = await Promise.all([
                 getUsuarios(), getProductos(), getColores(), getTallas(), getTelas(), getTecnicas(), getPartes()
             ]);
-            setUsuarios(uR?.datos || uR || []);
+            // Solo clientes (RolID 2): el administrador no se puede asignar a una cotización
+            setUsuarios((uR?.datos || uR || []).filter(u => Number(u.RolID ?? u.rol?.RolID) === 2));
             setProductos(pR?.datos || pR || []);
             setColores(cR?.datos || cR || []);
             setTallas(tR?.datos || tR || []);
@@ -485,7 +487,10 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
         return validacionStock.valido && colorID && tallaID && telaID && cantidad > 0;
     };
 
+    const errCantidad = cantidad === "" || cantidad === null ? "" : (!Number.isInteger(Number(cantidad)) ? "La cantidad debe ser un número entero" : (Number(cantidad) < 1 ? "La cantidad debe ser mayor o igual a 1" : ""));
+
     const handleAgregarProductoAlCarrito = () => {
+        if (cantidad === "" || cantidad === null || errCantidad) { Swal.fire("Cantidad inválida", errCantidad || "Ingresa la cantidad", "warning"); return; }
         let productoParaCarrito;
         if (modoPersonalizado) {
             if (!productoPersonalizado.nombre.trim()) { Swal.fire("Atención", "Ingresa el nombre del producto", "warning"); return; }
@@ -587,7 +592,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
         const clienteNombre = usuarios.find(u => u.DocumentoID === parseInt(documentoID))?.Nombre;
         const confirmacion = await swalEncima({
             title: "¿Crear cotización?",
-            html: `<p><strong>Cliente:</strong> ${clienteNombre}</p><p><strong>Productos:</strong> ${carritoProductos.length}</p><p><strong>Total:</strong> $${calcularTotalCarrito().toLocaleString()}</p>`,
+            html: `<p><strong>Cliente:</strong> ${escapeHtml(clienteNombre)}</p><p><strong>Productos:</strong> ${carritoProductos.length}</p><p><strong>Total:</strong> $${calcularTotalCarrito().toLocaleString()}</p>`,
             icon: "question", showCancelButton: true,
             confirmButtonColor: C.success, cancelButtonColor: C.muted,
             confirmButtonText: "Sí, crear", cancelButtonText: "Revisar",
@@ -772,7 +777,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                 </div>
                                                 <div>
                                                     <Label required>Cantidad</Label>
-                                                    <Input type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} />
+                                                    <><Input type="number" min="1" step="1" value={cantidad} onChange={e => setCantidad(e.target.value)} />{errCantidad && <p style={{ margin: "6px 0 0", fontSize: 12, color: C.danger, fontWeight: 600 }}>{errCantidad}</p>}</>
                                                 </div>
                                                 <div style={{ gridColumn: "span 3" }}>
                                                     <Label>Descripción (Opcional)</Label>
@@ -863,7 +868,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                                 </div>
                                                                 <div>
                                                                     <Label required>Cant.</Label>
-                                                                    <Input type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} />
+                                                                    <><Input type="number" min="1" step="1" value={cantidad} onChange={e => setCantidad(e.target.value)} />{errCantidad && <p style={{ margin: "6px 0 0", fontSize: 12, color: C.danger, fontWeight: 600 }}>{errCantidad}</p>}</>
                                                                 </div>
                                                             </div>
                                                             {productoSeleccionado && !traePrenda && validacionStock.mensaje && (
@@ -878,7 +883,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                     {traePrenda && (
                                                         <div style={{ marginBottom: 14 }}>
                                                             <Label required>Cantidad</Label>
-                                                            <Input type="number" min="1" value={cantidad} onChange={e => setCantidad(e.target.value)} />
+                                                            <><Input type="number" min="1" step="1" value={cantidad} onChange={e => setCantidad(e.target.value)} />{errCantidad && <p style={{ margin: "6px 0 0", fontSize: 12, color: C.danger, fontWeight: 600 }}>{errCantidad}</p>}</>
                                                         </div>
                                                     )}
                                                 </>

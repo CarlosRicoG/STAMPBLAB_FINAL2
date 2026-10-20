@@ -4,6 +4,7 @@ const router = express.Router();
 const cotizacionController = require('../controllers/cotizacionController');
 const { verificarToken, admin, esAdmin, propioOAdmin } = require('../middleware/authMiddleware');
 const { Cotizacion, Tecnica, Parte } = require('../models');
+const { ESTADO_COTIZACION } = require('../config/estados');
 
 // Un cliente solo ve sus cotizaciones; el administrador ve todo.
 const cotizacionPropiaOAdmin = async (req, res, next) => {
@@ -89,6 +90,19 @@ router.delete('/:id', admin, cotizacionController.deleteCotizacion);
 router.post('/inteligente', verificarToken, cotizacionDelCliente, validar(esquemas.cotizacion), cotizacionController.createCotizacionInteligente);
 router.post('/completa', admin, validar(esquemas.cotizacion), cotizacionController.createCotizacionCompleta);
 router.post('/:cotizacionID/convertir-a-venta', admin, cotizacionController.convertirCotizacionAVenta);
-router.put('/:cotizacionID/cancelar', admin, cotizacionController.cancelarCotizacion);
+// El administrador cancela cualquiera; el cliente solo la suya y mientras siga Pendiente
+const cancelarPropiaOAdmin = async (req, res, next) => {
+    try {
+        if (esAdmin(req)) return next();
+        const cot = await Cotizacion.findByPk(req.params.cotizacionID, { attributes: ['CotizacionID', 'DocumentoID', 'EstadoID'] });
+        if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
+        if (String(cot.DocumentoID) !== String(req.usuario.id)) return res.status(403).json({ mensaje: 'No tienes permiso para modificar esta cotización' });
+        if (cot.EstadoID !== ESTADO_COTIZACION.PENDIENTE) {
+            return res.status(400).json({ message: 'Solo puedes cancelar cotizaciones que aún estén pendientes. Contáctanos si ya está en proceso.' });
+        }
+        next();
+    } catch (e) { next(e); }
+};
+router.put('/:cotizacionID/cancelar', verificarToken, cancelarPropiaOAdmin, cotizacionController.cancelarCotizacion);
 
 module.exports = router;

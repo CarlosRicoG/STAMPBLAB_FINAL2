@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { errorContrasena } from "../../utils/validarContrasena";
 import { createUsuario, updateUsuario } from "../../Services/api-usuarios/usuarios";
 
 /* ── Tokens de color (mismos que AgregarProducto) ── */
@@ -89,8 +90,7 @@ const ClientesForm = ({ onClose, onSave, cliente = null }) => {
         if (esEdicion && !contraseña) return "";
         const pass = String(contraseña || "");
         if (!pass) return "La contraseña es obligatoria";
-        if (pass.length < 4) return "Mínimo 4 caracteres";
-        if (pass.length > 50) return "Máximo 50 caracteres";
+        return errorContrasena(pass);
         return "";
     };
 
@@ -184,7 +184,7 @@ const ClientesForm = ({ onClose, onSave, cliente = null }) => {
                     </button>
                 </div>
 
-                <form className="row g-3" onSubmit={handleSubmit}>
+                <form className="row g-3" onSubmit={handleSubmit} noValidate>
                     <div className="col-md-6">
                         <label className="form-label fw-bold" style={{ color: C.navy }}>Documento</label>
                         <input

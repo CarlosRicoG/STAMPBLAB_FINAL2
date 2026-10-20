@@ -22,6 +22,19 @@ const ESTADO_VENTA = Object.freeze({
     LISTA_ENTREGA: 13,
 });
 
+/**
+ * Máquina de estados de un pedido: solo se avanza por el camino normal (o se cancela antes de entregar).
+ * Entregada y Cancelada son finales.
+ */
+const TRANSICIONES_VENTA = Object.freeze({
+    [ESTADO_VENTA.PENDIENTE]: [ESTADO_VENTA.PAGADA, ESTADO_VENTA.CANCELADA],
+    [ESTADO_VENTA.PAGADA]: [ESTADO_VENTA.EN_PRODUCCION, ESTADO_VENTA.CANCELADA],
+    [ESTADO_VENTA.EN_PRODUCCION]: [ESTADO_VENTA.LISTA_ENTREGA, ESTADO_VENTA.ENTREGADA, ESTADO_VENTA.CANCELADA],
+    [ESTADO_VENTA.LISTA_ENTREGA]: [ESTADO_VENTA.ENTREGADA, ESTADO_VENTA.CANCELADA],
+    [ESTADO_VENTA.ENTREGADA]: [],
+    [ESTADO_VENTA.CANCELADA]: [],
+});
+
 /** Datos que carga seed-base.js */
 const ESTADOS_SEED = [
     { EstadoID: ESTADO_COTIZACION.PENDIENTE, Nombre: 'Pendiente', Tipo: 'cotizacion', Descripcion: 'Cotizacion recibida, esperando revision' },
@@ -39,4 +52,4 @@ const ESTADOS_SEED = [
     { EstadoID: ESTADO_VENTA.LISTA_ENTREGA, Nombre: 'Lista para Entrega', Tipo: 'venta', Descripcion: 'Pedido listo para entregar' },
 ];
 
-module.exports = { ESTADO_COTIZACION, ESTADO_VENTA, ESTADOS_SEED };
+module.exports = { ESTADO_COTIZACION, ESTADO_VENTA, TRANSICIONES_VENTA, ESTADOS_SEED };

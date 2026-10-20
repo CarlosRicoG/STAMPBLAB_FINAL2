@@ -6,6 +6,7 @@ import NavbarComponent from "../landing/NavBarLanding";
 import FooterComponent from "../landing/footer";
 import Swal from "sweetalert2";
 import { FaUser, FaIdCard, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaLock, FaKey } from "react-icons/fa";
+import { errorContrasena } from "../../utils/validarContrasena";
 import { AuthShell, AuthTabs, AuthField, AuthButton, StrengthMeter } from "./Login";
 
 
@@ -66,9 +67,7 @@ const RegistroLanding = () => {
     };
     const validarContraseña = (v) => {
         if (!v) return "La contraseña es requerida.";
-        if (v.length < 4) return "La contraseña debe tener al menos 4 caracteres.";
-        if (v.length > 20) return "La contraseña no debe exceder 20 caracteres.";
-        return "";
+        return errorContrasena(v);
     };
     const validarConfirmar = (v) => {
         if (!v) return "Debes confirmar tu contraseña.";
@@ -128,7 +127,7 @@ const RegistroLanding = () => {
                     <p className="au-sub">Completa todos los campos para crear tu cuenta</p>
                 </div>
 
-                <form onSubmit={handleRegistro}>
+                <form onSubmit={handleRegistro} noValidate>
                     {/* Fila 1: Nombre + Documento */}
                     <div className="au-grid2">
                         <AuthField id="reg-nombre" label="Nombre" icon={<FaUser />} placeholder="Ingresa tu nombre" value={nombre} autoComplete="name"

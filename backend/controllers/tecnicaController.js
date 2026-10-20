@@ -1,4 +1,5 @@
 const { aUrlPublica, normalizar, borrarSiEsLocal } = require('../utils/imagenes');
+const { existeNombreEquivalente } = require('../utils/nombres');
 const log = require('../utils/log');
 const { Tecnica } = require('../models');
 
@@ -58,6 +59,10 @@ exports.createTecnica = async (req, res) => {
             });
         }
 
+        if (await existeNombreEquivalente(Tecnica, 'TecnicaID', Nombre, null)) {
+            return res.status(400).json({ estado: false, mensaje: "Ya existe una técnica con ese nombre (se ignoran mayúsculas y tildes)", message: "Ya existe una técnica con ese nombre (se ignoran mayúsculas y tildes)" });
+        }
+
         // Crear técnica
         const nuevaTecnica = await Tecnica.create({
             Nombre: Nombre.trim(),
@@ -115,7 +120,10 @@ exports.updateTecnica = async (req, res) => {
         
         if (Nombre !== undefined) {
             updateData.Nombre = Nombre.trim();
-        }
+            if (await existeNombreEquivalente(Tecnica, 'TecnicaID', updateData.Nombre, tecnica.TecnicaID)) {
+                return res.status(400).json({ estado: false, mensaje: "Ya existe una técnica con ese nombre (se ignoran mayúsculas y tildes)", message: "Ya existe una técnica con ese nombre (se ignoran mayúsculas y tildes)" });
+            }
+            }
         
         if (Descripcion !== undefined) {
             updateData.Descripcion = Descripcion.trim();

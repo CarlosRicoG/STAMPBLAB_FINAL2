@@ -230,6 +230,7 @@ const ColoresForm = ({ onClose, onSave, colorEdit, coloresExistentes = [] }) => 
         if (!trimmed) return "El nombre no puede estar vacío.";
         if (trimmed.length < 3) return "El nombre debe tener al menos 3 caracteres.";
         if (trimmed.length > 15) return "El nombre no puede tener más de 15 caracteres.";
+        if (/[<>]/.test(trimmed)) return "El nombre no puede contener los caracteres < ni >.";
         if (!/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/.test(trimmed)) return "Solo se permiten letras y espacios.";
         const isDuplicate = coloresExistentes.some(
             c => c.Nombre.toLowerCase().trim() === trimmed.toLowerCase() && c.ColorID !== colorEdit?.ColorID

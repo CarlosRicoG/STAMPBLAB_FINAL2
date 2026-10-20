@@ -3,6 +3,7 @@ import { FaPlusCircle, FaEye, FaEdit, FaTrash, FaSearch, FaChevronLeft, FaChevro
 import ClientesForm from "./formularios_dash/ClientesForm";
 import { getUsuarios, deleteUsuario } from "../Services/api-usuarios/usuarios";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../utils/escapeHtml";
 import { ventaEstaActiva } from "../config/estados";
 
 const C = {
@@ -256,7 +257,7 @@ const Clientes = () => {
 
             const result = await Swal.fire({
                 title: "¿Está seguro?",
-                html: `<p>Está a punto de eliminar el cliente con documento <strong>${documentoID}</strong>.</p><p style="color:${C.danger};font-weight:600">Esta acción no se puede deshacer.</p>`,
+                html: `<p>Está a punto de eliminar el cliente con documento <strong>${escapeHtml(documentoID)}</strong>.</p><p style="color:${C.danger};font-weight:600">Esta acción no se puede deshacer.</p>`,
                 icon: "warning", showCancelButton: true,
                 confirmButtonColor: C.danger, cancelButtonColor: C.navy,
                 confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar",

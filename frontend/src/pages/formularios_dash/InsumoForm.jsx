@@ -74,7 +74,7 @@ const InsumoForm = ({ onClose, onSave, insumoEdit = null }) => {
     const validateTipo = (v) => (!v || !v.trim() ? "El tipo es obligatorio." : "");
     const validatePrecioTela = (v, tipo) => {
         if (tipo.toLowerCase() !== "tela") return "";
-        if (v === "" || v === null) return "";
+        if (v === "" || v === null || v === undefined) return "El precio de tela es obligatorio.";
         const p = parseFloat(v);
         if (isNaN(p)) return "El precio debe ser un número válido.";
         if (p < 0) return "El precio no puede ser negativo.";

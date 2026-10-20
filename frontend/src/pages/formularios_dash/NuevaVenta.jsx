@@ -4,6 +4,7 @@ import { Search, X } from "lucide-react";
 import axios from "axios";
 import { crearVenta, updateVenta, getVentaById } from "../../Services/api-ventas/ventas";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../../utils/escapeHtml";
 import { ESTADO_VENTA } from "../../config/estados";
 
 /* ── Tokens de color (mismos que AgregarProducto) ── */
@@ -109,7 +110,9 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                 const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/usuarios`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
-                setUsuarios(Array.isArray(res.data) ? res.data : (res.data?.datos || []));
+                const lista = Array.isArray(res.data) ? res.data : (res.data?.datos || []);
+                // Solo clientes (RolID 2): el administrador no se puede asignar a un pedido
+                setUsuarios(lista.filter(u => Number(u.RolID ?? u.rol?.RolID) === 2));
             } catch (err) { console.error(err); }
         };
 
@@ -235,8 +238,9 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         const variante = obtenerVarianteActual();
         if (!variante) return Swal.fire({ icon: "error", title: "Variante no encontrada", confirmButtonColor: C.danger });
 
-        const cantidad = parseInt(cantidadSeleccionada) || 1;
-        if (cantidad <= 0) return Swal.fire({ icon: "warning", title: "Cantidad inválida", confirmButtonColor: C.navy });
+        const cantidad = Number(cantidadSeleccionada);
+        if (cantidadSeleccionada === "" || !Number.isInteger(cantidad)) return Swal.fire({ icon: "warning", title: "Cantidad inválida", text: "La cantidad debe ser un número entero", confirmButtonColor: C.navy });
+        if (cantidad <= 0) return Swal.fire({ icon: "warning", title: "Cantidad inválida", text: "La cantidad debe ser mayor o igual a 1", confirmButtonColor: C.navy });
 
         const stockDisponible = calcularStockDisponible(variante);
         if (!modoEdicion && cantidad > stockDisponible) {
@@ -300,8 +304,13 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
 
     const cambiarCantidad = (index, valor) => {
         const nuevos = [...productosAgregados];
-        const cantidad = parseInt(valor);
-        if (isNaN(cantidad) || cantidad <= 0) return;
+        const cantidad = Number(valor);
+        if (valor === "" || isNaN(cantidad)) return;
+        if (!Number.isInteger(cantidad)) {
+            Swal.fire({ icon: "warning", title: "Cantidad inválida", text: "La cantidad debe ser un número entero", confirmButtonColor: C.navy });
+            return;
+        }
+        if (cantidad <= 0) return;
 
         const item = nuevos[index];
         const variante = variantes.find(
@@ -375,7 +384,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                     html: `
                         <div style="text-align:left;padding:10px;font-family:'Outfit',sans-serif">
                             <p><strong>Número:</strong> #${ventaCreada.VentaID || "N/A"}</p>
-                            <p><strong>Cliente:</strong> ${clienteNombre}</p>
+                            <p><strong>Cliente:</strong> ${escapeHtml(clienteNombre)}</p>
                             <p><strong>Productos:</strong> ${productosAgregados.length} ítem(s)</p>
                             <hr style="margin:10px 0">
                             <p style="font-size:1.2rem;color:${C.success}"><strong>Total:</strong> $${total.toLocaleString()}</p>
@@ -680,6 +689,9 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                                     <input type="number" min={1} className="field-input"
                                         value={cantidadSeleccionada}
                                         onChange={e => setCantidadSeleccionada(e.target.value)} />
+                                    {cantidadSeleccionada !== "" && !Number.isInteger(Number(cantidadSeleccionada)) && (
+                                        <p style={{ margin: "6px 0 0", fontSize: 12, color: C.danger, fontWeight: 600 }}>La cantidad debe ser un número entero</p>
+                                    )}
                                 </div>
                             </div>
 

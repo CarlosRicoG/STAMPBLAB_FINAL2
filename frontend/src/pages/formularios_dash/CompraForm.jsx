@@ -361,13 +361,13 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
     /* ── Insumo ── */
     const handleSelInsumo = (ins) => { setInsumoSel(ins); setCantInsumo(1); setPrecioIns(""); setIntentoInsumo(false); setModalInsumo(false); setProdSel(null); setTipo("insumo"); };
 
-    const errPrecioIns = !precioInsumo || parseFloat(precioInsumo) <= 0 ? "Ingrese un precio mayor a 0" : "";
-    const errCantIns = !Number.isInteger(cantInsumo) || cantInsumo <= 0 ? "Cantidad entera mayor a 0" : "";
+    const errPrecioIns = !precioInsumo || !(parseFloat(precioInsumo) > 0) ? "El precio debe ser mayor a 0" : "";
+    const errCantIns = !Number.isInteger(cantInsumo) || cantInsumo < 1 ? "La cantidad debe ser un entero mayor o igual a 1" : "";
 
     const handleAgregarInsumo = () => {
         setIntentoInsumo(true);
         if (!insumoSel) return Swal.fire("Atención", "Seleccione un insumo", "warning");
-        if (errPrecioIns || errCantIns) return;
+        if (errPrecioIns || errCantIns) return Swal.fire("Datos inválidos", [errPrecioIns, errCantIns].filter(Boolean).join(". "), "warning");
         if (detalles.find(d => d.TipoSeleccion === "insumo" && d.InsumoID === insumoSel.InsumoID)) return Swal.fire("Atención", "Este insumo ya fue agregado. Puede editar su cantidad en el detalle.", "warning");
         setDetalles(p => [...p, {
             TipoSeleccion: "insumo",
@@ -406,12 +406,12 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
         cargarVariantesProd(prod);
     };
 
-    const cantProd = parseInt(varConfig.Cantidad, 10);
+    const cantProd = Number(varConfig.Cantidad);
     const errProd = {
         ColorID: !varConfig.ColorID ? "Requerido" : "",
         TallaID: !varConfig.TallaID ? "Requerido" : "",
-        PrecioUnitario: !varConfig.PrecioUnitario || parseFloat(varConfig.PrecioUnitario) <= 0 ? "Mayor a 0" : "",
-        Cantidad: !cantProd || cantProd <= 0 || String(varConfig.Cantidad).includes(".") ? "Entero > 0" : "",
+        PrecioUnitario: !varConfig.PrecioUnitario || !(parseFloat(varConfig.PrecioUnitario) > 0) ? "El precio debe ser mayor a 0" : "",
+        Cantidad: varConfig.Cantidad === "" || !Number.isInteger(cantProd) || cantProd < 1 ? "Debe ser un entero mayor o igual a 1" : "",
     };
     const varianteExistente = prodSel && varConfig.ColorID && varConfig.TallaID
         ? variantesProd.find(v => v.ColorID === parseInt(varConfig.ColorID) && v.TallaID === parseInt(varConfig.TallaID) && (v.TelaID || null) === (varConfig.TelaID ? parseInt(varConfig.TelaID) : null))
@@ -421,7 +421,7 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
         const { ColorID, TallaID, TelaID, PrecioUnitario } = varConfig;
         setIntentoProd(true);
         if (!prodSel) return Swal.fire("Atención", "Seleccione un producto", "warning");
-        if (Object.values(errProd).some(Boolean)) return;
+        if (Object.values(errProd).some(Boolean)) return Swal.fire("Datos inválidos", Object.entries(errProd).filter(([, m]) => m).map(([k, m]) => `${{ ColorID: "Color", TallaID: "Talla", PrecioUnitario: "Precio", Cantidad: "Cantidad" }[k]}: ${m}`).join(". "), "warning");
         if (detalles.find(d => d.TipoSeleccion === "producto" && d.ProductoID === prodSel.ProductoID && d.ColorID === parseInt(ColorID) && d.TallaID === parseInt(TallaID) && (d.TelaID || null) === (TelaID ? parseInt(TelaID) : null)))
             return Swal.fire("Atención", "Ya existe este producto con esa variante. Puede editar su cantidad en el detalle.", "warning");
 

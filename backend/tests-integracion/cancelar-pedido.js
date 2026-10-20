@@ -23,7 +23,9 @@ const eq = (n, a, b) => { const ok = a === b; if (!ok) bad++; console.log((ok ? 
     const V = v.j.venta.VentaID;
     eq('stock tras pedido de 2', await stock(), s0 - 2);
 
-    const vAdm = await call('POST', '/ventas', { DocumentoID: '1000000001', Subtotal: 25000, Total: 25000, EstadoID: 8, detalles: [det[0]].map(d => ({ ...d, Cantidad: 1 })) }, adm);
+    // otro cliente (temporal): el pedido ajeno no puede ser del administrador
+    await call('POST', '/usuarios', { DocumentoID: 1666666666, Nombre: 'Otro Cliente Temporal', Correo: 'otro.temporal@stamplab.com', Telefono: '3000000000', 'Contraseña': 'Temporal123*', RolID: 2 }, adm);
+    const vAdm = await call('POST', '/ventas', { DocumentoID: '1666666666', Subtotal: 25000, Total: 25000, EstadoID: 8, detalles: [det[0]].map(d => ({ ...d, Cantidad: 1 })) }, adm);
     const VA = vAdm.j.venta.VentaID;
     eq('cliente NO puede cancelar pedido ajeno', (await call('PATCH', '/ventas/' + VA + '/cancelar', null, cli)).s, 403);
     eq('sin sesion no puede cancelar', (await call('PATCH', '/ventas/' + V + '/cancelar')).s, 403);
@@ -45,7 +47,8 @@ const eq = (n, a, b) => { const ok = a === b; if (!ok) bad++; console.log((ok ? 
     eq('el admin si puede cancelarlo', (await call('PATCH', '/ventas/' + V2 + '/cancelar', null, adm)).s, 200);
 
     // limpieza
-    for (const id of [V, V2, VA]) await call('DELETE', '/ventas/' + id, null, adm);
+    for (const id of [V, V2, VA]) { await call('PATCH', '/ventas/' + id + '/estado', { EstadoID: 12 }, adm); await call('DELETE', '/ventas/' + id, null, adm); }
+    await call('DELETE', '/usuarios/1666666666', null, adm);
     await call('PUT', '/inventarioproducto/1', { Stock: s0, TelaID: 1, Estado: true }, adm);
     console.log(bad ? ('\n' + bad + ' FALLOS') : '\nTODO OK');
 })().catch(e => console.log('EXC', e));

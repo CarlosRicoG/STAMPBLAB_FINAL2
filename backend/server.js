@@ -39,6 +39,9 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '12mb' }));
 app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); }); // cuerpo vacío o de otro tipo: no rompe los controladores
+const saneamiento = require('./middleware/saneamiento');
+app.use('/api', saneamiento.ocultarSecretos);
+app.use('/api', saneamiento.rechazarHtml);
 app.use(express.urlencoded({ limit: '12mb', extended: true }));
 const path = require('path');
 const fs = require('fs');

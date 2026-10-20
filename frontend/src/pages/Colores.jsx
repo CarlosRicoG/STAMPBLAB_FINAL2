@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaPlusCircle, FaEdit, FaTrash, FaSearch, FaTimes, FaPalette } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../utils/escapeHtml";
 
 import ColoresForm from "./formularios_dash/colores.jsx";
 import { getColores, deleteColor } from "../Services/api-colores/colores.js";
@@ -255,7 +256,7 @@ const Colores = () => {
         const colorAEliminar = colores.find(c => c.ColorID === id);
         const result = await Swal.fire({
             title: "¿Eliminar color?",
-            html: `<p>Vas a eliminar el color <strong>${colorAEliminar?.Nombre}</strong></p><p style="color:${C.muted};font-size:13px">Esta acción no se puede revertir</p>`,
+            html: `<p>Vas a eliminar el color <strong>${escapeHtml(colorAEliminar?.Nombre)}</strong></p><p style="color:${C.muted};font-size:13px">Esta acción no se puede revertir</p>`,
             icon: "warning",
             showCancelButton: true,
             confirmButtonColor: C.danger,
@@ -277,7 +278,7 @@ const Colores = () => {
                 const detalles = err.response?.data?.detalles;
                 Swal.fire({
                     icon: "error", title: "No se puede eliminar",
-                    html: `<div style="text-align:left"><p style="margin-bottom:8px">${errorMsg}</p>${detalles ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;margin-top:10px;font-size:12px"><strong>Detalles:</strong><br>${detalles.variantesAsociadas ? `• Variantes en inventario: ${detalles.variantesAsociadas}<br>` : ""}${detalles.cotizacionesAsociadas ? `• Cotizaciones: ${detalles.cotizacionesAsociadas}<br>` : ""}${detalles.ventasAsociadas ? `• Ventas: ${detalles.ventasAsociadas}` : ""}</div>` : ""}</div>`,
+                    html: `<div style="text-align:left"><p style="margin-bottom:8px">${escapeHtml(errorMsg)}</p>${detalles ? `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;margin-top:10px;font-size:12px"><strong>Detalles:</strong><br>${detalles.variantesAsociadas ? `• Variantes en inventario: ${detalles.variantesAsociadas}<br>` : ""}${detalles.cotizacionesAsociadas ? `• Cotizaciones: ${detalles.cotizacionesAsociadas}<br>` : ""}${detalles.ventasAsociadas ? `• Ventas: ${detalles.ventasAsociadas}` : ""}</div>` : ""}</div>`,
                     confirmButtonColor: C.danger,
                 });
             } finally { setLoading(false); }

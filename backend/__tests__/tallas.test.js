@@ -55,6 +55,7 @@ describe('TallaController - Pruebas Unitarias', () => {
     });
 
     describe('createTalla', () => {
+        beforeEach(() => { Talla.findAll.mockResolvedValue([]); });
         test('debería retornar 400 si falta el nombre', async () => {
             const req = { body: {} };
             const res = mockRes();

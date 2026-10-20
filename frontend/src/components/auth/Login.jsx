@@ -442,10 +442,10 @@ const LoginLanding = () => {
             localStorage.setItem("usuario", JSON.stringify({ Nombre: res.data.nombre, Correo: res.data.correo || res.data.Correo, DocumentoID: res.data.DocumentoID || res.data.documentoID, rol: res.data.rol }));
 
             if (res.data.rol === 1 || res.data.rol === "1") {
-                await Swal.fire({ icon: "success", title: "¡Bienvenido Administrador!", text: res.data.nombre, timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: "success", title: "¡Bienvenido Administrador!", text: res.data.nombre, timer: 1500, showConfirmButton: false, toast: true, position: "top-end" });
                 navigate("/dashboard");
             } else {
-                await Swal.fire({ icon: "success", title: "¡Bienvenido!", text: res.data.nombre, timer: 2000, showConfirmButton: false });
+                Swal.fire({ icon: "success", title: "¡Bienvenido!", text: res.data.nombre, timer: 1500, showConfirmButton: false, toast: true, position: "top-end" });
                 navigate("/landing");
             }
         } catch (err) {

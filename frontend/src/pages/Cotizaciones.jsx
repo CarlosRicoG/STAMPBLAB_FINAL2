@@ -5,6 +5,7 @@ import {
   FaEnvelope, FaPhone, FaIdCard, FaTimes, FaSave, FaPalette, FaRulerHorizontal, FaLayerGroup,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../utils/escapeHtml";
 import { getCotizaciones, updateCotizacion, getCotizacionById, cancelarCotizacion } from "../Services/api-cotizaciones/cotizaciones";
 import axios from "axios";
 import API_BASE from "../config/api";
@@ -702,7 +703,7 @@ const Cotizaciones = () => {
     const { nombre: estadoNombre } = estadoDe(cotizacion);
     const result = await swalTop({
       title: '¿Cancelar esta cotización?',
-      html: `<p><strong>Cotización #${cotizacion.CotizacionID}</strong></p><p>Cliente: ${cotizacion.usuario?.Nombre || 'N/A'}</p><p>Estado actual: <strong>${estadoNombre}</strong></p><p style="color:#64748b;font-size:13px">Esta acción no se puede deshacer.</p>`,
+      html: `<p><strong>Cotización #${cotizacion.CotizacionID}</strong></p><p>Cliente: ${escapeHtml(cotizacion.usuario?.Nombre || 'N/A')}</p><p>Estado actual: <strong>${escapeHtml(estadoNombre)}</strong></p><p style="color:#64748b;font-size:13px">Esta acción no se puede deshacer.</p>`,
       icon: 'warning', showCancelButton: true,
       confirmButtonColor: C.danger, cancelButtonColor: C.navy,
       confirmButtonText: 'Sí, cancelar', cancelButtonText: 'No, mantener'

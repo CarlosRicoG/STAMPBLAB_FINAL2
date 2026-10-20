@@ -57,6 +57,7 @@ describe('TecnicaController - Pruebas Unitarias', () => {
     });
 
     describe('createTecnica', () => {
+        beforeEach(() => { Tecnica.findAll.mockResolvedValue([]); });
         test('debería retornar 400 si falta el nombre', async () => {
             const req = { body: { imagenTecnica: 'img.jpg' } };
             const res = mockRes();

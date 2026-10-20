@@ -53,6 +53,7 @@ describe('InsumoController - Pruebas Unitarias', () => {
     });
 
     describe('createInsumo', () => {
+        beforeEach(() => { Insumo.findAll.mockResolvedValue([]); });
         test('debería retornar 400 si falta el nombre', async () => {
             const req = { body: { Tipo: 'Accesorio' } };
             const res = mockRes();

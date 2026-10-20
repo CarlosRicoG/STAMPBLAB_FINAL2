@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../../utils/escapeHtml";
 import {
     FaShoppingCart, FaTshirt, FaImage, FaPlusCircle, FaTrash, FaEdit,
     FaEye, FaCheckCircle, FaTimesCircle, FaArrowRight, FaBoxOpen,
@@ -483,7 +484,7 @@ const CotizacionLanding = () => {
                 if (tallasDisponibles.length > 0 && !formProducto.TallaID) { Swal.fire("Atención", "Debes seleccionar una talla.", "warning"); return; }
                 if (telasDisponibles.length > 0 && !formProducto.TipoTela) { Swal.fire("Atención", "Debes seleccionar un tipo de tela.", "warning"); return; }
                 const vStock = validarStockDisponible();
-                if (!vStock.valido) { Swal.fire({ icon: "error", title: "Stock insuficiente", html: `<p>${vStock.mensaje}</p>`, confirmButtonColor: C.danger }); return; }
+                if (!vStock.valido) { Swal.fire({ icon: "error", title: "Stock insuficiente", html: `<p>${escapeHtml(vStock.mensaje)}</p>`, confirmButtonColor: C.danger }); return; }
             }
         }
         if (disenosAgregados.length === 0) { Swal.fire("Atención", "Debes agregar al menos un diseño antes de continuar.", "warning"); return; }

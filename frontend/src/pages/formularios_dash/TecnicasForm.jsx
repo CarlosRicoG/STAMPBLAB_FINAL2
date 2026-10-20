@@ -221,6 +221,7 @@ const TecnicasForm = ({ onClose, onSave, tecnicaEdit = null, tecnicasExistentes 
   const [errors, setErrors]   = useState({ nombre: "", descripcion: "", imagenTecnica: "" });
   const [touched, setTouched] = useState({ nombre: false, descripcion: false, imagenTecnica: false });
   const [previewError, setPreviewError] = useState(false);
+  const [archivoError, setArchivoError] = useState("");
 
   useEffect(() => {
     if (tecnicaEdit) {
@@ -238,6 +239,7 @@ const TecnicasForm = ({ onClose, onSave, tecnicaEdit = null, tecnicasExistentes 
     if (!trimmed) return "El nombre es obligatorio.";
     if (trimmed.length < 4)  return "El nombre debe tener al menos 4 caracteres.";
     if (trimmed.length > 40) return "El nombre no puede superar 40 caracteres.";
+    if (/[<>]/.test(trimmed)) return "El nombre no puede contener los caracteres < ni >.";
     if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s.,]+$/.test(trimmed)) return "Solo letras, espacios, puntos y comas.";
     if (!/[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(trimmed)) return "Debe contener al menos una letra.";
     const dup = tecnicasExistentes.some(t =>
@@ -261,15 +263,18 @@ const TecnicasForm = ({ onClose, onSave, tecnicaEdit = null, tecnicasExistentes 
     const isURL       = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i.test(trimmed);
     const isLocalPath = /^[a-zA-Z0-9_\-/.]+\.(jpg|jpeg|png|gif|webp|svg)$/i.test(trimmed);
     if (!isBase64 && !isURL && !isLocalPath) return "Debe ser Base64, URL válida o ruta de archivo.";
-    if (isBase64 && trimmed.length > 7000000) return "Imagen demasiado grande. Máximo 5MB.";
+    if (isBase64 && trimmed.length > 7000000) return "La imagen supera los 5 MB";
     return "";
   };
+
+  // Al editar, si la imagen no cambió se conserva la actual (no se valida ni se envía de nuevo).
+  const imagenSinCambios = () => !!tecnicaEdit && !!tecnicaEdit.imagenTecnica && formData.imagenTecnica === tecnicaEdit.imagenTecnica;
 
   const validateField = (fieldName, value) => {
     let error = "";
     if (fieldName === "nombre")        error = validarNombre(value);
     if (fieldName === "descripcion")   error = validarDescripcion(value);
-    if (fieldName === "imagenTecnica") error = validarImagen(value);
+    if (fieldName === "imagenTecnica") error = archivoError || (imagenSinCambios() ? "" : validarImagen(value));
     setErrors(prev => ({ ...prev, [fieldName]: error }));
     return error;
   };
@@ -285,17 +290,20 @@ const TecnicasForm = ({ onClose, onSave, tecnicaEdit = null, tecnicasExistentes 
     const file = e.target.files[0];
     if (!file) return;
     const validTypes = ["image/jpeg","image/jpg","image/png","image/gif","image/webp","image/svg+xml"];
-    if (!validTypes.includes(file.type)) {
-      setErrors(prev => ({ ...prev, imagenTecnica: "Solo JPG, PNG, GIF, WEBP, SVG" })); return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setErrors(prev => ({ ...prev, imagenTecnica: "Máximo 5MB" })); return;
-    }
+    const rechazar = (msg) => {
+      e.target.value = "";
+      setArchivoError(msg);
+      setTouched(prev => ({ ...prev, imagenTecnica: true }));
+      setErrors(prev => ({ ...prev, imagenTecnica: msg }));
+    };
+    if (!validTypes.includes(file.type)) return rechazar("El archivo debe ser una imagen (PNG, JPG, WEBP)");
+    if (file.size > 5 * 1024 * 1024) return rechazar("La imagen supera los 5 MB");
+    setArchivoError("");
     const reader = new FileReader();
     reader.onloadend = () => {
       setFormData(prev => ({ ...prev, imagenTecnica: reader.result }));
       setTouched(prev => ({ ...prev, imagenTecnica: true }));
-      validateField("imagenTecnica", reader.result);
+      setErrors(prev => ({ ...prev, imagenTecnica: validarImagen(reader.result) }));
       setPreviewError(false);
     };
     reader.onerror = () => setErrors(prev => ({ ...prev, imagenTecnica: "Error al cargar la imagen" }));
@@ -311,7 +319,7 @@ const TecnicasForm = ({ onClose, onSave, tecnicaEdit = null, tecnicasExistentes 
   const validateForm = () => {
     const ne = validarNombre(formData.nombre);
     const de = validarDescripcion(formData.descripcion);
-    const ie = validarImagen(formData.imagenTecnica);
+    const ie = archivoError || (imagenSinCambios() ? "" : validarImagen(formData.imagenTecnica));
     setErrors({ nombre: ne, descripcion: de, imagenTecnica: ie });
     setTouched({ nombre: true, descripcion: true, imagenTecnica: true });
     return !ne && !de && !ie;
@@ -323,7 +331,8 @@ const TecnicasForm = ({ onClose, onSave, tecnicaEdit = null, tecnicasExistentes 
     await onSave({
       Nombre:        formData.nombre.trim(),
       Descripcion:   formData.descripcion.trim(),
-      imagenTecnica: formData.imagenTecnica.trim(),
+      // Al editar sin imagen nueva no se envía: el backend conserva la actual.
+      ...(imagenSinCambios() ? {} : { imagenTecnica: formData.imagenTecnica.trim() }),
       Estado:        formData.estado,
     });
   };

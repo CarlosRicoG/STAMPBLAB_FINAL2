@@ -3,6 +3,7 @@ import { FaPlusCircle, FaEye, FaEdit, FaTrash, FaSearch, FaTimes, FaChevronLeft,
 import UsuariosForm from "./formularios_dash/usuarios";
 import { getUsuarios, deleteUsuario } from "../Services/api-usuarios/usuarios";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../utils/escapeHtml";
 import { ventaEstaActiva } from "../config/estados";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
@@ -347,6 +348,8 @@ const Usuarios = () => {
   const [error, setError] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [search, setSearch] = useState("");
+  // Usuario actualmente logueado: no se le muestra el botón de eliminar
+  const documentoLogueado = (() => { try { return JSON.parse(localStorage.getItem("usuario"))?.DocumentoID; } catch { return null; } })();
 
   /* ── Paginación ── */
   const [paginaActual, setPaginaActual] = useState(1);
@@ -401,7 +404,7 @@ const Usuarios = () => {
         setLoading(false); return;
       }
       const result = await Swal.fire({
-        title: "¿Está seguro?", html: `<p>Está a punto de eliminar el usuario con documento <strong>${documentoID}</strong>.</p><p style="color:${C.danger};font-weight:600">Esta acción no se puede deshacer.</p>`,
+        title: "¿Está seguro?", html: `<p>Está a punto de eliminar el usuario con documento <strong>${escapeHtml(documentoID)}</strong>.</p><p style="color:${C.danger};font-weight:600">Esta acción no se puede deshacer.</p>`,
         icon: "warning", showCancelButton: true, confirmButtonColor: C.danger, cancelButtonColor: C.navy, confirmButtonText: "Sí, eliminar", cancelButtonText: "Cancelar",
       });
       if (result.isConfirmed) {
@@ -552,9 +555,11 @@ const Usuarios = () => {
                           <button className="cf-p-ibtn cf-p-i-edit" onClick={() => handleEditar(u)} title="Editar usuario" aria-label={`Editar a ${u.Nombre}`}>
                             <FaEdit size={12} />
                           </button>
-                          <button className="cf-p-ibtn cf-p-i-del" onClick={() => handleEliminar(u.DocumentoID)} title="Eliminar usuario" aria-label={`Eliminar a ${u.Nombre}`}>
-                            <FaTrash size={12} />
-                          </button>
+                          {Number(u.RolID) !== 1 && String(u.DocumentoID) !== String(documentoLogueado) && (
+                            <button className="cf-p-ibtn cf-p-i-del" onClick={() => handleEliminar(u.DocumentoID)} title="Eliminar usuario" aria-label={`Eliminar a ${u.Nombre}`}>
+                              <FaTrash size={12} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -3,6 +3,7 @@ import { FaPlusCircle, FaEye, FaEdit, FaTrash, FaSyncAlt, FaBoxOpen } from "reac
 import ProveedoresForm from "./formularios_dash/ProveedoresForm";
 import { getProveedores, createProveedor, updateProveedor, deleteProveedor, cambiarEstadoProveedor } from "../Services/api-proveedores/proveedores.js";
 import Swal from "sweetalert2";
+import { escapeHtml } from "../utils/escapeHtml";
 
 /* ── Tokens de color ── */
 const C = {
@@ -139,7 +140,7 @@ const Proveedores = () => {
                 const response = await deleteProveedor(nit);
                 await cargarProveedores();
                 if (response.accion === "desactivado") {
-                    Swal.fire({ icon: "info", title: "Proveedor Desactivado", html: `<p>${response.mensaje}</p><small style="color:${C.muted}">El proveedor no se eliminó porque tiene compras registradas.</small>`, confirmButtonColor: C.navy });
+                    Swal.fire({ icon: "info", title: "Proveedor Desactivado", html: `<p>${escapeHtml(response.mensaje)}</p><small style="color:${C.muted}">El proveedor no se eliminó porque tiene compras registradas.</small>`, confirmButtonColor: C.navy });
                 } else {
                     Swal.fire({ toast: true, icon: "success", title: "Proveedor eliminado correctamente", position: "top-end", showConfirmButton: false, timer: 2000 });
                 }

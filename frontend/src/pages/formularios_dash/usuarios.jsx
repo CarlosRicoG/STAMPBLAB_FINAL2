@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaUserPlus, FaUserEdit, FaExclamationCircle, FaEye, FaEyeSlash } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { errorContrasena } from "../../utils/validarContrasena";
 import { createUsuario, updateUsuario, getRoles } from "../../Services/api-usuarios/usuarios";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
@@ -307,9 +308,7 @@ const UsuariosForm = ({ onClose, onSave, usuario = null }) => {
     if (esEdicion && !contraseña) return "";
     const pass = String(contraseña || "");
     if (!pass) return "La contraseña es obligatoria";
-    if (pass.length < 4) return "Mínimo 4 caracteres";
-    if (pass.length > 50) return "Máximo 50 caracteres";
-    return "";
+    return errorContrasena(pass);
   };
 
   const validarRol = (rolID) => {
@@ -415,7 +414,7 @@ const UsuariosForm = ({ onClose, onSave, usuario = null }) => {
             </button>
           </div>
 
-          <form className="cf-p-fcard" onSubmit={handleSubmit}>
+          <form className="cf-p-fcard" onSubmit={handleSubmit} noValidate>
             <div className="cf-p-fhead">
               <div className="cf-p-fhead-ic" aria-hidden="true">{usuario ? <FaUserEdit /> : <FaUserPlus />}</div>
               <div>

@@ -57,6 +57,7 @@ describe('ColorController - Pruebas Unitarias', () => {
     });
 
     describe('createColor', () => {
+        beforeEach(() => { db.Color.findAll.mockResolvedValue([]); }); // sin colores previos (el control de duplicados consulta la lista)
         test('debería retornar 400 si falta el nombre', async () => {
             const req = { body: {} };
             const res = mockRes();

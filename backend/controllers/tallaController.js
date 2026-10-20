@@ -1,4 +1,5 @@
 const { Talla, Producto } = require("../models");
+const { existeNombreEquivalente } = require("../utils/nombres");
 
 // XXL y XXXL deben tener precio (recargo) obligatorio. Las demás tallas pueden
 // tener un recargo opcional (p. ej. L o XL); antes se borraba al editar.
@@ -54,6 +55,10 @@ exports.createTalla = async (req, res) => {
         const { error, precio } = resolverPrecio(Nombre, Precio, "El precio debe ser un número");
         if (error) return res.status(400).json({ estado: false, mensaje: error });
 
+        if (await existeNombreEquivalente(Talla, 'TallaID', Nombre, null)) {
+            return res.status(400).json({ estado: false, mensaje: "Ya existe una talla con ese nombre (se ignoran mayúsculas y tildes)", message: "Ya existe una talla con ese nombre (se ignoran mayúsculas y tildes)" });
+        }
+
         const nueva = await Talla.create({ Nombre: Nombre.trim(), Precio: precio });
 
         res.status(201).json({
@@ -88,6 +93,10 @@ exports.updateTalla = async (req, res) => {
         const precioEntrada = Precio !== undefined ? Precio : talla.Precio;
         const { error, precio } = resolverPrecio(nombreFinal, precioEntrada, "El precio debe ser numérico");
         if (error) return res.status(400).json({ estado: false, mensaje: error });
+
+        if (await existeNombreEquivalente(Talla, 'TallaID', nombreFinal, talla.TallaID)) {
+            return res.status(400).json({ estado: false, mensaje: "Ya existe una talla con ese nombre (se ignoran mayúsculas y tildes)", message: "Ya existe una talla con ese nombre (se ignoran mayúsculas y tildes)" });
+        }
 
         await talla.update({ Nombre: nombreFinal, Precio: precio });
 

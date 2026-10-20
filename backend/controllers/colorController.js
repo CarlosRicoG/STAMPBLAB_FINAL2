@@ -6,12 +6,17 @@ const DetalleVenta = db.DetalleVenta;
 
 
 // Busca otro color con el mismo nombre (sin distinguir mayúsculas)
+const { existeNombreEquivalente } = require('../utils/nombres');
 const existeNombre = async (nombre, exceptoID = null) => {
-    if (typeof Color.findOne !== 'function') return false;
-    const { Op, fn, col, where } = require('sequelize');
-    const cond = [where(fn('LOWER', col('Nombre')), nombre.toLowerCase())];
-    if (exceptoID) cond.push({ ColorID: { [Op.ne]: exceptoID } });
-    return !!(await Color.findOne({ where: { [Op.and]: cond } }));
+    if (typeof Color.findAll !== 'function') {
+        // (pruebas unitarias con modelos simulados)
+        if (typeof Color.findOne !== 'function') return false;
+        const { Op, fn, col, where } = require('sequelize');
+        const cond = [where(fn('LOWER', col('Nombre')), nombre.toLowerCase())];
+        if (exceptoID) cond.push({ ColorID: { [Op.ne]: exceptoID } });
+        return !!(await Color.findOne({ where: { [Op.and]: cond } }));
+    }
+    return existeNombreEquivalente(Color, 'ColorID', nombre, exceptoID);
 };
 
 // Listar todos los colores

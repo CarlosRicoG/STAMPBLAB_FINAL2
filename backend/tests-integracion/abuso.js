@@ -160,7 +160,76 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     r = await call('GET', "/ventas?q=' OR 1=1 --&estado=%00", undefined, adm); sin5xx('búsqueda con SQL', r);
     r = await call('GET', '/ruta-que-no-existe', undefined, adm); si('ruta inexistente: 404 limpio', r.s === 404, r.s);
 
+    console.log('--- REPORTE QA: escalada de privilegios y datos sensibles');
+    r = await call('PUT', '/usuarios/1000000002', { RolID: 1, Nombre: 'Cliente Demo' }, cli);
+    const rolReal = (await call('GET', '/usuarios/1000000002', undefined, adm)).j;
+    si('el cliente NO puede asignarse RolID=1 (administrador)', String((rolReal.datos || rolReal).RolID) === '2', JSON.stringify(rolReal).slice(0, 120));
+    r = await call('PUT', '/usuarios/1000000002', { RolID: 1, IDRol: 1, rol: 1 }, cli); { const u = (await call('GET', '/usuarios/1000000002', undefined, adm)).j; si('ni con otros nombres de campo', String((u.datos || u).RolID) === '2'); }
+    const cots = await call('GET', '/cotizaciones', undefined, adm);
+    si('las cotizaciones NO exponen el hash de la contraseña', !JSON.stringify(cots.j).includes('$2b$') && !JSON.stringify(cots.j).includes('"Contraseña"'));
+    if (C) { r = await call('GET', '/cotizaciones/' + C, undefined, adm); si('el detalle de una cotización tampoco', !JSON.stringify(r.j).includes('$2b$')); }
+    for (const ruta of ['/ventas', '/usuarios', '/ventas?limit=50']) { r = await call('GET', ruta, undefined, adm); si(`GET ${ruta} no trae hashes`, !JSON.stringify(r.j).includes('$2b$')); }
+
+    console.log('--- REPORTE QA: XSS almacenado y validación solo en el navegador');
+    for (const [ruta, cuerpo] of [['/colores', { Nombre: '<img src=x onerror=alert(1)>' }], ['/tallas', { Nombre: '<script>x</script>', Precio: 0 }], ['/tecnicas', { Nombre: '<b>Hack</b> técnica', Descripcion: 'x', imagenTecnica: 'x' }], ['/insumos', { Nombre: '<i>x</i>', Stock: 1, Tipo: 'Tela', PrecioTela: 1 }], ['/roles', { Nombre: '<u>Rol</u>' }], ['/proveedores', { Nombre: '<svg onload=1>' }]]) {
+        r = await call('POST', ruta, cuerpo, adm); si(`POST ${ruta} con HTML se rechaza`, r.s === 400, r.s + ' ' + JSON.stringify(r.j).slice(0, 80));
+        if (r.s === 201) creadas.push(['basura', ruta, r.j]);
+    }
+
+    console.log('--- REPORTE QA: subida de archivos disfrazados');
+    const txt = 'data:image/png;base64,' + Buffer.from('esto es solo texto, no una imagen'.repeat(3)).toString('base64');
+    r = await call('POST', '/tecnicas', { Nombre: 'Tecnica Falsa', Descripcion: 'x', imagenTecnica: txt }, adm); si('un .txt disfrazado de .png se rechaza (magic bytes)', r.s === 400, r.s + ' ' + JSON.stringify(r.j).slice(0, 100));
+    if (r.s === 201) await call('DELETE', '/tecnicas/' + (r.j.tecnica?.TecnicaID || r.j.datos?.TecnicaID), undefined, adm);
+    r = await call('POST', '/tecnicas', { Nombre: 'Tecnica Falsa 2', Descripcion: 'x', imagenTecnica: 'data:text/html;base64,PGgxPmhvbGE8L2gxPg==' }, adm); si('un HTML como data URL se rechaza', r.s === 400, r.s);
+    r = await call('POST', '/tecnicas', { Nombre: 'Tecnica Grande', Descripcion: 'x', imagenTecnica: 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(6 * 1024 * 1024)]).toString('base64') }, adm);
+    si('una imagen de más de 5 MB dice que supera el tamaño', r.s === 400 && /5 ?MB|supera/i.test(JSON.stringify(r.j)), r.s + ' ' + JSON.stringify(r.j).slice(0, 100));
+
+    console.log('--- REPORTE QA: máquina de estados del pedido');
+    const p1 = await call('POST', '/ventas', pedido(), cli); const VP = p1.j?.venta?.VentaID; if (VP) creadas.push(VP);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 11 }, adm); si('Pendiente NO puede saltar a Entregada', r.s === 400, r.s);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 10 }, adm); si('Pendiente NO puede saltar a En Producción', r.s === 400, r.s);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 9 }, adm); si('Pendiente → Pagada sí', r.s === 200, r.s);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 8 }, adm); si('Pagada NO puede volver a Pendiente', r.s === 400, r.s);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 10 }, adm); si('Pagada → En Producción sí', r.s === 200, r.s);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 11 }, adm); si('En Producción → Entregada sí', r.s === 200, r.s);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 8 }, adm); si('Entregada NO puede volver a Pendiente', r.s === 400, r.s);
+    r = await call('PATCH', `/ventas/${VP}/estado`, { EstadoID: 12 }, adm); si('Entregada NO se puede cancelar', r.s === 400, r.s);
+    r = await call('PUT', `/ventas/${VP}`, { Subtotal: 1, Total: 1, detalles: [linea({ PrecioUnitario: 1 })] }, adm); si('no se editan productos/precios de un pedido ya entregado', r.s === 400, r.s);
+    r = await call('PUT', `/ventas/${VP}`, { EstadoID: 8, Subtotal: 99999, Total: 99999, detalles: [linea()] }, adm); si('ni se cambia el estado por la edición completa', r.s === 400, r.s);
+
+    console.log('--- REPORTE QA: cantidades decimales');
+    r = await call('POST', '/ventas', pedido({ detalles: [linea({ Cantidad: 2.5 })] }), adm); si('Cantidad 2.5 en un pedido se rechaza (admin)', r.s === 400, r.s); if (r.s === 201) creadas.push(r.j.venta.VentaID);
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det({ Cantidad: 2.5 })] }, cli); si('Cantidad 2.5 en una cotización se rechaza', r.s === 400, r.s); if (r.s === 201) creadas.push(['c', r.j.cotizacion.CotizacionID]);
+
+    console.log('--- REPORTE QA: duplicados por mayúsculas / tildes');
+    const ins = await call('GET', '/insumos', undefined, adm); const insNombre = ((ins.j.datos || ins.j.insumos || ins.j)[0] || {}).Nombre;
+    if (insNombre) { r = await call('POST', '/insumos', { Nombre: insNombre.toUpperCase() + ' ', Stock: 1, Tipo: 'Tela', PrecioTela: 1 }, adm); si('insumo duplicado solo por mayúsculas se rechaza', r.s === 400, r.s); if (r.s === 201) creadas.push(['basura', '/insumos', r.j]); }
+    const tcs = (await call('GET', '/tecnicas')).j; const tcNombre = ((tcs.datos || tcs)[0] || {}).Nombre;
+    if (tcNombre) { r = await call('POST', '/tecnicas', { Nombre: tcNombre.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase(), Descripcion: 'x', imagenTecnica: 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40)]).toString('base64') }, adm); si('técnica duplicada sin tildes/mayúsculas se rechaza', r.s === 400, r.s); if (r.s === 201) creadas.push(['basura', '/tecnicas', r.j]); }
+    r = await call('POST', '/tallas', { Nombre: 'zzq', Precio: 0 }, adm); const tz = r.j.datos?.TallaID; r = await call('POST', '/tallas', { Nombre: ' ZZQ ', Precio: 0 }, adm); si('talla duplicada por mayúsculas/espacios se rechaza', r.s === 400, r.s);
+    r = await call('POST', '/tallas', { Nombre: '38', Precio: 0 }, adm); si('una talla numérica ("38") sí se acepta', r.s === 201, r.s); const tn = r.j.datos?.TallaID;
+    for (const id of [tz, tn]) if (id) await call('DELETE', '/tallas/' + id, undefined, adm);
+
+    console.log('--- REPORTE QA: el administrador no es un cliente');
+    r = await call('POST', '/ventas', { DocumentoID: 1000000001, ...pedido() }, adm); si('no se puede crear un pedido a nombre del administrador', r.s === 400, r.s); if (r.s === 201) creadas.push(r.j.venta.VentaID);
+    const usrs = await call('GET', '/usuarios/1000000001', undefined, adm);
+    r = await call('DELETE', '/usuarios/1000000001', undefined, adm); si('el administrador no se puede eliminar', r.s === 400 || r.s === 403, r.s);
+    const roles = (await call('GET', '/roles', undefined, adm)).j; for (const rol of (roles.datos || roles).filter((x) => ['Administrador', 'Cliente'].includes(x.Nombre))) { r = await call('DELETE', '/roles/' + rol.RolID, undefined, adm); si(`el rol de sistema "${rol.Nombre}" no se puede eliminar`, r.s === 400 || r.s === 403, r.s); }
+    r = await call('POST', '/usuarios', { DocumentoID: 1555555555, Nombre: 'Corto', Correo: 'corto@x.com', 'Contraseña': '1234', RolID: 2 }, adm); si('el admin no puede crear usuarios con contraseña de 4 caracteres', r.s === 400, r.s); if (r.s === 201) await call('DELETE', '/usuarios/1555555555', undefined, adm);
+
+    console.log('--- REPORTE QA: el cliente cancela su cotización pendiente');
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det()] }, cli); const CP = r.j?.cotizacion?.CotizacionID; if (CP) creadas.push(['c', CP]);
+    r = await call('PUT', `/cotizaciones/${CP}/cancelar`, undefined, otroTok); si('otro cliente NO puede cancelar mi cotización', r.s === 403, r.s);
+    r = await call('PUT', `/cotizaciones/${CP}/cancelar`, undefined, cli); si('el cliente cancela su cotización pendiente', r.s === 200, r.s);
+    r = await call('PUT', `/cotizaciones/${CP}/cancelar`, undefined, cli); si('no se puede cancelar dos veces', r.s === 400, r.s);
+    if (C) { await call('PUT', '/cotizaciones/' + C, { EstadoID: 6 }, adm); r = await call('PUT', `/cotizaciones/${C}/cancelar`, undefined, cli); si('el cliente NO cancela una cotización que ya está en revisión', r.s === 400, r.s); }
+
     console.log('--- limpieza');
+    for (const x of creadas.filter((y) => Array.isArray(y) && y[0] === 'basura')) {
+        const id = x[2].datos?.ColorID || x[2].datos?.TallaID || x[2].datos?.RolID || x[2].datos?.ProveedorID || x[2].insumo?.InsumoID || x[2].tecnica?.TecnicaID || x[2].datos?.TecnicaID;
+        if (id) await call('DELETE', x[1] + '/' + id, undefined, adm);
+    }
+    creadas.splice(0, creadas.length, ...creadas.filter((y) => !(Array.isArray(y) && y[0] === 'basura')));
     if (VA) { await call('PATCH', `/ventas/${VA}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${VA}`, undefined, adm); }
     if (CA) { await call('PUT', `/cotizaciones/${CA}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${CA}`, undefined, adm); }
     await call('DELETE', '/usuarios/' + OTRO, undefined, adm);

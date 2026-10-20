@@ -4,6 +4,7 @@ import NavbarComponent from "../landing/NavBarLanding";
 import FooterComponent from "../landing/footer";
 import axios from "axios";
 import Swal from "sweetalert2";
+import { errorContrasena } from "../../utils/validarContrasena";
 import fondo from "../../assets/images/imagenfondo.webp";
 import { FaArrowLeft, FaLock, FaKey, FaExclamationTriangle, FaExclamation, FaCheck, FaTimes, FaShieldAlt, FaRedoAlt } from "react-icons/fa";
 import { AuthShell, AuthField, AuthButton, StrengthMeter } from "./Login";
@@ -49,7 +50,7 @@ const RestablecerContraseña = () => {
         e.preventDefault();
         if (!nuevaContraseña || !confirmarContraseña) { setMensaje({ tipo: "danger", texto: "Completa todos los campos." }); return; }
         if (nuevaContraseña !== confirmarContraseña) { setMensaje({ tipo: "danger", texto: "Las contraseñas no coinciden." }); return; }
-        if (nuevaContraseña.length < 4) { setMensaje({ tipo: "danger", texto: "La contraseña debe tener al menos 4 caracteres." }); return; }
+        if (errorContrasena(nuevaContraseña)) { setMensaje({ tipo: "danger", texto: errorContrasena(nuevaContraseña) }); return; }
 
         setLoading(true);
         setMensaje({ tipo: "", texto: "" });
@@ -136,7 +137,7 @@ const RestablecerContraseña = () => {
                             <AuthField id="rest-nueva" label="Nueva Contraseña" icon={<FaLock />} type="password" autoComplete="new-password" required
                                 placeholder="Ingresa tu nueva contraseña" value={nuevaContraseña}
                                 onChange={e => setNuevaContraseña(e.target.value)} disabled={loading}
-                                valid={nuevaContraseña.length >= 4} hint="Mínimo 4 caracteres">
+                                valid={!errorContrasena(nuevaContraseña)} hint="8 a 100 caracteres, con letras y números">
                                 <StrengthMeter value={nuevaContraseña} detail />
                             </AuthField>
                             <AuthField id="rest-confirmar" label="Confirmar Contraseña" icon={<FaKey />} type="password" autoComplete="new-password" required

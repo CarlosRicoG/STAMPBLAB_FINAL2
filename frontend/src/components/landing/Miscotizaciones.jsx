@@ -7,7 +7,9 @@ import {
 } from 'react-icons/fa';
 import FooterComponent from './footer';
 import NavbarComponent from './NavBarLanding';
+import Swal from 'sweetalert2';
 import usePlus from '../../hooks/usePlus';
+import { cancelarCotizacion } from '../../Services/api-cotizaciones/cotizaciones';
 import {
     MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper,
     McModal, ModalHead, EmptyState, Skeletons
@@ -62,9 +64,13 @@ const ImagenModal = ({ src, onClose }) => {
 // ─────────────────────────────────────────────────────
 // MODAL DETALLE
 // ─────────────────────────────────────────────────────
-const ModalDetalleCotizacion = ({ cotizacion, onClose }) => {
+const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = false, documentoID }) => {
     const [imagenAmpliada, setImagenAmpliada] = useState(null);
     const estadoNombre = cotizacion.estado?.Nombre || 'Pendiente';
+    // Solo se puede cancelar una cotización Pendiente (EstadoID 1) que pertenece al cliente
+    const esPendiente = Number(cotizacion.EstadoID) === 1 || (cotizacion.EstadoID == null && estadoNombre === 'Pendiente');
+    const esDelCliente = cotizacion.DocumentoID == null || String(cotizacion.DocumentoID) === String(documentoID);
+    const puedeCancelar = esPendiente && esDelCliente && !!onCancelar;
     const paso = pasosDe(estadoNombre);
 
     return (
@@ -84,10 +90,9 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose }) => {
                         </div>
                         <div>
                             <small>Valor total</small>
-                            <div className="big">${formatPrecio(cotizacion.ValorTotal)}</div>
-                            {cotizacion.ValorTotal === 0 && (
-                                <p style={{ margin: "6px 0 0", fontSize: 12, color: C.muted }}>Pendiente de asignación</p>
-                            )}
+                            {parseFloat(cotizacion.ValorTotal) > 0
+                                ? <div className="big">${formatPrecio(cotizacion.ValorTotal)}</div>
+                                : <div className="big" style={{ fontSize: 18, color: C.muted }}>Pendiente de cotizar</div>}
                         </div>
                     </div>
 
@@ -175,6 +180,12 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose }) => {
                 </div>
 
                 <div className="mc-mfoot">
+                    {puedeCancelar && (
+                        <button type="button" className="mc-cta alt" disabled={cancelando} onClick={() => onCancelar(cotizacion)}
+                            style={{ color: C.danger, borderColor: C.danger }}>
+                            <FaTimesCircle size={12} /> {cancelando ? "Cancelando..." : "Cancelar cotización"}
+                        </button>
+                    )}
                     <button type="button" className="mc-cta" onClick={onClose}>Cerrar</button>
                 </div>
             </McModal>
@@ -193,6 +204,7 @@ const MisCotizaciones = () => {
     const [mostrarDetalle, setMostrarDetalle] = useState(false);
     const [documentoID, setDocumentoID] = useState(null);
     const [filtroEstado, setFiltroEstado] = useState("Todos");
+    const [cancelando, setCancelando] = useState(false);
     const nombreUsuario = leerUsuario().Nombre || "";
 
     useEffect(() => {
@@ -220,6 +232,25 @@ const MisCotizaciones = () => {
             setCotizacionSeleccionada(data);
             setMostrarDetalle(true);
         } catch { console.error("Error al cargar detalle"); }
+    };
+
+    const handleCancelar = async (cot) => {
+        const r = await Swal.fire({
+            icon: "warning", title: "¿Cancelar cotización?",
+            text: `Se cancelará la cotización #${cot.CotizacionID}. Esta acción no se puede deshacer.`,
+            showCancelButton: true, confirmButtonText: "Sí, cancelar", cancelButtonText: "No, volver",
+            confirmButtonColor: C.danger, cancelButtonColor: C.navy,
+        });
+        if (!r.isConfirmed) return;
+        setCancelando(true);
+        try {
+            await cancelarCotizacion(cot.CotizacionID);
+            setMostrarDetalle(false); setCotizacionSeleccionada(null);
+            await cargarCotizaciones();
+            Swal.fire({ icon: "success", title: "Cotización cancelada", timer: 1800, showConfirmButton: false });
+        } catch (err) {
+            Swal.fire({ icon: "error", title: "No se pudo cancelar", text: err.response?.data?.mensaje || err.response?.data?.message || err.message || "Intenta nuevamente.", confirmButtonColor: C.danger });
+        } finally { setCancelando(false); }
     };
 
     const nombreEstado = (c) => c.estado?.Nombre || "Pendiente";
@@ -335,7 +366,7 @@ const MisCotizaciones = () => {
             </div>
 
             {mostrarDetalle && cotizacionSeleccionada && (
-                <ModalDetalleCotizacion cotizacion={cotizacionSeleccionada} onClose={() => { setMostrarDetalle(false); setCotizacionSeleccionada(null); }} />
+                <ModalDetalleCotizacion cotizacion={cotizacionSeleccionada} onCancelar={handleCancelar} cancelando={cancelando} documentoID={documentoID} onClose={() => { setMostrarDetalle(false); setCotizacionSeleccionada(null); }} />
             )}
 
             <FooterComponent />
