@@ -5,6 +5,15 @@ import { useNavigate } from "react-router-dom";
 import { getProductos, deleteProducto } from "../Services/api-productos/productos";
 import { getVariantesByProducto } from "../Services/api-productos/variantes";
 import { getTallas, getColores, getTelas } from "../Services/api-productos/atributos";
+import { getConfigPublica } from "../Services/api-resumen/resumen";
+
+/* Etiqueta "Stock bajo" para variantes por debajo del mínimo configurado */
+const StockBajo = ({ minimo }) => (
+  <span title={`Por debajo del mínimo (${minimo})`}
+    style={{ display: "inline-block", marginLeft: 6, padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", whiteSpace: "nowrap" }}>
+    Stock bajo
+  </span>
+);
 
 /* ── Tokens ── */
 const C = {
@@ -163,6 +172,8 @@ const Productos = () => {
   const [tallas, setTallas] = useState([]);
   const [telas, setTelas] = useState([]);
   const [stockPorProducto, setStock] = useState({});
+  const [bajoPorProducto, setBajo] = useState({}); // ProductoID -> nº de variantes bajo el mínimo
+  const [stockMinimo, setStockMinimo] = useState(0); // 0 = sin dato (no se resalta nada)
   const [cargando, setCargando] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [productoSel, setProductoSel] = useState(null);
@@ -213,14 +224,20 @@ const Productos = () => {
 
       // Stock: solo para los productos de esta página
       const stockMap = {};
+      const bajoMap = {};
+      let minimo = 0;
+      try { minimo = Number((await getConfigPublica())?.stockMinimo) || 0; } catch { /* sin config: no se resalta */ }
+      setStockMinimo(minimo);
       await Promise.all(prods.map(async p => {
         try {
           const r = await getVariantesByProducto(p.ProductoID);
           const vs = r.datos || r;
           stockMap[p.ProductoID] = vs.reduce((a, v) => a + (v.Stock || 0), 0);
+          bajoMap[p.ProductoID] = minimo > 0 ? vs.filter(v => v.Estado !== false && (v.Stock || 0) < minimo).length : 0;
         } catch { stockMap[p.ProductoID] = 0; }
       }));
       setStock(stockMap);
+      setBajo(bajoMap);
 
     } catch { Swal.fire("Error", "No se pudieron cargar los datos", "error"); }
     finally { setCargando(false); }
@@ -380,6 +397,12 @@ const Productos = () => {
                         <Badge type={stockBadge(stockPorProducto[p.ProductoID])}>
                           {stockPorProducto[p.ProductoID] !== undefined ? stockPorProducto[p.ProductoID] : "…"}
                         </Badge>
+                        {bajoPorProducto[p.ProductoID] > 0 && (
+                          <span title={`${bajoPorProducto[p.ProductoID]} variante(s) por debajo del mínimo (${stockMinimo})`}
+                            style={{ display: "inline-block", marginLeft: 6, padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", whiteSpace: "nowrap" }}>
+                            Stock bajo ({bajoPorProducto[p.ProductoID]})
+                          </span>
+                        )}
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
@@ -466,7 +489,7 @@ const Productos = () => {
                           <td style={{ padding: "10px 12px", color: C.accent, fontWeight: 600 }}>+${formatPrecio(getPrecioTalla(v.TallaID))}</td>
                           <td style={{ padding: "10px 12px", color: C.warning, fontWeight: 600 }}>+${formatPrecio(getPrecioTela(v.TelaID))}</td>
                           <td style={{ padding: "10px 12px" }}><Badge type="navy">${formatPrecio(calcPrecio(productoSel.ProductoID, v.TallaID, v.TelaID))}</Badge></td>
-                          <td style={{ padding: "10px 12px", textAlign: "center" }}><Badge type={stockBadge(v.Stock)}>{v.Stock}</Badge></td>
+                          <td style={{ padding: "10px 12px", textAlign: "center" }}><Badge type={stockBadge(v.Stock)}>{v.Stock}</Badge>{stockMinimo > 0 && v.Estado !== false && (v.Stock || 0) < stockMinimo && <StockBajo minimo={stockMinimo} />}</td>
                           <td style={{ padding: "10px 12px", textAlign: "center" }}><Badge type={v.Estado ? "success" : "muted"}>{v.Estado ? "Disponible" : "No disp."}</Badge></td>
                         </tr>
                       ))}

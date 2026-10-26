@@ -8,6 +8,10 @@ import Swal from "sweetalert2";
 import { escapeHtml } from "../utils/escapeHtml";
 import { getCotizaciones, updateCotizacion, getCotizacionById, cancelarCotizacion } from "../Services/api-cotizaciones/cotizaciones";
 import axios from "axios";
+import { useSearchParams } from "react-router-dom";
+import { FaWhatsapp, FaTags } from "react-icons/fa";
+import { aplicarTarifasCotizacion } from "../Services/api-tarifas/tarifas";
+import { whatsappUrl } from "../Services/api-ventas/flujo";
 import API_BASE from "../config/api";
 import FormularioCotizacion from './formularios_dash/FormularioCotizacion';
 import "../styles/plus.css";
@@ -438,6 +442,26 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
     }
   };
 
+  const [aplicando, setAplicando] = useState(false);
+  const handleAplicarTarifas = async () => {
+    setAplicando(true);
+    try {
+      const r = await aplicarTarifasCotizacion(cotizacion.CotizacionID);
+      await onRecargar(cotizacion.CotizacionID);
+      const aplicadas = Number(r?.aplicadas) || 0;
+      const sinTarifa = Number(r?.sinTarifa) || 0;
+      swalTop({
+        icon: aplicadas > 0 ? (sinTarifa > 0 ? "info" : "success") : "warning",
+        title: `${aplicadas} aplicada${aplicadas !== 1 ? "s" : ""}, ${sinTarifa} sin tarifa`,
+        text: sinTarifa > 0 ? "Los diseños sin tarifa deben costearse a mano (o crea la tarifa en Servicios > Tarifas)." : undefined,
+        confirmButtonColor: C.accent,
+      });
+    } catch (error) {
+      const noExiste = error.response?.status === 404;
+      swalTop({ icon: "error", title: "No se pudieron aplicar las tarifas", text: noExiste ? "Esta función aún no está disponible en el servidor." : (error.response?.data?.message || error.message) });
+    } finally { setAplicando(false); }
+  };
+
   const handleDescargarPdf = async () => {
     if (faltantes > 0) {
       await swalTop({ icon: 'warning', title: 'No se puede descargar el PDF', html: `<p>Hay <strong>${faltantes}</strong> diseño(s) sin precio asignado.</p>`, confirmButtonText: 'Entendido', confirmButtonColor: C.warning });
@@ -462,6 +486,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
   };
 
   const u = cotizacion.usuario || {};
+  const waUrl = whatsappUrl(u.Telefono, `Hola ${u.Nombre || ""}, te escribimos de STAMPLAB sobre tu cotización #${cotizacion.CotizacionID}.`.replace(/\s+,/, ","));
   const iniciales = (u.Nombre || "?").split(/\s+/).filter(Boolean).slice(0, 2).map(s => s[0].toUpperCase()).join("");
   const subtotalCalc = (cotizacion.detalles || []).reduce((s, d) => s + precioUnitarioDetalle(d) * (d.Cantidad || 0), 0);
   const totalUnidades = (cotizacion.detalles || []).reduce((s, d) => s + (d.Cantidad || 0), 0);
@@ -496,7 +521,12 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
         {/* Cuerpo */}
         <div className="cz-mbody">
           {puedeEditarCostos && faltantes > 0 && (
-            <div className="cz-alert warn"><FaDollarSign /> Faltan {faltantes} diseño(s) por costear. Asigna el costo por unidad de cada diseño para poder aprobar y descargar el PDF.</div>
+            <div className="cz-alert warn" style={{ flexWrap: "wrap" }}>
+              <FaDollarSign /> <span style={{ flex: 1, minWidth: 200 }}>Faltan {faltantes} diseño(s) por costear. Asigna el costo por unidad de cada diseño para poder aprobar y descargar el PDF.</span>
+              <button className="cz-btn sm blue" onClick={handleAplicarTarifas} disabled={aplicando} title="Rellena el costo de los diseños sin precio con las tarifas por técnica y parte">
+                <FaTags size={11} /> {aplicando ? "Aplicando..." : "Aplicar tarifas"}
+              </button>
+            </div>
           )}
           {estadoNombre === "Aprobada" && (
             <div className="cz-alert info"><FaExchangeAlt /> Cotización aprobada: ya puedes convertirla a venta (se descontará el stock de cada variante).</div>
@@ -514,6 +544,12 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
                     <div><FaPhone /><span>{u.Telefono || "Sin teléfono"}</span></div>
                     <div style={{ gridColumn: "1 / -1" }}><FaEnvelope /><span>{u.Correo || "Sin correo"}</span></div>
                   </div>
+                  {waUrl && (
+                    <a className="cz-btn sm ghost" href={waUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ marginTop: 10, textDecoration: "none", color: "#15803d", borderColor: "#bbf7d0", background: C.successSoft }}>
+                      <FaWhatsapp size={14} /> Escribir por WhatsApp
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -698,6 +734,17 @@ const Cotizaciones = () => {
     try { await recargarDetalle(cotizacionID); }
     catch { Swal.fire("Error", "No se pudo cargar el detalle", "error"); }
   };
+
+  // Enlace desde "Hoy": /dashboard/cotizaciones?abrir=ID abre directamente el detalle
+  const [searchParams, setSearchParams] = useSearchParams();
+  const abrirParam = searchParams.get("abrir");
+  useEffect(() => {
+    if (!abrirParam) return;
+    const id = parseInt(abrirParam, 10);
+    setSearchParams({}, { replace: true });
+    if (id > 0) handleVerDetalle(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirParam]);
 
   const handleCancelarCotizacion = async (cotizacion) => {
     const { nombre: estadoNombre } = estadoDe(cotizacion);

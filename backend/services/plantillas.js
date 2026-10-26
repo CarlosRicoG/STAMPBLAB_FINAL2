@@ -43,12 +43,15 @@ function pedidoRecibido({ usuario, venta, lineas }) {
     };
 }
 
-function pedidoEstado({ usuario, venta, estadoNombre }) {
+function pedidoEstado({ usuario, venta, estadoNombre, nota = null, fechaEstimada = null }) {
+    const entrega = fechaEstimada && ['En Producción', 'Lista para Entrega'].includes(estadoNombre)
+        ? fila('Entrega estimada', new Date(fechaEstimada).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' })) : '';
+    const notaHtml = nota ? `<p style="margin:14px 0 0;padding:12px 14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px;color:#075985;font-size:14px;"><b>Nota del equipo:</b> ${esc(nota)}</p>` : '';
     return {
         asunto: `Tu pedido #${venta.VentaID}: ${estadoNombre}`,
         html: base({
             titulo: `Tu pedido #${venta.VentaID} ahora está: ${estadoNombre}`, saludo: `Hola ${primerNombre(usuario)},`,
-            cuerpo: `<p style="margin:0 0 14px;color:#0f172a;font-size:14px;line-height:1.6;">${esc(MENSAJE_ESTADO[estadoNombre] || 'Actualizamos el estado de tu pedido.')}</p>${tabla([fila('Pedido', '#' + venta.VentaID), fila('Estado', estadoNombre), fila('Total', cop(venta.Total))])}`,
+            cuerpo: `<p style="margin:0 0 14px;color:#0f172a;font-size:14px;line-height:1.6;">${esc(MENSAJE_ESTADO[estadoNombre] || 'Actualizamos el estado de tu pedido.')}</p>${tabla([fila('Pedido', '#' + venta.VentaID), fila('Estado', estadoNombre), fila('Total', cop(venta.Total)), entrega])}${notaHtml}`,
             boton: { texto: 'Seguir mi pedido', url: `${URL_WEB()}/miscompras` },
         }),
     };
@@ -68,7 +71,7 @@ function cotizacionRecibida({ usuario, cotizacion }) {
 function cotizacionEstado({ usuario, cotizacion, estadoNombre }) {
     const aprobada = estadoNombre === 'Aprobada';
     const texto = aprobada
-        ? `¡Buenas noticias! Tu cotización fue aprobada por un total de ${cop(cotizacion.ValorTotal)}. Responde a nuestro equipo para confirmar tu pedido.`
+        ? `¡Buenas noticias! Tu cotización fue aprobada por un total de ${cop(cotizacion.ValorTotal)}. Entra a "Mis cotizaciones" para aceptarla y crear tu pedido (o rechazarla si no te convence).`
         : estadoNombre === 'Rechazada' ? 'No pudimos aprobar tu cotización. Contáctanos y la ajustamos contigo.'
             : estadoNombre === 'Cancelada' ? 'Tu cotización fue cancelada.' : `El estado de tu cotización cambió a ${estadoNombre}.`;
     return {
@@ -81,4 +84,62 @@ function cotizacionEstado({ usuario, cotizacion, estadoNombre }) {
     };
 }
 
-module.exports = { pedidoRecibido, pedidoEstado, cotizacionRecibida, cotizacionEstado, esc, cop };
+function comprobanteRechazado({ usuario, venta, motivo }) {
+    return {
+        asunto: `Necesitamos otro comprobante para tu pedido #${venta.VentaID}`,
+        html: base({
+            titulo: `Revisa el comprobante de tu pedido #${venta.VentaID}`, saludo: `Hola ${primerNombre(usuario)},`,
+            cuerpo: `<p style="margin:0 0 14px;color:#0f172a;font-size:14px;line-height:1.6;">No pudimos validar el comprobante que subiste. Motivo:</p><p style="margin:0 0 14px;padding:12px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:14px;">${esc(motivo)}</p><p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Puedes subir uno nuevo desde "Mis compras". Tu pedido sigue reservado mientras tanto.</p>`,
+            boton: { texto: 'Subir nuevo comprobante', url: `${URL_WEB()}/miscompras` },
+        }),
+    };
+}
+
+function pedidoVencido({ usuario, venta, horas }) {
+    return {
+        asunto: `Tu pedido #${venta.VentaID} fue cancelado por falta de pago`,
+        html: base({
+            titulo: `Cancelamos tu pedido #${venta.VentaID}`, saludo: `Hola ${primerNombre(usuario)},`,
+            cuerpo: `<p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Pasaron más de ${esc(horas)} horas sin recibir el pago, así que liberamos las prendas reservadas. Si aún las quieres, puedes volver a pedir desde "Mis compras" con un solo clic.</p>`,
+            boton: { texto: 'Volver a pedir', url: `${URL_WEB()}/miscompras` },
+        }),
+    };
+}
+
+function cotizacionVencida({ usuario, cotizacion, dias }) {
+    return {
+        asunto: `Tu cotización #${cotizacion.CotizacionID} venció`,
+        html: base({
+            titulo: `Tu cotización #${cotizacion.CotizacionID} venció`, saludo: `Hola ${primerNombre(usuario)},`,
+            cuerpo: `<p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Pasaron ${esc(dias)} días sin respuesta y los precios pueden haber cambiado. Si todavía te interesa, genera una cotización nueva y te respondemos rápido.</p>`,
+            boton: { texto: 'Cotizar de nuevo', url: `${URL_WEB()}/cotizacionesLanding` },
+        }),
+    };
+}
+
+// ── Avisos para el equipo (administradores) ──
+const URL_ADMIN = () => URL_WEB() + '/dashboard';
+
+function avisoAdmin({ asunto, titulo, filas, ruta, boton }) {
+    return {
+        asunto,
+        html: base({
+            titulo, saludo: 'Aviso automático para el equipo de StampLab.',
+            cuerpo: tabla(filas.map(([k, v]) => fila(k, v))),
+            boton: { texto: boton || 'Abrir el panel', url: URL_ADMIN() + (ruta || '') },
+        }),
+    };
+}
+
+function stockBajoAdmin({ items, minimo }) {
+    const lista = items.map((i) => fila(`${i.producto} · ${i.color} · ${i.talla}`, `${i.stock} u.`));
+    return {
+        asunto: `Stock bajo: ${items.length} variante(s) por debajo de ${minimo} unidades`,
+        html: base({
+            titulo: 'Stock bajo', saludo: `Estas variantes están en ${minimo} unidades o menos.`,
+            cuerpo: tabla(lista), boton: { texto: 'Ver la bandeja de hoy', url: URL_ADMIN() + '/hoy' },
+        }),
+    };
+}
+
+module.exports = { pedidoRecibido, pedidoEstado, cotizacionRecibida, cotizacionEstado, comprobanteRechazado, pedidoVencido, cotizacionVencida, avisoAdmin, stockBajoAdmin, esc, cop };

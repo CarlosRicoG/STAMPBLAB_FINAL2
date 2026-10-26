@@ -3,6 +3,8 @@ import { FaUserCircle, FaSignOutAlt, FaPencilAlt, FaEye, FaEyeSlash, FaSave } fr
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { cerrarSesion } from "../../../Services/api-auth/auth";
+import BotonMenu from "./BotonMenu";
+import CampanaNotificaciones from "../../notificaciones/CampanaNotificaciones";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/usuarios`;
 
@@ -268,10 +270,15 @@ const NavAdmin = () => {
                 padding: "0 28px", boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
                 flexShrink: 0, fontFamily: "'Outfit', sans-serif",
             }}>
-                <span style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", letterSpacing: "-0.03em", fontFamily: "'Outfit', sans-serif" }}>
-                    Stamp<span style={{ color: "#4f8ef7" }}>Lab</span>
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                    <BotonMenu />
+                    <span style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", letterSpacing: "-0.03em", fontFamily: "'Outfit', sans-serif" }}>
+                        Stamp<span style={{ color: "#4f8ef7" }}>Lab</span>
+                    </span>
+                </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <CampanaNotificaciones />
+                    <div style={{ width: 1, height: 28, background: "#e2e8f0" }} />
                     <button className="nav-avatar-btn" onClick={handleAbrirPerfil}>
                         <div style={{
                             width: 36, height: 36, borderRadius: "50%",

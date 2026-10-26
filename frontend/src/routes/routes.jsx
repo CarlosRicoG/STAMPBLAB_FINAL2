@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import DashboardLayout from "../components/layouts/DashboardLayout";
+const MiCuenta = lazy(() => import("../components/landing/MiCuenta"));
+const Hoy = lazy(() => import("../pages/Hoy"));
+const Tarifas = lazy(() => import("../pages/Tarifas"));
 const NoEncontrada = lazy(() => import("../pages/NoEncontrada"));
 const Cotizaciones = lazy(() => import("../pages/Cotizaciones"));
 const Roles = lazy(() => import("../pages/Roles"));
@@ -75,6 +78,7 @@ const AppRoutes = () => {
             <Route path="/recuperarcontraseña" element={<RecuperarContraseña />} />
             <Route path="/restablecercontraseña" element={<RestablecerContraseña />} />
             <Route path="/editarperfil" element={<ProtectedRoute><EditarPerfil /></ProtectedRoute>} />
+            <Route path="/micuenta" element={<ProtectedRoute><MiCuenta /></ProtectedRoute>} />
             <Route path="/miscompras" element={<ProtectedRoute><MisCompras /></ProtectedRoute>} />
             <Route path="/miscotizaciones" element={<ProtectedRoute><MisCotizaciones /></ProtectedRoute>} />
             <Route path="/formularioCompra" element={<FormularioCompra />} />
@@ -92,6 +96,8 @@ const AppRoutes = () => {
                 {/* Rutas del Dashboard */}
                 <Route index element={<DashboardMedicionesempeño />} />
                 <Route path="ventas" element={<Ventas></Ventas>} />
+                <Route path="hoy" element={<Hoy />} />
+                <Route path="tarifas" element={<Tarifas />} />
                 <Route path="/dashboard/ventas-pendientes" element={<VentasPendientes />} />
                 <Route path="cotizaciones" element={<Cotizaciones />} />
                 <Route path="cotizaciones/nueva" element={<Navigate to="/dashboard/cotizaciones" replace />} />

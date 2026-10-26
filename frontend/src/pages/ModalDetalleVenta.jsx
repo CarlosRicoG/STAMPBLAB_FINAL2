@@ -1,6 +1,9 @@
-import { descargarComprobante } from "../Services/api-ventas/ventas";
+import { descargarComprobante, getHistorialVenta, rechazarComprobante } from "../Services/api-ventas/ventas";
+import { getConfigPublica } from "../Services/api-resumen/resumen";
+import { siguientesEstados, NOMBRE_ESTADO_VENTA, ESTADOS_CON_FECHA, hoyISO, whatsappUrl, fechaLimitePago } from "../Services/api-ventas/flujo";
 import React, { useEffect, useState } from 'react';
-import { FaCreditCard, FaTruck, FaInfoCircle, FaTimes, FaUser, FaReceipt, FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaIdCard, FaCheck, FaBan, FaSearchPlus, FaDownload, FaBoxOpen, FaStore } from 'react-icons/fa';
+import Swal from "sweetalert2";
+import { FaCreditCard, FaTruck, FaInfoCircle, FaTimes, FaUser, FaReceipt, FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaIdCard, FaCheck, FaBan, FaSearchPlus, FaDownload, FaBoxOpen, FaStore, FaWhatsapp, FaHistory, FaCalendarAlt, FaClock } from 'react-icons/fa';
 import { ESTADO_VENTA } from "../config/estados";
 
 /* ══════════════════════════════════════════════════════════
@@ -308,11 +311,43 @@ export const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPag
     );
 };
 
+/* ── Campos opcionales al cambiar de estado: nota para el cliente y fecha estimada ── */
+export const CamposNotaFecha = ({ nota, setNota, fecha, setFecha, pideFecha, errorFecha, errorNota }) => (
+    <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+        {pideFecha && (
+            <div>
+                <label htmlFor="vt-fecha-est" style={{ fontSize: 12, fontWeight: 700, color: VT.navy, display: "block", marginBottom: 6 }}>
+                    Fecha estimada de entrega <span style={{ fontWeight: 500, color: VT.muted }}>(opcional)</span>
+                </label>
+                <input id="vt-fecha-est" type="date" value={fecha} min={hoyISO()} onChange={e => setFecha(e.target.value)}
+                    aria-invalid={!!errorFecha}
+                    style={{ border: `1.5px solid ${errorFecha ? VT.danger : VT.border}`, borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: "'Outfit',sans-serif", color: VT.navy }} />
+                {errorFecha && <div role="alert" style={{ color: VT.danger, fontSize: 12, fontWeight: 600, marginTop: 4 }}>{errorFecha}</div>}
+            </div>
+        )}
+        <div>
+            <label htmlFor="vt-nota-cli" style={{ fontSize: 12, fontWeight: 700, color: VT.navy, display: "block", marginBottom: 6 }}>
+                Nota para el cliente <span style={{ fontWeight: 500, color: VT.muted }}>(opcional)</span>
+            </label>
+            <textarea id="vt-nota-cli" value={nota} onChange={e => setNota(e.target.value)} rows={2} maxLength={320}
+                placeholder="Ej.: Tu pedido ya está en producción, te avisamos cuando esté listo."
+                aria-invalid={!!errorNota}
+                style={{ width: "100%", border: `1.5px solid ${errorNota ? VT.danger : VT.border}`, borderRadius: 10, padding: "8px 12px", fontSize: 13, fontFamily: "'Outfit',sans-serif", resize: "vertical", color: VT.navy }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: errorNota ? VT.danger : VT.muted, marginTop: 3 }}>
+                <span role={errorNota ? "alert" : undefined}>{errorNota || "El cliente la verá en el seguimiento de su pedido."}</span>
+                <span>{nota.length}/300</span>
+            </div>
+        </div>
+    </div>
+);
+
 /* ── Modal para cambiar / procesar el estado de una venta ── */
 export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estado de la venta", aviso, onClose, onConfirm }) => {
     const [sel, setSel] = useState("");
     const [saving, setSaving] = useState(false);
-    useEffect(() => { if (show) { setSel(""); setSaving(false); } }, [show, venta?.VentaID]);
+    const [nota, setNota] = useState("");
+    const [fechaEst, setFechaEst] = useState("");
+    useEffect(() => { if (show) { setSel(""); setSaving(false); setNota(""); setFechaEst(""); } }, [show, venta?.VentaID]);
     useEffect(() => {
         if (!show) return;
         const onKey = (e) => { if (e.key === "Escape" && !saving) onClose?.(); };
@@ -323,12 +358,23 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
 
     const unidades = (venta.detalles || []).reduce((a, d) => a + (parseInt(d.Cantidad) || 0), 0);
     const selID = parseInt(sel);
-    const opciones = estados.filter(e => e.EstadoID !== venta.EstadoID);
+    // Solo estados válidos según la máquina de estados del pedido
+    const validos = siguientesEstados(venta.EstadoID);
+    const opciones = validos.map(id => estados.find(e => e.EstadoID === id) || { EstadoID: id, Nombre: NOMBRE_ESTADO_VENTA[id] });
+    const pideFecha = ESTADOS_CON_FECHA.includes(selID);
+    const hoy = hoyISO();
+    const errorFecha = pideFecha && fechaEst && fechaEst < hoy ? "La fecha estimada no puede ser anterior a hoy." : "";
+    const errorNota = nota.length > 300 ? "La nota no puede superar 300 caracteres." : "";
 
     const confirmar = async () => {
-        if (!sel || saving) return;
+        if (!sel || saving || errorFecha || errorNota) return;
         setSaving(true);
-        try { await onConfirm(selID); } finally { setSaving(false); }
+        try {
+            await onConfirm(selID, {
+                nota: nota.trim() || undefined,
+                fechaEstimadaEntrega: pideFecha && fechaEst ? fechaEst : undefined,
+            });
+        } finally { setSaving(false); }
     };
 
     return (
@@ -360,7 +406,10 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                         </div>
                     )}
                     <p style={{ fontSize: 12, fontWeight: 700, color: VT.navy, margin: "0 0 8px" }}>Seleccione el nuevo estado</p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }} role="radiogroup">
+                    {opciones.length === 0 && (
+                        <p style={{ fontSize: 13, color: VT.muted, margin: "0 0 8px" }}>Este pedido está en un estado final: ya no admite cambios de estado.</p>
+                    )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }} role="radiogroup" aria-label="Nuevo estado">
                         {opciones.map(e => {
                             const s = estiloEstado(e.EstadoID);
                             const on = selID === e.EstadoID;
@@ -378,6 +427,10 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                             );
                         })}
                     </div>
+                    {sel && (
+                        <CamposNotaFecha nota={nota} setNota={setNota} fecha={fechaEst} setFecha={setFechaEst}
+                            pideFecha={pideFecha} errorFecha={errorFecha} errorNota={errorNota} />
+                    )}
                     {selID === 12 && (
                         <div style={{ marginTop: 12, background: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successSoft : "#fef2f2", border: `1px solid ${venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successBorder : "#fecaca"}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? "#166534" : "#991b1b", fontWeight: 600 }}>
                             {venta.EstadoID === ESTADO_VENTA.PENDIENTE
@@ -394,7 +447,7 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                 </div>
                 <div className="vt-mfoot">
                     <button className="vt-btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
-                    <button className="vt-btn-primary vt-confirm-estado" onClick={confirmar} disabled={!sel || saving}
+                    <button className="vt-btn-primary vt-confirm-estado" onClick={confirmar} disabled={!sel || saving || !!errorFecha || !!errorNota}
                         style={selID === 12 ? { background: VT.danger, boxShadow: "0 4px 14px rgba(220,38,38,.3)" } : undefined}>
                         {saving && <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "vtSpin .7s linear infinite" }} />}
                         {selID === 12 ? "Cancelar venta" : "Confirmar"}
@@ -406,8 +459,64 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
 };
 
 /* ══════════════════════════════════════════════════════════ */
-const ModalDetalleVenta = ({ venta, onClose, footerExtra }) => {
+let configCache = null; // /config-publica casi no cambia: se consulta una sola vez por sesión de la página
+
+const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
     const [zoom, setZoom] = useState(false);
+    const [historial, setHistorial] = useState(null); // null = cargando, [] = sin datos o error
+    const [config, setConfig] = useState(configCache);
+    const [motivoLocal, setMotivoLocal] = useState(undefined); // undefined = usar el de la venta
+    const [rechazando, setRechazando] = useState(false);
+    const ventaID = venta?.VentaID;
+
+    useEffect(() => {
+        if (!ventaID) return;
+        let vivo = true;
+        setHistorial(null); setMotivoLocal(undefined);
+        getHistorialVenta(ventaID)
+            .then(h => { if (vivo) setHistorial(Array.isArray(h) ? h : []); })
+            .catch(() => { if (vivo) setHistorial([]); });
+        return () => { vivo = false; };
+    }, [ventaID]);
+
+    useEffect(() => {
+        if (configCache) return;
+        let vivo = true;
+        getConfigPublica().then(c => { configCache = c || {}; if (vivo) setConfig(configCache); }).catch(() => { });
+        return () => { vivo = false; };
+    }, []);
+
+    const handleRechazar = async () => {
+        const r = await Swal.fire({
+            title: "Rechazar comprobante",
+            text: "El pedido seguirá Pendiente y se avisará al cliente para que suba uno nuevo. Indica el motivo.",
+            input: "textarea", inputLabel: "Motivo del rechazo (5 a 300 caracteres)",
+            inputPlaceholder: "Ej.: El valor transferido no coincide con el total del pedido.",
+            inputAttributes: { maxlength: 300, "aria-label": "Motivo del rechazo" },
+            showCancelButton: true, confirmButtonText: "Rechazar comprobante", cancelButtonText: "Cancelar",
+            confirmButtonColor: VT.danger, cancelButtonColor: VT.navy,
+            didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; },
+            inputValidator: (v) => {
+                const t = (v || "").trim();
+                if (t.length < 5) return "El motivo debe tener al menos 5 caracteres.";
+                if (t.length > 300) return "El motivo no puede superar 300 caracteres.";
+                return undefined;
+            },
+        });
+        if (!r.isConfirmed) return;
+        setRechazando(true);
+        try {
+            const motivo = r.value.trim();
+            await rechazarComprobante(ventaID, motivo);
+            setMotivoLocal(motivo);
+            Swal.fire({ icon: "success", title: "Comprobante rechazado", text: "Se avisó al cliente por correo.", timer: 2200, showConfirmButton: false,
+                didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; } });
+            onActualizado?.();
+        } catch (e) {
+            Swal.fire({ icon: "error", title: "No se pudo rechazar el comprobante", text: e?.response?.data?.message || e?.message || "Intenta de nuevo.",
+                didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; } });
+        } finally { setRechazando(false); }
+    };
 
     useEffect(() => {
         const onKey = (e) => { if (e.key === "Escape") { if (zoom) setZoom(false); else onClose?.(); } };
@@ -429,6 +538,18 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra }) => {
         : "-";
     const cliente = venta.usuario || {};
     const metodo = venta.MetodoPago;
+    const motivoRechazo = motivoLocal !== undefined ? motivoLocal : venta.ComprobanteMotivoRechazo;
+    const pendiente = venta.EstadoID === ESTADO_VENTA.PENDIENTE;
+    const esEnvio = venta.TipoEntrega === "envio";
+    const hayEntrega = !!venta.TipoEntrega;
+    const costoEnvio = parseFloat(venta.CostoEnvio) || 0;
+    const telefonoCliente = venta.ContactoTelefono || cliente.Telefono || venta.TelefonoEntrega;
+    const waUrl = whatsappUrl(telefonoCliente, `Hola ${venta.ContactoNombre || cliente.Nombre || ""}, te escribimos de STAMPLAB sobre tu pedido #${venta.VentaID}.`.replace(/\s+,/, ","));
+    const limitePago = pendiente ? fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras) : null;
+    // Las fechas "YYYY-MM-DD" se interpretan como día local (new Date() las toma como UTC y mostraría el día anterior)
+    const fe = venta.FechaEstimadaEntrega ? String(venta.FechaEstimadaEntrega).slice(0, 10) : "";
+    const fechaEstimada = /^\d{4}-\d{2}-\d{2}$/.test(fe) ? new Date(+fe.slice(0, 4), +fe.slice(5, 7) - 1, +fe.slice(8, 10)) : null;
+    const fmtLarga = (d) => d.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" }) + " · " + d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
 
     return (
         <div className="vt-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onClose?.(); }} role="dialog" aria-modal="true" aria-label={`Detalle de la venta ${venta.VentaID}`}>
@@ -455,7 +576,23 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra }) => {
                     <div className="vt-sec" style={{ marginBottom: 14 }}>
                         <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: "#f5f3ff", color: VT.violet }}><FaCheck /></span>Seguimiento del pedido</p>
                         <TimelineEstado estadoID={venta.EstadoID} />
+                        {fechaEstimada && venta.EstadoID !== 12 && venta.EstadoID !== 11 && (
+                            <div className="vt-kv" style={{ marginTop: 14, color: VT.violet, fontWeight: 700 }}>
+                                <FaCalendarAlt size={12} style={{ color: VT.violet }} />
+                                <span>Entrega estimada: {fechaEstimada.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</span>
+                            </div>
+                        )}
                     </div>
+
+                    {limitePago && (
+                        <div role="status" style={{ background: VT.warningSoft, border: `1px solid ${VT.warningBorder}`, borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 12.5, color: "#92400e", fontWeight: 600, display: "flex", gap: 8, alignItems: "flex-start" }}>
+                            <FaClock style={{ marginTop: 2, flexShrink: 0 }} />
+                            <span>
+                                Plazo de pago: el cliente debe pagar antes del {fmtLarga(limitePago)}
+                                {limitePago < new Date() ? " (plazo vencido: el sistema cancelará el pedido automáticamente)." : ". Pasado ese plazo el pedido se cancela solo y el stock vuelve al inventario."}
+                            </span>
+                        </div>
+                    )}
 
                     <div className="vt-grid-3" style={{ marginBottom: 14 }}>
                         {/* Cliente */}
@@ -510,6 +647,32 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra }) => {
                         </div>
                     </div>
 
+                    {(hayEntrega || venta.ContactoNombre || venta.ContactoTelefono || venta.ContactoDireccion || waUrl) && (
+                        <div className="vt-sec" style={{ marginBottom: 14 }}>
+                            <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: VT.accentSoft, color: VT.accent }}><FaTruck /></span>Entrega y contacto del pedido</p>
+                            <div className="vt-grid-3" style={{ gap: 10 }}>
+                                {[
+                                    { ic: esEnvio ? <FaTruck /> : <FaStore />, l: "Tipo de entrega", v: hayEntrega ? (esEnvio ? "Envío a domicilio" : "Retiro en tienda") : "—" },
+                                    { ic: <FaReceipt />, l: "Costo de envío", v: hayEntrega ? (esEnvio ? (costoEnvio > 0 ? fmtCOP(costoEnvio) : "Sin costo") : "No aplica") : "—" },
+                                    { ic: <FaUser />, l: "Contacto", v: venta.ContactoNombre },
+                                    { ic: <FaPhoneAlt />, l: "Teléfono de contacto", v: venta.ContactoTelefono },
+                                    { ic: <FaMapMarkerAlt />, l: "Dirección de contacto", v: venta.ContactoDireccion },
+                                ].map(x => (
+                                    <div key={x.l} style={{ background: VT.bg, borderRadius: 12, padding: "10px 12px", border: "1px solid #eef2f7" }}>
+                                        <div style={{ fontSize: 11, color: VT.muted, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>{x.ic}{x.l}</div>
+                                        <div style={{ fontSize: 13.5, color: VT.navy, fontWeight: 600, marginTop: 3, wordBreak: "break-word" }}>{x.v || "—"}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            {waUrl && (
+                                <a className="vt-btn-ghost" href={waUrl} target="_blank" rel="noopener noreferrer"
+                                    style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none", marginTop: 12, color: "#15803d", background: VT.successSoft }}>
+                                    <FaWhatsapp size={15} /> Escribir por WhatsApp
+                                </a>
+                            )}
+                        </div>
+                    )}
+
                     {(metodo === "contraentrega" || venta.ComprobanteTransferencia) && (
                         <div className="vt-grid-2" style={{ marginBottom: 14, gridTemplateColumns: metodo === "contraentrega" && venta.ComprobanteTransferencia ? "1fr 1fr" : "1fr" }}>
                             {metodo === "contraentrega" && (
@@ -540,12 +703,51 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra }) => {
                                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                             <button className="vt-btn-ghost" onClick={() => setZoom(true)} style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><FaSearchPlus /> Ver comprobante</button>
                                             <a className="vt-btn-ghost" href={venta.ComprobanteTransferencia} download={`comprobante-venta-${venta.VentaID}`} style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}><FaDownload /> Descargar</a>
+                                            {pendiente && metodo === "transferencia" && (
+                                                <button className="vt-btn-ghost" onClick={handleRechazar} disabled={rechazando}
+                                                    style={{ display: "inline-flex", alignItems: "center", gap: 7, color: VT.danger, background: "#fef2f2" }}>
+                                                    <FaBan /> {rechazando ? "Rechazando..." : "Rechazar comprobante"}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
+                                    {motivoRechazo && (
+                                        <div role="status" style={{ marginTop: 12, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#991b1b", fontWeight: 600 }}>
+                                            Comprobante rechazado. Motivo: <span style={{ fontWeight: 500 }}>{motivoRechazo}</span>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
                     )}
+
+                    {/* Historial */}
+                    <div className="vt-sec" style={{ marginBottom: 14 }}>
+                        <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: "#f5f3ff", color: VT.violet }}><FaHistory /></span>Historial del pedido</p>
+                        {historial === null ? (
+                            <div><div className="vt-skel" style={{ width: "60%", marginBottom: 8 }} /><div className="vt-skel" style={{ width: "40%" }} /></div>
+                        ) : historial.length === 0 ? (
+                            <p style={{ margin: 0, fontSize: 13, color: VT.muted }}>Todavía no hay movimientos registrados para este pedido.</p>
+                        ) : (
+                            <ol style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 10 }}>
+                                {historial.map((h, i) => {
+                                    const s = estiloEstado(h.EstadoID ?? h.Estado);
+                                    return (
+                                        <li key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                            <span className="vt-dot" style={{ background: s.color, width: 10, height: 10, marginTop: 5 }} />
+                                            <div style={{ minWidth: 0 }}>
+                                                <div style={{ fontSize: 13, fontWeight: 700, color: VT.navy }}>
+                                                    {h.Estado || s.nombre}
+                                                    <span style={{ fontWeight: 500, color: VT.muted, marginLeft: 8, fontSize: 12 }}>{fmtFecha(h.Fecha)} · {fmtHora(h.Fecha)}</span>
+                                                </div>
+                                                {h.Nota && <div style={{ fontSize: 12.5, color: "#475569", marginTop: 2, wordBreak: "break-word" }}>{h.Nota}</div>}
+                                            </div>
+                                        </li>
+                                    );
+                                })}
+                            </ol>
+                        )}
+                    </div>
 
                     {/* Productos */}
                     <div className="vt-sec" style={{ animationDelay: ".16s" }}>

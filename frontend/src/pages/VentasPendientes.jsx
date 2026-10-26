@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { FaEye, FaSyncAlt, FaCreditCard, FaTruck, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaEye, FaSyncAlt, FaChevronLeft, FaChevronRight, FaReceipt } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { getVentas, getVentaById, updateEstadoVenta } from "../Services/api-ventas/ventas";
 import { getEstadosVenta } from "../Services/api-ventas/estados";
+import { siguientesEstados } from "../Services/api-ventas/flujo";
 import { ESTADO_VENTA } from "../config/estados";
+import ModalDetalleVenta, { CamposNotaFecha } from "./ModalDetalleVenta";
 
 /* ── Tokens ── */
 const C = {
@@ -140,122 +142,12 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
     );
 };
 
-/* ── Modal Detalle ── */
-const DetalleModal = ({ show, onClose, venta, formatearFecha }) => {
-    if (!show || !venta) return null;
-    return (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <div style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 720, maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 8px 40px rgba(0,0,0,0.18)", fontFamily: "'Outfit',sans-serif" }}>
-                <div style={{ background: C.navyGrad, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-                    <div>
-                        <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#fff" }}>Detalles de la Venta</p>
-                        <p style={{ margin: 0, color: "rgba(255,255,255,0.65)", fontSize: 12 }}>Venta ID: #{venta.VentaID}</p>
-                    </div>
-                    <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
-                </div>
-                <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        {[
-                            { label: "Cliente", value: venta.usuario?.Nombre || "Sin nombre" },
-                            { label: "Documento", value: venta.DocumentoID },
-                            { label: "Fecha de Venta", value: formatearFecha(venta.FechaVenta) },
-                            { label: "Estado", value: <Badge type="warning">Pendiente</Badge> },
-                        ].map(({ label, value }) => (
-                            <div key={label} style={{ background: C.bg, borderRadius: 10, padding: "12px 14px" }}>
-                                <p style={{ margin: 0, fontSize: 11, color: C.muted, fontWeight: 600 }}>{label}</p>
-                                <div style={{ margin: "3px 0 0", fontSize: 13, color: C.navy, fontWeight: 500 }}>{value}</div>
-                            </div>
-                        ))}
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                        <div style={{ background: C.accentSoft, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.accentBorder}` }}>
-                            <p style={{ margin: 0, fontSize: 11, color: C.muted, fontWeight: 600 }}>Subtotal</p>
-                            <p style={{ margin: "3px 0 0", fontSize: 15, fontWeight: 700, color: C.accent }}>${formatPrecio(venta.Subtotal)}</p>
-                        </div>
-                        <div style={{ background: C.successSoft, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.successBorder}` }}>
-                            <p style={{ margin: 0, fontSize: 11, color: C.muted, fontWeight: 600 }}>Total</p>
-                            <p style={{ margin: "3px 0 0", fontSize: 15, fontWeight: 800, color: C.success }}>${formatPrecio(venta.Total)}</p>
-                        </div>
-                    </div>
-                    <div style={{ background: C.bg, borderRadius: 10, padding: "14px 16px" }}>
-                        <p style={{ margin: "0 0 10px", fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Método de Pago</p>
-                        {venta.MetodoPago === "transferencia" ? (
-                            <div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                                    <FaCreditCard style={{ color: C.accent }} size={18} />
-                                    <Badge type="accent">Transferencia Bancaria</Badge>
-                                </div>
-                                {venta.FechaTransferencia && <p style={{ margin: "0 0 8px", fontSize: 12 }}><strong>Fecha de transferencia:</strong> {formatearFecha(venta.FechaTransferencia)}</p>}
-                                {venta.ComprobanteTransferencia && (
-                                    <div style={{ textAlign: "center", marginTop: 10 }}>
-                                        <p style={{ margin: "0 0 8px", fontSize: 12, fontWeight: 700 }}>Comprobante de pago:</p>
-                                        <img src={venta.ComprobanteTransferencia} alt="Comprobante"
-                                            style={{ maxWidth: 300, maxHeight: 380, border: `2px solid ${C.border}`, borderRadius: 10, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}
-                                            onClick={() => window.open(venta.ComprobanteTransferencia, "_blank")} />
-                                        <p style={{ fontSize: 11, color: C.muted, marginTop: 6 }}>Haz clic para ampliar</p>
-                                    </div>
-                                )}
-                            </div>
-                        ) : venta.MetodoPago === "contraentrega" ? (
-                            <div>
-                                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                                    <FaTruck style={{ color: C.success }} size={18} />
-                                    <Badge type="success">Pago Contraentrega</Badge>
-                                </div>
-                                <div style={{ background: C.successSoft, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.successBorder}`, fontSize: 13 }}>
-                                    <p style={{ margin: "0 0 6px" }}><strong>Receptor:</strong> {venta.NombreReceptor}</p>
-                                    <p style={{ margin: "0 0 6px" }}><strong>Teléfono:</strong> {venta.TelefonoEntrega}</p>
-                                    <p style={{ margin: 0 }}><strong>Dirección:</strong> {venta.DireccionEntrega}</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <p style={{ margin: 0, color: C.muted, fontSize: 13 }}>Método de pago no especificado</p>
-                        )}
-                    </div>
-                    <div>
-                        <p style={{ margin: "0 0 10px", fontSize: 11, color: C.muted, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>Productos</p>
-                        {venta.detalles?.length > 0 ? (
-                            <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${C.border}` }}>
-                                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, fontFamily: "'Outfit',sans-serif" }}>
-                                    <thead>
-                                        <tr>
-                                            {["Producto", "Color", "Talla", "Cant.", "P. Unit.", "Subtotal"].map((h, i) => (
-                                                <th key={i} style={{ ...TH, fontSize: 10, padding: "9px 12px" }}>{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {venta.detalles.map((det, i) => (
-                                            <tr key={i} style={{ background: i % 2 === 0 ? "#fff" : C.accentSoft, borderBottom: `1px solid ${C.border}` }}>
-                                                <td style={{ padding: "9px 12px", fontWeight: 600, color: C.navy }}>{det.producto?.Nombre || "-"}</td>
-                                                <td style={{ padding: "9px 12px", color: C.muted }}>{det.color?.Nombre || "-"}</td>
-                                                <td style={{ padding: "9px 12px", color: C.muted }}>{det.talla?.Nombre || "-"}</td>
-                                                <td style={{ padding: "9px 12px", textAlign: "center" }}>{det.Cantidad}</td>
-                                                <td style={{ padding: "9px 12px", textAlign: "right" }}>${formatPrecio(det.PrecioUnitario)}</td>
-                                                <td style={{ padding: "9px 12px", textAlign: "right", fontWeight: 700, color: C.navy }}>
-                                                    ${formatPrecio(det.Cantidad * parseFloat(det.PrecioUnitario))}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <p style={{ color: C.muted, fontSize: 13 }}>No hay detalles disponibles</p>
-                        )}
-                    </div>
-                </div>
-                <div style={{ padding: "14px 24px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
-                    <button onClick={onClose} style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 10, padding: "9px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Cerrar</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 /* ── Modal Cambiar Estado ── */
-const EstadoModal = ({ show, onClose, onConfirm, estados, estadoSeleccionado, setEstadoSeleccionado }) => {
+const EstadoModal = ({ show, onClose, onConfirm, estados, estadoSeleccionado, setEstadoSeleccionado, nota, setNota }) => {
     if (!show) return null;
+    // Un pedido Pendiente solo puede pasar a Pagada o Cancelada (máquina de estados)
+    const validos = siguientesEstados(ESTADO_VENTA.PENDIENTE);
+    const opciones = estados.filter(e => validos.includes(e.EstadoID));
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1010, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
             <div style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 460, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", overflow: "hidden", fontFamily: "'Outfit',sans-serif" }}>
@@ -271,10 +163,14 @@ const EstadoModal = ({ show, onClose, onConfirm, estados, estadoSeleccionado, se
                     <select value={estadoSeleccionado} onChange={e => setEstadoSeleccionado(e.target.value)}
                         style={{ width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "9px 13px", fontFamily: "'Outfit',sans-serif", fontSize: 13, outline: "none" }}>
                         <option value="">-- Seleccione --</option>
-                        {estados.map(e => (
+                        {opciones.map(e => (
                             <option key={e.EstadoID} value={e.EstadoID}>{e.Nombre} — {e.Descripcion}</option>
                         ))}
                     </select>
+                    {estadoSeleccionado && (
+                        <CamposNotaFecha nota={nota} setNota={setNota} fecha="" setFecha={() => { }} pideFecha={false}
+                            errorFecha="" errorNota={nota.length > 300 ? "La nota no puede superar 300 caracteres." : ""} />
+                    )}
                 </div>
                 <div style={{ padding: "0 24px 20px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
                     <button onClick={onConfirm} style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Confirmar</button>
@@ -297,6 +193,7 @@ const VentasPendientes = () => {
     const [showEstadoModal, setShowEstadoModal] = useState(false);
     const [estadosVenta, setEstadosVenta] = useState([]);
     const [estadoSeleccionado, setEstadoSeleccionado] = useState("");
+    const [nota, setNota] = useState("");
     const [filtro, setFiltro] = useState("");
 
     /* ── Paginación ── */
@@ -346,12 +243,13 @@ const VentasPendientes = () => {
         } catch { Toast.fire({ icon: "error", title: "Error al cargar detalles" }); }
     };
 
-    const handleCambiarEstado = (v) => { setSelectedVenta(v); setEstadoSeleccionado(""); setShowEstadoModal(true); };
+    const handleCambiarEstado = (v) => { setSelectedVenta(v); setEstadoSeleccionado(""); setNota(""); setShowEstadoModal(true); };
 
     const confirmarCambioEstado = async () => {
         if (!estadoSeleccionado) { Toast.fire({ icon: "warning", title: "Seleccione un estado" }); return; }
+        if (nota.length > 300) { Toast.fire({ icon: "warning", title: "La nota no puede superar 300 caracteres" }); return; }
         try {
-            await updateEstadoVenta(selectedVenta.VentaID, parseInt(estadoSeleccionado));
+            await updateEstadoVenta(selectedVenta.VentaID, parseInt(estadoSeleccionado), { nota: nota.trim() || undefined });
             Toast.fire({ icon: "success", title: "Venta procesada correctamente" });
             setShowEstadoModal(false); loadVentasPendientes(paginaActual, itemsPorPagina, filtro);
         } catch { Toast.fire({ icon: "error", title: "Error al actualizar el estado" }); }
@@ -462,6 +360,11 @@ const VentasPendientes = () => {
                                             </td>
                                             <td style={{ padding: "11px 14px" }}>
                                                 <Badge type="warning">Pendiente</Badge>
+                                                {venta.ComprobanteMotivoRechazo && (
+                                                    <div title={venta.ComprobanteMotivoRechazo} style={{ marginTop: 4, display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: C.danger }}>
+                                                        <FaReceipt size={10} /> Comprobante rechazado
+                                                    </div>
+                                                )}
                                             </td>
                                             <td style={{ padding: "11px 14px", textAlign: "right" }}>
                                                 <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
@@ -498,9 +401,13 @@ const VentasPendientes = () => {
                 </div>
             </div>
 
-            <DetalleModal show={showDetailModal} onClose={() => setShowDetailModal(false)} venta={selectedVenta} formatearFecha={formatearFecha} />
+            {showDetailModal && selectedVenta && (
+                <ModalDetalleVenta venta={selectedVenta} onClose={() => setShowDetailModal(false)}
+                    onActualizado={() => loadVentasPendientes(paginaActual, itemsPorPagina, filtro)} />
+            )}
             <EstadoModal show={showEstadoModal} onClose={() => setShowEstadoModal(false)} onConfirm={confirmarCambioEstado}
-                estados={estadosVenta} estadoSeleccionado={estadoSeleccionado} setEstadoSeleccionado={setEstadoSeleccionado} />
+                estados={estadosVenta} estadoSeleccionado={estadoSeleccionado} setEstadoSeleccionado={setEstadoSeleccionado}
+                nota={nota} setNota={setNota} />
         </>
     );
 };

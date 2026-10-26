@@ -6,8 +6,24 @@ import {
 } from "react-icons/fa";
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { FaInbox, FaTags, FaExclamationCircle } from "react-icons/fa";
+import { getResumenPendientes } from "../../../Services/api-resumen/resumen";
+
+/*
+ * `badge`: función que calcula el número de la insignia a partir de /api/resumen/pendientes.
+ * La insignia del grupo es la suma de las de sus ítems (se ve también con el menú colapsado).
+ */
+const n = (v) => Number(v) || 0;
 
 const menuItems = [
+    {
+        title: "Hoy",
+        key: "hoy",
+        icon: <FaInbox size={15} />,
+        items: [
+            { to: "/dashboard/hoy", label: "Hoy", icon: <FaInbox size={13} />, badge: (r) => n(r.total) }
+        ]
+    },
     {
         title: "Configuración",
         key: "roles",
@@ -31,6 +47,7 @@ const menuItems = [
         icon: <FaTools size={15} />,
         items: [
             { to: "/dashboard/tecnicas", label: "Técnicas", icon: <FaTools size={13} /> },
+            { to: "/dashboard/tarifas",  label: "Tarifas",  icon: <FaTags size={13} /> },
         ]
     },
     {
@@ -38,9 +55,12 @@ const menuItems = [
         key: "ventas",
         icon: <FaShoppingCart size={15} />,
         items: [
-            { to: "/dashboard/ventas-pendientes", label: "Pedidos Pendientes", icon: <FaClock size={13} /> },
-            { to: "/dashboard/ventas",            label: "Pedidos",            icon: <FaBox size={13} /> },
-            { to: "/dashboard/cotizaciones",      label: "Cotizaciones",       icon: <FaClipboardList size={13} /> },
+            { to: "/dashboard/ventas-pendientes", label: "Pedidos Pendientes", icon: <FaClock size={13} />,
+              badge: (r) => n(r.pedidosPendientes), alerta: (r) => n(r.comprobantesPorRevisar) },
+            { to: "/dashboard/ventas",            label: "Pedidos",            icon: <FaBox size={13} />,
+              badge: (r) => n(r.pedidosPorProducir) + n(r.pedidosListos) },
+            { to: "/dashboard/cotizaciones",      label: "Cotizaciones",       icon: <FaClipboardList size={13} />,
+              badge: (r) => n(r.cotizacionesPendientes) },
             { to: "/dashboard/productos",         label: "Productos",          icon: <FaBox size={13} /> },
         ]
     },
@@ -212,9 +232,43 @@ const CF_SHARED_CSS = `
 }
 `;
 
+const fmtBadge = (v) => (v > 99 ? "99+" : String(v));
+
+const Insignia = ({ valor, titulo, className = "" }) => {
+    if (!valor) return null;
+    return (
+        <span className={`sb-badge ${className}`} title={titulo}>
+            <span aria-hidden="true">{fmtBadge(valor)}</span>
+            <span className="sb-sr">{titulo}</span>
+        </span>
+    );
+};
+
+/* Contadores del menú: se refrescan cada 30 s y al navegar; si falla se conserva el último valor sin mostrar errores */
+const useResumenPendientes = (pathname) => {
+    const [resumen, setResumen] = useState(null);
+    useEffect(() => {
+        let vivo = true;
+        const cargar = async () => {
+            if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+            try {
+                const r = await getResumenPendientes();
+                if (vivo && r && typeof r === "object") setResumen(r);
+            } catch { /* endpoint aún no disponible o sin red: sin insignias, sin errores */ }
+        };
+        cargar();
+        const t = setInterval(cargar, 30000);
+        // Las pantallas que cambian estados (p. ej. "Hoy") pueden pedir un refresco inmediato
+        window.addEventListener("stamplab:refrescar-resumen", cargar);
+        return () => { vivo = false; clearInterval(t); window.removeEventListener("stamplab:refrescar-resumen", cargar); };
+    }, [pathname]);
+    return resumen;
+};
+
 const Sidebar = () => {
     const location  = useLocation();
     const actual    = rutaActiva(location.pathname);
+    const resumen   = useResumenPendientes(location.pathname);
     const [open, setOpen] = useState(() => grupoDeRuta(actual) || "ventas");
     const [collapsed, setCollapsed] = useState(() => {
         try { return localStorage.getItem(COLLAPSE_KEY) === "1"; } catch { return false; }
@@ -228,7 +282,16 @@ const Sidebar = () => {
 
     useEffect(() => {
         try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0"); } catch { /* sin storage */ }
+        // Avisa al botón de hamburguesa de la barra superior
+        window.dispatchEvent(new CustomEvent("stamplab:menu-estado", { detail: { abierto: !collapsed } }));
     }, [collapsed]);
+
+    // El botón de hamburguesa de la barra superior abre y cierra el menú
+    useEffect(() => {
+        const alternar = () => setCollapsed((c) => !c);
+        window.addEventListener("stamplab:menu-toggle", alternar);
+        return () => window.removeEventListener("stamplab:menu-toggle", alternar);
+    }, []);
 
     const toggle = (key) => {
         // Colapsado: el grupo no puede desplegarse, así que se expande la barra y se abre
@@ -304,6 +367,19 @@ const Sidebar = () => {
                 .sb-link:hover .sb-link-icon { opacity: 1; transform: scale(1.1); }
                 .sb-link.active .sb-link-icon { opacity: 1; color: ${ACCENT}; }
 
+                /* Insignias numéricas (pastilla) */
+                .sb-badge { margin-left: auto; flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+                    background: ${ACCENT}; color: #fff; font-size: 11px; font-weight: 700; line-height: 20px; text-align: center;
+                    font-variant-numeric: tabular-nums; box-shadow: 0 2px 8px rgba(79,142,247,.45); }
+                .sb-badge.alerta { background: #d97706; box-shadow: 0 2px 8px rgba(217,119,6,.5); }
+                .sb-group-btn .sb-label + .sb-badge { margin-left: 0; }
+                .sb-badge-dot { position: absolute; top: -5px; right: -7px; min-width: 17px; height: 17px; line-height: 17px; padding: 0 4px; font-size: 10px; margin-left: 0; border: 2px solid ${BG}; box-sizing: content-box; }
+                .sb-group-btn .sb-icon { position: relative; }
+                .sb-alert { flex-shrink: 0; color: #fbbf24; display: inline-flex; margin-left: 4px; }
+                .sb-link .sb-alert + .sb-badge { margin-left: 4px; }
+                .sb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+                .sb-link > span:nth-of-type(2) { flex: 1; min-width: 0; }
+
                 .sb-collapse-btn {
                     width: 100%; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); cursor: pointer;
                     display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 12px; border-radius: 10px;
@@ -362,6 +438,9 @@ const Sidebar = () => {
                     {menuItems.map((group) => {
                         const tieneActivo = group.items.some(i => i.to === actual);
                         const abierto = !collapsed && open === group.key;
+                        const sumaGrupo = resumen ? group.items.reduce((a, i) => a + (i.badge ? i.badge(resumen) : 0), 0) : 0;
+                        const alertaGrupo = resumen ? group.items.some(i => i.alerta && i.alerta(resumen) > 0) : false;
+                        const tituloGrupo = `${sumaGrupo} por atender en ${group.title}`;
                         return (
                             <div key={group.key} className={`sb-group ${tieneActivo ? "has-active" : ""}`}>
                                 <button
@@ -371,10 +450,13 @@ const Sidebar = () => {
                                     aria-expanded={abierto}
                                     style={collapsed ? { justifyContent: "center", padding: "9px 0" } : undefined}
                                 >
-                                    <span className="sb-icon">{group.icon}</span>
+                                    <span className="sb-icon">{group.icon}
+                                        {collapsed && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className={`sb-badge-dot ${alertaGrupo ? "alerta" : ""}`} />}
+                                    </span>
                                     {!collapsed && (
                                         <>
                                             <span className="sb-label">{group.title}</span>
+                                            {!abierto && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className={alertaGrupo ? "alerta" : ""} />}
                                             <FaChevronDown size={11} className={`sb-chevron ${abierto ? "open" : ""}`} />
                                         </>
                                     )}
@@ -396,6 +478,15 @@ const Sidebar = () => {
                                                         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                                                             {item.label}
                                                         </span>
+                                                        {resumen && item.alerta && item.alerta(resumen) > 0 && (
+                                                            <span className="sb-alert" title={`${item.alerta(resumen)} comprobante(s) por revisar`}>
+                                                                <FaExclamationCircle size={12} aria-hidden="true" />
+                                                                <span className="sb-sr">{item.alerta(resumen)} comprobante(s) por revisar</span>
+                                                            </span>
+                                                        )}
+                                                        {resumen && item.badge && (
+                                                            <Insignia valor={item.badge(resumen)} titulo={`${item.badge(resumen)} por atender`} />
+                                                        )}
                                                     </Link>
                                                 ))}
                                             </div>

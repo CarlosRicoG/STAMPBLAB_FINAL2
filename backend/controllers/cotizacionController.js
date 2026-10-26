@@ -6,6 +6,8 @@ const {
 const notificaciones = require('../services/notificaciones');
 const { ESTADO_COTIZACION, ESTADO_VENTA } = require('../config/estados');
 const inventario = require('../services/inventario');
+const historial = require('../services/historial');
+const { esAdmin } = require('../middleware/authMiddleware');
 const { ErrorNegocio } = inventario;
 const { Op } = require('sequelize');
 const path = require('path');
@@ -90,8 +92,10 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
         await inventario.reservar(lineas, tx);
         const nuevaVenta = await Venta.create({
             DocumentoID, FechaVenta: FechaCotizacion || new Date(),
-            Subtotal: subtotal, Total: subtotal, EstadoID: ESTADO_VENTA.PENDIENTE
+            Subtotal: subtotal, Total: subtotal, EstadoID: ESTADO_VENTA.PENDIENTE,
+            ContactoNombre: usuario?.Nombre, ContactoTelefono: usuario?.Telefono, ContactoDireccion: usuario?.Direccion
         }, { transaction: tx });
+        await historial.registrar({ tipo: 'venta', refId: nuevaVenta.VentaID, estadoId: ESTADO_VENTA.PENDIENTE, nota: 'Pedido recibido', documentoId: DocumentoID }, tx);
         for (const l of lineas) {
             await DetalleVenta.create({
                 VentaID: nuevaVenta.VentaID, ProductoID: l.ProductoID, ColorID: l.ColorID, TallaID: l.TallaID,
@@ -156,6 +160,7 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
             }                                                                           // 24
         }                                                                               // 25
         await tx.commit();
+        await historial.registrar({ tipo: 'cotizacion', refId: nuevaCotizacion.CotizacionID, estadoId: nuevaCotizacion.EstadoID, nota: 'Cotización recibida', documentoId: DocumentoID });
         notificaciones.cotizacionRecibida(nuevaCotizacion.CotizacionID);
         const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { // 26
             include: [                                                                  // 27
@@ -283,8 +288,12 @@ exports.convertirCotizacionAVenta = async (req, res) => {
             const total = lineas.reduce((s, l) => s + l.precioUnitario * (parseInt(l.detalle.Cantidad) || 0), 0);
             const venta = await Venta.create({
                 DocumentoID: cotizacion.DocumentoID, FechaVenta: new Date(),
-                Subtotal: total, Total: total, EstadoID: ESTADO_VENTA.PENDIENTE
+                Subtotal: total, Total: total, EstadoID: ESTADO_VENTA.PENDIENTE,
+                ContactoNombre: cotizacion.usuario?.Nombre, ContactoTelefono: cotizacion.usuario?.Telefono, ContactoDireccion: cotizacion.usuario?.Direccion
             }, { transaction: t });
+            const aceptoElCliente = !esAdmin(req);
+            await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: ESTADO_VENTA.PENDIENTE, nota: `Pedido creado desde la cotización #${cotizacion.CotizacionID}`, documentoId: req.usuario?.id }, t);
+            await historial.registrar({ tipo: 'cotizacion', refId: cotizacion.CotizacionID, estadoId: ESTADO_COTIZACION.PROCESADA, nota: aceptoElCliente ? 'Aceptada por el cliente: se creó el pedido #' + venta.VentaID : 'Convertida en pedido #' + venta.VentaID, documentoId: req.usuario?.id }, t);
             for (const l of lineas) {
                 await DetalleVenta.create({
                     VentaID: venta.VentaID, ProductoID: l.detalle.ProductoID || null,
@@ -548,8 +557,16 @@ exports.updateCotizacion = async (req, res) => {
             ValorTotal: ValorTotal !== undefined ? ValorTotal : cotizacion.ValorTotal,  // 28
             EstadoID: estadoNuevo                                                       // 29
         });                                                                             // 30
+        // Al aprobar, el valor que ve el cliente se calcula con los precios ya asignados (si el panel no lo mandó)
+        if (estadoNuevo === ESTADO_COTIZACION.APROBADA && estadoAnterior !== estadoNuevo && ValorTotal === undefined) {
+            const calculado = await calcularValorTotalCotizacion(cotizacion.CotizacionID);
+            if (calculado > 0) await cotizacion.update({ ValorTotal: calculado });
+        }
         // Aviso al cliente cuando cambia el estado (aprobada, rechazada, cancelada...)
-        if (estadoNuevo !== estadoAnterior) notificaciones.cotizacionEstado(cotizacion.CotizacionID);
+        if (estadoNuevo !== estadoAnterior) {
+            await historial.registrar({ tipo: 'cotizacion', refId: cotizacion.CotizacionID, estadoId: estadoNuevo, documentoId: req.usuario?.id });
+            notificaciones.cotizacionEstado(cotizacion.CotizacionID);
+        }
         res.json({ message: 'Cotización actualizada exitosamente', cotizacion });       // 31
     } catch (error) {                                                                   // 32
         res.status(500).json({ message: 'Error al actualizar cotización', error: error.message }); // 33
@@ -620,7 +637,10 @@ exports.cancelarCotizacion = async (req, res) => {
         // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
         const stockDevuelto = false;
         await cotizacion.update({ EstadoID: ESTADO_COTIZACION.CANCELADA });
-        notificaciones.cotizacionEstado(cotizacion.CotizacionID);                                       // 24
+        const porCliente = !esAdmin(req);
+        await historial.registrar({ tipo: 'cotizacion', refId: cotizacion.CotizacionID, estadoId: ESTADO_COTIZACION.CANCELADA, nota: porCliente ? 'Cancelada por el cliente' : null, documentoId: req.usuario?.id });
+        notificaciones.cotizacionEstado(cotizacion.CotizacionID);
+        if (porCliente) notificaciones.cotizacionRespuesta(cotizacion.CotizacionID, 'cancelada');                                       // 24
         return res.status(200).json({                                                   // 25
             message: 'Cotización cancelada exitosamente',                               // 26
             cotizacionID: cotizacion.CotizacionID, estadoNuevo: 'Cancelada', stockDevuelto // 27
@@ -669,5 +689,69 @@ const calcularValorTotalCotizacion = async (cotizacionID) => {
 };
 
 exports.calcularValorTotalCotizacion = calcularValorTotalCotizacion;
+
+// ============================================
+// EL CLIENTE RESPONDE A UNA COTIZACIÓN APROBADA
+// (el permiso de "dueño" se valida en la ruta)
+// ============================================
+exports.aceptarCotizacion = async (req, res) => {
+    const id = req.params.cotizacionID;
+    const original = res.json.bind(res);
+    res.json = (cuerpo) => {
+        if (res.statusCode === 201 && cuerpo?.venta) notificaciones.cotizacionRespuesta(id, 'aceptada', cuerpo.venta.VentaID);
+        return original(cuerpo);
+    };
+    return exports.convertirCotizacionAVenta(req, res);
+};
+
+exports.rechazarCotizacion = async (req, res) => {
+    try {
+        const motivo = typeof req.body.motivo === 'string' ? req.body.motivo.trim().slice(0, 250) : '';
+        const cot = await Cotizacion.findByPk(req.params.cotizacionID);
+        if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
+        if (cot.EstadoID !== ESTADO_COTIZACION.APROBADA) return res.status(400).json({ message: 'Solo puedes responder cotizaciones que ya tienen precio' });
+        await cot.update({ EstadoID: ESTADO_COTIZACION.RECHAZADA });
+        await historial.registrar({ tipo: 'cotizacion', refId: cot.CotizacionID, estadoId: ESTADO_COTIZACION.RECHAZADA, nota: motivo ? 'Rechazada por el cliente: ' + motivo : 'Rechazada por el cliente', documentoId: req.usuario?.id });
+        notificaciones.cotizacionRespuesta(cot.CotizacionID, 'rechazada', motivo || null);
+        return res.json({ message: 'Listo, avisamos al equipo. Gracias por tu respuesta.' });
+    } catch (error) {
+        return res.status(500).json({ message: 'Error al rechazar la cotización', error: error.message });
+    }
+};
+
+exports.historialCotizacion = async (req, res) => {
+    try { return res.json(await historial.listar('cotizacion', req.params.id)); }
+    catch (error) { return res.status(500).json({ message: 'Error al consultar el historial', error: error.message }); }
+};
+
+// ============================================
+// APLICAR TARIFAS: rellena el costo de los diseños que no lo tienen con la tarifa de su técnica + parte
+// ============================================
+exports.aplicarTarifas = async (req, res) => {
+    try {
+        const cotizacionID = req.params.cotizacionID;
+        const cot = await Cotizacion.findByPk(cotizacionID);
+        if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
+        if ([ESTADO_COTIZACION.PROCESADA, ESTADO_COTIZACION.CANCELADA].includes(cot.EstadoID)) return res.status(400).json({ message: 'Esta cotización ya no se puede modificar' });
+        const tarifas = await require('../models').TarifaTecnica.findAll({ raw: true });
+        const mapa = new Map(tarifas.map((t) => [t.TecnicaID + '-' + t.ParteID, Number(t.Costo)]));
+        const tecnicas = await CotizacionTecnica.findAll({
+            include: [{ model: DetalleCotizacion, as: 'detalleCotizacion', where: { CotizacionID: cotizacionID }, attributes: [] }],
+            where: { [Op.or]: [{ CostoTecnica: null }, { CostoTecnica: { [Op.lte]: 0 } }] },
+        });
+        let aplicadas = 0; let sinTarifa = 0;
+        for (const t of tecnicas) {
+            const costo = mapa.get(t.TecnicaID + '-' + t.ParteID);
+            if (costo > 0) { await t.update({ CostoTecnica: costo }); aplicadas++; } else sinTarifa++;
+        }
+        if (aplicadas > 0) {
+            const calculado = await calcularValorTotalCotizacion(cotizacionID);
+            if (calculado > 0) await cot.update({ ValorTotal: calculado });
+        }
+        return res.json({ message: aplicadas ? `Se aplicaron ${aplicadas} tarifa(s)${sinTarifa ? `; ${sinTarifa} diseño(s) siguen sin tarifa` : ''}` : 'No había diseños sin costo con tarifa disponible', aplicadas, sinTarifa });
+    } catch (error) {
+        return res.status(500).json({ message: 'Error al aplicar las tarifas', error: error.message });
+    }
+};
 module.exports.crearVentaDirecta = crearVentaDirecta;
 module.exports.crearCotizacionConDiseños = crearCotizacionConDiseños;

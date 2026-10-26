@@ -17,6 +17,9 @@ const {
 const notificaciones = require('../services/notificaciones');
 const { ESTADO_VENTA, TRANSICIONES_VENTA } = require('../config/estados');
 const inventario = require('../services/inventario');
+const historial = require('../services/historial');
+const configuracion = require('../services/config');
+const { esAdmin } = require('../middleware/authMiddleware');
 const log = require('../utils/log');
 const { Op } = require('sequelize');
 
@@ -173,8 +176,9 @@ exports.crearVenta = async (req, res) => {
         DocumentoID, Subtotal, Total, EstadoID, detalles,
         // CAMPOS OPCIONALES DE MÉTODO DE PAGO
         metodoPago, comprobanteTransferencia, fechaTransferencia,
-        nombreReceptor, telefonoEntrega, direccionEntrega
+        nombreReceptor, telefonoEntrega, direccionEntrega, tipoEntrega: tipoEntregaPedido
     } = req.body;
+    const tipoEntrega = tipoEntregaPedido === 'envio' ? 'envio' : 'retiro';
 
     // Validaciones básicas
     if (!DocumentoID || !detalles || detalles.length === 0) {
@@ -183,14 +187,14 @@ exports.crearVenta = async (req, res) => {
     if (metodoPago === 'transferencia' && !comprobanteTransferencia) {
         return res.status(400).json({ error: "Debe proporcionar el comprobante de transferencia", message: "Debe proporcionar el comprobante de transferencia" });
     }
-    if (metodoPago === 'contraentrega' && (!nombreReceptor || !telefonoEntrega || !direccionEntrega)) {
+    if ((metodoPago === 'contraentrega' || tipoEntrega === 'envio') && (!nombreReceptor || !telefonoEntrega || !direccionEntrega)) {
         return res.status(400).json({
             error: "Complete todos los datos de entrega (nombre, teléfono y dirección)",
             message: "Complete todos los datos de entrega (nombre, teléfono y dirección)"
         });
     }
 
-    const cliente = await Usuario.findByPk(DocumentoID, { attributes: ['DocumentoID', 'RolID'] });
+    const cliente = await Usuario.findByPk(DocumentoID, { attributes: ['DocumentoID', 'RolID', 'Nombre', 'Telefono', 'Direccion'] });
     if (!cliente) {
         return res.status(400).json({ error: "El cliente de la venta no existe", message: "El cliente de la venta no existe" });
     }
@@ -203,17 +207,22 @@ exports.crearVenta = async (req, res) => {
         // Bloquea las variantes, valida y descuenta el stock (asigna InventarioID a cada línea)
         await inventario.reservar(detalles, t);
 
+        // El costo de envío lo fija el servidor (el cliente no lo decide)
+        const costoEnvio = tipoEntrega === 'envio' && !esAdmin(req) ? configuracion.leer().costoEnvio : 0;
         const nuevaVenta = await Venta.create({
             DocumentoID,
             Subtotal,
-            Total,
+            Total: (Number(Total) || 0) + costoEnvio,
+            TipoEntrega: tipoEntrega,
+            CostoEnvio: costoEnvio,
+            ContactoNombre: cliente.Nombre, ContactoTelefono: cliente.Telefono, ContactoDireccion: cliente.Direccion,
             EstadoID: EstadoID || ESTADO_VENTA.PENDIENTE, // Pendiente por defecto
             MetodoPago: metodoPago || null,
             ComprobanteTransferencia: metodoPago === 'transferencia' ? comprobanteTransferencia : null,
             FechaTransferencia: metodoPago === 'transferencia' ? (fechaTransferencia || new Date()) : null,
-            NombreReceptor: metodoPago === 'contraentrega' ? nombreReceptor : null,
-            TelefonoEntrega: metodoPago === 'contraentrega' ? telefonoEntrega : null,
-            DireccionEntrega: metodoPago === 'contraentrega' ? direccionEntrega : null
+            NombreReceptor: (metodoPago === 'contraentrega' || tipoEntrega === 'envio') ? nombreReceptor : null,
+            TelefonoEntrega: (metodoPago === 'contraentrega' || tipoEntrega === 'envio') ? telefonoEntrega : null,
+            DireccionEntrega: (metodoPago === 'contraentrega' || tipoEntrega === 'envio') ? direccionEntrega : null
         }, { transaction: t });
 
         for (const item of detalles) {
@@ -228,6 +237,7 @@ exports.crearVenta = async (req, res) => {
             }, { transaction: t });
         }
 
+        await historial.registrar({ tipo: 'venta', refId: nuevaVenta.VentaID, estadoId: nuevaVenta.EstadoID, nota: 'Pedido recibido', documentoId: req.usuario?.id }, t);
         await t.commit();
         notificaciones.pedidoRecibido(nuevaVenta.VentaID); // correo al cliente (sin esperar; un fallo no afecta la venta)
         return res.status(201).json({ message: "Venta creada correctamente", venta: nuevaVenta });
@@ -243,6 +253,14 @@ exports.updateEstadoVenta = async (req, res) => {
     const { EstadoID } = req.body;
     const ventaId = req.params.id;
     if (!EstadoID) return res.status(400).json({ message: 'EstadoID es requerido' });
+    const nota = typeof req.body.nota === 'string' ? req.body.nota.trim() : '';
+    if (nota.length > 300) return res.status(400).json({ message: 'La nota no puede superar 300 caracteres' });
+    let fechaEstimada = null;
+    if (req.body.fechaEstimadaEntrega) {
+        fechaEstimada = new Date(String(req.body.fechaEstimadaEntrega).length === 10 ? req.body.fechaEstimadaEntrega + 'T12:00:00' : req.body.fechaEstimadaEntrega);
+        if (Number.isNaN(fechaEstimada.getTime())) return res.status(400).json({ message: 'La fecha estimada de entrega no es válida' });
+        if (fechaEstimada < new Date(Date.now() - 864e5)) return res.status(400).json({ message: 'La fecha estimada de entrega no puede ser pasada' });
+    }
 
     const estadoNuevo = parseInt(EstadoID);
     if (!Number.isInteger(estadoNuevo)) return res.status(400).json({ message: 'Estado de venta no válido' });
@@ -285,9 +303,12 @@ exports.updateEstadoVenta = async (req, res) => {
             await inventario.devolver(detalles, t);
         }
 
-        await venta.update({ EstadoID: estadoNuevo }, { transaction: t });
+        await venta.update({ EstadoID: estadoNuevo, ...(fechaEstimada ? { FechaEstimadaEntrega: fechaEstimada } : {}) }, { transaction: t });
+        const porCliente = !esAdmin(req);
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: estadoNuevo, nota: nota || (porCliente ? 'Cancelado por el cliente' : null), documentoId: req.usuario?.id }, t);
         await t.commit();
-        notificaciones.pedidoEstado(venta.VentaID); // correo al cliente con el nuevo estado
+        notificaciones.pedidoEstado(venta.VentaID, nota || null); // correo y aviso al cliente con el nuevo estado
+        if (porCliente && estadoNuevo === ESTADO_VENTA.CANCELADA) notificaciones.pedidoCanceladoPorCliente(venta.VentaID);
         return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock });
     } catch (error) {
         await t.rollback();
@@ -356,6 +377,53 @@ exports.updateVenta = async (req, res) => {
         await t.rollback();
         return responderError(res, error, 'Error al actualizar venta');
     }
+};
+
+// El administrador rechaza el comprobante de transferencia con un motivo; el pedido sigue pendiente y el cliente puede subir otro
+exports.rechazarComprobante = async (req, res) => {
+    const motivo = typeof req.body.motivo === 'string' ? req.body.motivo.trim() : '';
+    if (motivo.length < 5 || motivo.length > 300) return res.status(400).json({ message: 'Escribe el motivo del rechazo (entre 5 y 300 caracteres)' });
+    try {
+        const venta = await Venta.findByPk(req.params.id);
+        if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
+        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !venta.ComprobanteTransferencia) {
+            return res.status(400).json({ message: 'Solo se puede rechazar el comprobante de un pedido pendiente pagado por transferencia' });
+        }
+        await venta.update({ ComprobanteMotivoRechazo: motivo });
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: `Comprobante rechazado: ${motivo}`, documentoId: req.usuario?.id });
+        notificaciones.comprobanteRechazado(venta.VentaID, motivo);
+        return res.json({ message: 'Comprobante rechazado; se avisó al cliente', venta });
+    } catch (error) {
+        return responderError(res, error, 'Error al rechazar el comprobante');
+    }
+};
+
+// El cliente (o el administrador) sube o reemplaza el comprobante de un pedido pendiente
+exports.subirComprobante = async (req, res) => {
+    const { comprobanteTransferencia, fechaTransferencia } = req.body;
+    if (typeof comprobanteTransferencia !== 'string' || !comprobanteTransferencia.trim()) {
+        return res.status(400).json({ message: 'Debes adjuntar el comprobante de transferencia' });
+    }
+    try {
+        const venta = await Venta.findByPk(req.params.id);
+        if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
+        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE) return res.status(400).json({ message: 'Solo se puede subir el comprobante de un pedido pendiente' });
+        if (venta.MetodoPago && venta.MetodoPago !== 'transferencia') return res.status(400).json({ message: 'Este pedido no se paga por transferencia' });
+        await venta.update({
+            MetodoPago: 'transferencia', ComprobanteTransferencia: comprobanteTransferencia.trim(),
+            FechaTransferencia: fechaTransferencia ? new Date(fechaTransferencia) : new Date(), ComprobanteMotivoRechazo: null,
+        });
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Comprobante de pago recibido', documentoId: req.usuario?.id });
+        notificaciones.comprobanteSubido(venta.VentaID);
+        return res.json({ message: 'Comprobante recibido. Lo revisaremos pronto.', venta: { VentaID: venta.VentaID } });
+    } catch (error) {
+        return responderError(res, error, 'Error al subir el comprobante');
+    }
+};
+
+exports.historial = async (req, res) => {
+    try { return res.json(await historial.listar('venta', req.params.id)); }
+    catch (error) { return responderError(res, error, 'Error al consultar el historial'); }
 };
 
 // Eliminar una venta (con devolución de stock si estaba pendiente)

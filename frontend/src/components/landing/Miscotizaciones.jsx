@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
     FaEye, FaBoxOpen, FaTshirt, FaPalette, FaImage, FaCheckCircle,
     FaTimesCircle, FaClock, FaExchangeAlt, FaRuler, FaTint,
-    FaLayerGroup, FaChevronRight, FaCalendarAlt, FaFileAlt, FaDollarSign, FaArrowRight
+    FaLayerGroup, FaChevronRight, FaCalendarAlt, FaFileAlt, FaDollarSign, FaArrowRight, FaThumbsUp
 } from 'react-icons/fa';
 import FooterComponent from './footer';
 import NavbarComponent from './NavBarLanding';
@@ -11,9 +11,18 @@ import Swal from 'sweetalert2';
 import usePlus from '../../hooks/usePlus';
 import { cancelarCotizacion } from '../../Services/api-cotizaciones/cotizaciones';
 import {
+    aceptarCotizacion, rechazarCotizacion, getHistorialCotizacion, mensajeError
+} from '../../Services/api-cliente/cliente';
+import { escapeHtml } from '../../utils/escapeHtml';
+import { desgloseCotizacion } from '../../utils/clienteUtils';
+import { LineaTiempo, BotonWhatsApp, useConfigPublica, CLIENTE_CSS } from './clienteKit';
+import {
     MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper,
     McModal, ModalHead, EmptyState, Skeletons
 } from './miCuentaKit';
+
+const esAprobadaConPrecio = (c) =>
+    (Number(c.EstadoID) === 2 || c.estado?.Nombre === 'Aprobada') && parseFloat(c.ValorTotal) > 0;
 
 const C = {
     navy: "#1a2540", accent: "#4f8ef7", success: "#16a34a", warning: "#d97706", danger: "#dc2626",
@@ -64,9 +73,20 @@ const ImagenModal = ({ src, onClose }) => {
 // ─────────────────────────────────────────────────────
 // MODAL DETALLE
 // ─────────────────────────────────────────────────────
-const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = false, documentoID }) => {
+const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = false, documentoID, config, onAceptar, onRechazar, procesando = false }) => {
     const [imagenAmpliada, setImagenAmpliada] = useState(null);
+    const [historial, setHistorial] = useState(null);
+    const [cargandoHist, setCargandoHist] = useState(true);
+    useEffect(() => {
+        let vivo = true;
+        setCargandoHist(true);
+        getHistorialCotizacion(cotizacion.CotizacionID).then((h) => { if (vivo) { setHistorial(h); setCargandoHist(false); } });
+        return () => { vivo = false; };
+    }, [cotizacion.CotizacionID]);
     const estadoNombre = cotizacion.estado?.Nombre || 'Pendiente';
+    const puedeResponder = esAprobadaConPrecio(cotizacion) && (cotizacion.DocumentoID == null || String(cotizacion.DocumentoID) === String(documentoID));
+    const desglose = desgloseCotizacion(cotizacion);
+    const plazo = config?.plazoPagoHoras ?? 48;
     // Solo se puede cancelar una cotización Pendiente (EstadoID 1) que pertenece al cliente
     const esPendiente = Number(cotizacion.EstadoID) === 1 || (cotizacion.EstadoID == null && estadoNombre === 'Pendiente');
     const esDelCliente = cotizacion.DocumentoID == null || String(cotizacion.DocumentoID) === String(documentoID);
@@ -95,6 +115,34 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = 
                                 : <div className="big" style={{ fontSize: 18, color: C.muted }}>Pendiente de cotizar</div>}
                         </div>
                     </div>
+
+                    {puedeResponder && (
+                        <div className="ck-price" role="region" aria-label="Precio de tu cotización">
+                            <small className="mc-lbl" style={{ color: C.success }}>Tu cotización está lista</small>
+                            {desglose.lineas.map((l, i) => (
+                                <React.Fragment key={i}>
+                                    <div className="ck-price-row"><span>{l.nombre} × {l.cantidad}</span><b>${formatPrecio(l.subtotal)}</b></div>
+                                    {l.prenda > 0 && <div className="ck-price-row sub"><span>Prenda</span><span>${formatPrecio(l.prenda)}</span></div>}
+                                    {l.disenos > 0 && <div className="ck-price-row sub"><span>Diseños (estampado)</span><span>${formatPrecio(l.disenos)}</span></div>}
+                                </React.Fragment>
+                            ))}
+                            <div className="ck-price-tot"><span>Total</span><strong>${formatPrecio(cotizacion.ValorTotal)}</strong></div>
+                            <p className="ck-note">
+                                Si aceptas, <b>se crea tu pedido y se reserva el stock</b>. Tendrás <b>{plazo} horas</b> para pagarlo; pasado ese plazo el pedido se cancela solo y el stock se libera.
+                                Si no te interesa, puedes rechazarla y nos cuentas el motivo (opcional).
+                            </p>
+                            <div className="ck-actions">
+                                <button type="button" className="ck-btn green" disabled={procesando} onClick={() => onAceptar(cotizacion)}>
+                                    <FaThumbsUp size={13} /> {procesando ? 'Procesando...' : 'Aceptar y hacer pedido'}
+                                </button>
+                                <button type="button" className="ck-btn danger" disabled={procesando} onClick={() => onRechazar(cotizacion)}>
+                                    <FaTimesCircle size={13} /> No me interesa
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    <LineaTiempo eventos={historial} cargando={cargandoHist} titulo="Seguimiento de la cotización" />
 
                     <div className="mc-sec">Productos cotizados ({cotizacion.detalles?.length || 0})</div>
 
@@ -179,7 +227,8 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = 
                     })}
                 </div>
 
-                <div className="mc-mfoot">
+                <div className="mc-mfoot" style={{ gap: 10, flexWrap: 'wrap' }}>
+                    <BotonWhatsApp numero={config?.whatsapp} texto={`Hola StampLab, tengo una consulta sobre mi cotización #${cotizacion.CotizacionID}.`} />
                     {puedeCancelar && (
                         <button type="button" className="mc-cta alt" disabled={cancelando} onClick={() => onCancelar(cotizacion)}
                             style={{ color: C.danger, borderColor: C.danger }}>
@@ -205,6 +254,9 @@ const MisCotizaciones = () => {
     const [documentoID, setDocumentoID] = useState(null);
     const [filtroEstado, setFiltroEstado] = useState("Todos");
     const [cancelando, setCancelando] = useState(false);
+    const [procesando, setProcesando] = useState(false);
+    const config = useConfigPublica();
+    const navigate = useNavigate();
     const nombreUsuario = leerUsuario().Nombre || "";
 
     useEffect(() => {
@@ -231,7 +283,64 @@ const MisCotizaciones = () => {
             const data = await res.json();
             setCotizacionSeleccionada(data);
             setMostrarDetalle(true);
-        } catch { console.error("Error al cargar detalle"); }
+        } catch {
+            Swal.fire({ icon: "error", title: "No pudimos cargar el detalle", text: "Revisa tu conexión e intenta de nuevo.", confirmButtonColor: C.navy });
+        }
+    };
+
+    const cerrarDetalle = () => { setMostrarDetalle(false); setCotizacionSeleccionada(null); };
+    const textoError = (err) => err?.response?.status === 404
+        ? "Esta opción todavía no está disponible. Intenta de nuevo más tarde."
+        : mensajeError(err);
+
+    const handleAceptar = async (cot) => {
+        const plazo = config?.plazoPagoHoras ?? 48;
+        const r = await Swal.fire({
+            icon: "question", title: "¿Aceptar y hacer pedido?",
+            html: `<p style="margin:0 0 8px">Cotización <b>#${escapeHtml(cot.CotizacionID)}</b> por un total de <b>$${escapeHtml(formatPrecio(cot.ValorTotal))}</b>.</p>
+<p style="margin:0;font-size:14px;color:#475569">Al aceptar se <b>crea tu pedido</b> y se <b>reserva el stock</b>. Tendrás <b>${escapeHtml(plazo)} horas</b> para pagarlo; pasado ese plazo se cancela automáticamente.</p>`,
+            showCancelButton: true, confirmButtonText: "Sí, aceptar y hacer pedido", cancelButtonText: "Todavía no",
+            confirmButtonColor: C.success, cancelButtonColor: C.navy,
+        });
+        if (!r.isConfirmed) return;
+        setProcesando(true);
+        try {
+            const res = await aceptarCotizacion(cot.CotizacionID);
+            const ventaId = res?.venta?.VentaID;
+            cerrarDetalle();
+            await cargarCotizaciones();
+            const fin = await Swal.fire({
+                icon: "success",
+                title: ventaId ? `Pedido #${escapeHtml(ventaId)} creado` : "Pedido creado",
+                html: `<p style="margin:0;font-size:14px;color:#475569">Tu pedido ya está en <a href="/miscompras"><b>Mis compras</b></a>. Recuerda pagarlo dentro de las próximas <b>${escapeHtml(plazo)} horas</b> para no perder la reserva.</p>`,
+                showCancelButton: true, confirmButtonText: "Ir a Mis compras", cancelButtonText: "Quedarme aquí",
+                confirmButtonColor: C.accent, cancelButtonColor: C.navy,
+            });
+            if (fin.isConfirmed) navigate("/miscompras");
+        } catch (err) {
+            Swal.fire({ icon: "error", title: "No se pudo crear el pedido", text: textoError(err), confirmButtonColor: C.danger });
+        } finally { setProcesando(false); }
+    };
+
+    const handleRechazar = async (cot) => {
+        const r = await Swal.fire({
+            icon: "question", title: "¿No te interesa esta cotización?",
+            text: "Cuéntanos el motivo (opcional). Nos ayuda a mejorar nuestras propuestas.",
+            input: "textarea", inputPlaceholder: "Ej: el precio es más alto de lo que esperaba",
+            inputAttributes: { maxlength: 300, "aria-label": "Motivo (opcional)" },
+            showCancelButton: true, confirmButtonText: "Rechazar cotización", cancelButtonText: "Volver",
+            confirmButtonColor: C.danger, cancelButtonColor: C.navy,
+        });
+        if (!r.isConfirmed) return;
+        setProcesando(true);
+        try {
+            await rechazarCotizacion(cot.CotizacionID, r.value || "");
+            cerrarDetalle();
+            await cargarCotizaciones();
+            Swal.fire({ icon: "success", title: "Cotización rechazada", text: "Gracias por avisarnos. Puedes crear una nueva cuando quieras.", confirmButtonColor: C.navy });
+        } catch (err) {
+            Swal.fire({ icon: "error", title: "No se pudo rechazar", text: textoError(err), confirmButtonColor: C.danger });
+        } finally { setProcesando(false); }
     };
 
     const handleCancelar = async (cot) => {
@@ -266,7 +375,7 @@ const MisCotizaciones = () => {
 
     return (
         <>
-            <style>{MC_CSS}</style>
+            <style>{MC_CSS + CLIENTE_CSS}</style>
             <NavbarComponent />
 
             <div className="mc-page">
@@ -351,6 +460,12 @@ const MisCotizaciones = () => {
                                                         </div>
                                                     </div>
 
+                                                    {esAprobadaConPrecio(cot) && (
+                                                        <p className="ck-note" style={{ margin: 0, color: C.success, fontWeight: 700 }}>
+                                                            Tu cotización está lista: revísala y acéptala para crear tu pedido.
+                                                        </p>
+                                                    )}
+
                                                     <button type="button" className="mc-btn" onClick={() => verDetalle(cot.CotizacionID)}>
                                                         <FaEye size={14} /> Ver detalle <FaChevronRight size={10} />
                                                     </button>
@@ -366,7 +481,8 @@ const MisCotizaciones = () => {
             </div>
 
             {mostrarDetalle && cotizacionSeleccionada && (
-                <ModalDetalleCotizacion cotizacion={cotizacionSeleccionada} onCancelar={handleCancelar} cancelando={cancelando} documentoID={documentoID} onClose={() => { setMostrarDetalle(false); setCotizacionSeleccionada(null); }} />
+                <ModalDetalleCotizacion cotizacion={cotizacionSeleccionada} onCancelar={handleCancelar} cancelando={cancelando} documentoID={documentoID}
+                    config={config} onAceptar={handleAceptar} onRechazar={handleRechazar} procesando={procesando} onClose={cerrarDetalle} />
             )}
 
             <FooterComponent />

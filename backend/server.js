@@ -214,6 +214,13 @@ app.use('/api/ventas', ventasRoutes);
 app.use('/api/detalleventas', admin, detalleventasRoutes);
 app.use('/api/estados', adminParaEscritura, estadosRoutes);
 
+// Mejoras de flujo: notificaciones (campana), bandeja del administrador, tarifas, carrito y configuración pública
+app.get('/api/config-publica', (req, res) => res.json(require('./services/config').leer()));
+app.use('/api/notificaciones', require('./routes/notificaciones'));
+app.use('/api/resumen', admin, require('./routes/resumen'));
+app.use('/api/tarifas', require('./routes/tarifas'));
+app.use('/api/carrito', require('./routes/carrito'));
+
 // Buzón de pruebas (solo con MAIL_MODO=archivo y fuera de producción): lista los últimos correos "enviados"
 if (require('./services/correo').modo() === 'archivo') {
     app.get('/api/correos-prueba', admin, (req, res) => res.json({ datos: require('./services/correo').buzon }));
@@ -250,6 +257,7 @@ db.sequelize.authenticate()
         console.log('Conexión a la base de datos exitosa');
 
         app.listen(PORT, () => {
+            require('./services/vencimientos').iniciar(); // cancela pedidos sin pago y vence cotizaciones cada hora
             console.log('\n' + '='.repeat(60));
             console.log('SERVIDOR STAMPLAB INICIADO CORRECTAMENTE');
             console.log('='.repeat(60));

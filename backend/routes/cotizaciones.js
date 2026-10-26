@@ -83,6 +83,7 @@ router.get('/imagen/:filename', cotizacionController.getImagenDiseno);
 
 router.get('/', admin, cotizacionController.getAllCotizaciones);
 router.get('/usuario/:documentoID', verificarToken, propioOAdmin('documentoID'), cotizacionController.getCotizacionesByUsuario);
+router.get('/:id/historial', verificarToken, cotizacionPropiaOAdmin, cotizacionController.historialCotizacion);
 router.get('/:id', verificarToken, cotizacionPropiaOAdmin, cotizacionController.getCotizacionById);
 router.put('/detalle/:id', admin, require('../controllers/detallecotizacionController').updateDetalleCotizacion);
 router.put('/:id', admin, cotizacionController.updateCotizacion);
@@ -104,5 +105,19 @@ const cancelarPropiaOAdmin = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 router.put('/:cotizacionID/cancelar', verificarToken, cancelarPropiaOAdmin, cotizacionController.cancelarCotizacion);
+
+// El cliente responde a una cotización aprobada (acepta = se crea el pedido; rechaza); línea de tiempo; tarifas
+const respuestaPropia = async (req, res, next) => {
+    try {
+        const cot = await Cotizacion.findByPk(req.params.cotizacionID, { attributes: ['CotizacionID', 'DocumentoID', 'EstadoID'] });
+        if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
+        if (String(cot.DocumentoID) !== String(req.usuario.id)) return res.status(403).json({ mensaje: 'No tienes permiso para responder esta cotización' });
+        if (cot.EstadoID !== ESTADO_COTIZACION.APROBADA) return res.status(400).json({ message: 'Solo puedes responder cotizaciones que ya tienen precio (aprobadas)' });
+        next();
+    } catch (e) { next(e); }
+};
+router.post('/:cotizacionID/aceptar', verificarToken, respuestaPropia, cotizacionController.aceptarCotizacion);
+router.post('/:cotizacionID/rechazar', verificarToken, respuestaPropia, cotizacionController.rechazarCotizacion);
+router.post('/:cotizacionID/aplicar-tarifas', admin, cotizacionController.aplicarTarifas);
 
 module.exports = router;

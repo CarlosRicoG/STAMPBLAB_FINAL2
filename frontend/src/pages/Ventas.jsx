@@ -94,9 +94,9 @@ const Ventas = () => {
         finally { setLoadingDetalleId(null); }
     };
 
-    const confirmarCambioEstado = async (estadoID) => {
+    const confirmarCambioEstado = async (estadoID, extra) => {
         try {
-            const r = await updateEstadoVenta(ventaEstado.VentaID, estadoID);
+            const r = await updateEstadoVenta(ventaEstado.VentaID, estadoID, extra);
             const nuevo = estadosVenta.find(e => e.EstadoID === estadoID)?.Nombre || "nuevo estado";
             Toast.fire({
                 icon: "success",
@@ -277,7 +277,7 @@ const Ventas = () => {
             </div>
 
             {showDetailModal && selectedVenta && (
-                <ModalDetalleVenta venta={selectedVenta} onClose={() => setShowDetailModal(false)} />
+                <ModalDetalleVenta venta={selectedVenta} onClose={() => setShowDetailModal(false)} onActualizado={() => loadVentas(paginaActual, itemsPorPagina, filtro)} />
             )}
 
             <EstadoVentaModal

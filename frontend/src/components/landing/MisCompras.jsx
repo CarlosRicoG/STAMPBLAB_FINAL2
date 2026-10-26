@@ -1,12 +1,25 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import FooterComponent from "./footer";
 import NavbarComponent from "./NavBarLanding";
-import { FaBoxOpen, FaEye, FaCreditCard, FaTruck, FaStore, FaReceipt, FaCalendarAlt, FaShoppingBag, FaWallet, FaCheckCircle, FaClock, FaChevronRight, FaArrowRight } from "react-icons/fa";
+import { FaBoxOpen, FaEye, FaCreditCard, FaTruck, FaStore, FaReceipt, FaCalendarAlt, FaShoppingBag, FaWallet, FaCheckCircle, FaClock, FaChevronRight, FaArrowRight, FaExclamationTriangle, FaCloudUploadAlt, FaRedo } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { descargarComprobante } from "../../Services/api-ventas/ventas";
+import { getProductos } from "../../Services/api-productos/productos";
+import { getTallas } from "../../Services/api-productos/atributos";
+import { getHistorialVenta, subirComprobanteVenta, archivoADataURL, mensajeError } from "../../Services/api-cliente/cliente";
+import { guardarCarritoServidor } from "../../Services/api-carrito/carrito";
+import { escapeHtml } from "../../utils/escapeHtml";
+import { fechaLimitePago, textoTiempoRestante, formatoFechaHoraCO, formatoFechaCO, validarComprobante, itemsParaVolverAPedir, fusionarCarritos, textoCostoEnvio } from "../../utils/clienteUtils";
+import { LineaTiempo, BotonWhatsApp, useConfigPublica, CLIENTE_CSS } from "./clienteKit";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
+
+const CART_KEY = "cart_productos_landing";
+const esPendiente = (v) => (v.estado?.Nombre || "Pendiente") === "Pendiente";
+const tieneComprobante = (v) => !!(v.ComprobanteTransferencia || v.TieneComprobante);
+// Un pedido por transferencia pendiente puede (re)subir comprobante si lo rechazaron o si aún no tiene uno
+const puedeSubirComprobante = (v) => esPendiente(v) && (!!v.ComprobanteMotivoRechazo || (v.MetodoPago === "transferencia" && !tieneComprobante(v)));
 
 const C = { accent: "#4f8ef7", success: "#16a34a", warning: "#d97706", danger: "#dc2626", muted: "#64748b" };
 
@@ -45,9 +58,93 @@ const formatFechaHora = (f) => new Date(f).toLocaleDateString("es-CO", { year: "
 /* ════════════════════════════════════════
    MODAL DETALLE
 ════════════════════════════════════════ */
-const ModalDetalle = ({ venta, onClose }) => {
+/* Botón para subir (o volver a subir) el comprobante de transferencia */
+const BotonComprobante = ({ venta, etiqueta, onSubido }) => {
+    const ref = useRef(null);
+    const [subiendo, setSubiendo] = useState(false);
+    const alElegir = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) return;
+        const err = validarComprobante(file);
+        if (err) { Swal.fire({ icon: "warning", title: "Archivo no válido", text: err, confirmButtonColor: C.accent }); return; }
+        setSubiendo(true);
+        try {
+            const dataUrl = await archivoADataURL(file);
+            await subirComprobanteVenta(venta.VentaID, dataUrl);
+            await Swal.fire({ icon: "success", title: "Comprobante enviado", text: "Lo revisaremos lo más pronto posible y te avisaremos.", confirmButtonColor: C.accent });
+            onSubido?.();
+        } catch (error) {
+            const sinServicio = error?.response?.status === 404;
+            Swal.fire({ icon: "error", title: "No se pudo subir el comprobante", text: sinServicio ? "Esta opción todavía no está disponible. Intenta más tarde." : mensajeError(error), confirmButtonColor: C.danger });
+        } finally { setSubiendo(false); }
+    };
+    return (
+        <>
+            <input ref={ref} type="file" accept="image/png,image/jpeg,image/webp" style={{ display: "none" }} onChange={alElegir}
+                aria-label={`Elegir comprobante del pedido ${venta.VentaID}`} />
+            <button type="button" className="ck-btn" disabled={subiendo} onClick={() => ref.current?.click()}>
+                <FaCloudUploadAlt size={14} /> {subiendo ? "Subiendo..." : etiqueta}
+            </button>
+        </>
+    );
+};
+
+/* Avisos del pedido pendiente: plazo para pagar, comprobante rechazado o faltante */
+const AvisosPago = ({ venta, config, onSubido }) => {
+    if (!esPendiente(venta)) return null;
+    const limite = fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras);
+    const restante = textoTiempoRestante(limite);
+    return (
+        <>
+            {venta.ComprobanteMotivoRechazo && (
+                <div className="ck-alert bad" role="alert">
+                    <FaExclamationTriangle size={18} />
+                    <div>
+                        <b>Tu comprobante fue rechazado</b>
+                        <p>Motivo: {venta.ComprobanteMotivoRechazo}</p>
+                        <BotonComprobante venta={venta} etiqueta="Subir un nuevo comprobante" onSubido={onSubido} />
+                    </div>
+                </div>
+            )}
+            {!venta.ComprobanteMotivoRechazo && venta.MetodoPago === "transferencia" && !tieneComprobante(venta) && (
+                <div className="ck-alert warn" role="status">
+                    <FaExclamationTriangle size={18} />
+                    <div>
+                        <b>Aún no has subido tu comprobante</b>
+                        <p>Sube la foto de tu transferencia para que podamos confirmar el pago.</p>
+                        <BotonComprobante venta={venta} etiqueta="Subir comprobante" onSubido={onSubido} />
+                    </div>
+                </div>
+            )}
+            {limite && (
+                <div className={`ck-alert ${restante === "plazo vencido" ? "bad" : "info"}`}>
+                    <FaClock size={18} />
+                    <div>
+                        <b>Paga antes de {formatoFechaHoraCO(limite)}</b>
+                        <p>{restante === "plazo vencido" ? "El plazo ya venció: el pedido se cancelará automáticamente." : `Si no se paga a tiempo, el pedido se cancela solo y el stock se libera (${restante}).`}</p>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
+
+const ModalDetalle = ({ venta, onClose, config, onRecargar, onVolverAPedir }) => {
+    const [historial, setHistorial] = useState(null);
+    const [cargandoHist, setCargandoHist] = useState(true);
+    const ventaID = venta?.VentaID;
+    useEffect(() => {
+        if (!ventaID) return undefined;
+        let vivo = true;
+        setCargandoHist(true);
+        getHistorialVenta(ventaID).then((h) => { if (vivo) { setHistorial(h); setCargandoHist(false); } });
+        return () => { vivo = false; };
+    }, [ventaID]);
     if (!venta) return null;
     const estadoNombre = venta.estado?.Nombre || "Pendiente";
+    const esEnvio = venta.TipoEntrega === "envio" || venta.MetodoPago === "contraentrega";
+    const costoEnvio = parseFloat(venta.CostoEnvio) || 0;
     return (
         <McModal onClose={onClose}>
             <ModalHead eyebrow="Detalle de compra" title={`Compra #${venta.VentaID}`}
@@ -64,16 +161,37 @@ const ModalDetalle = ({ venta, onClose }) => {
                     <div style={{ height: 10 }} />
                 </div>
 
-                {venta.MetodoPago === "contraentrega" && (
-                    <div className="mc-info">
-                        <small className="mc-lbl" style={{ color: "#3b6fe0" }}>Datos de entrega</small>
-                        <div className="mc-kv">
-                            <div><small>Receptor</small><span>{venta.NombreReceptor || "—"}</span></div>
-                            <div><small>Teléfono</small><span>{venta.TelefonoEntrega || "—"}</span></div>
-                            <div className="full"><small>Dirección</small><span>{venta.DireccionEntrega || "—"}</span></div>
-                        </div>
+                <AvisosPago venta={venta} config={config} onSubido={onRecargar} />
+
+                {venta.FechaEstimadaEntrega && estadoNombre !== "Cancelada" && estadoNombre !== "Entregada" && (
+                    <div className="ck-alert ok" role="status">
+                        <FaCalendarAlt size={18} />
+                        <div><b>Fecha estimada de entrega</b><p>{formatoFechaCO(venta.FechaEstimadaEntrega)}</p></div>
                     </div>
                 )}
+
+                <LineaTiempo eventos={historial} cargando={cargandoHist} titulo="Línea de tiempo del pedido" />
+
+                <div className="mc-info">
+                    <small className="mc-lbl" style={{ color: "#3b6fe0" }}>Datos de entrega</small>
+                    <div className="mc-kv">
+                        <div className="full"><small>Tipo de entrega</small><span>{esEnvio ? "Envío a domicilio" : "Recoger en tienda"}</span></div>
+                        {esEnvio ? (
+                            <>
+                                <div><small>Receptor</small><span>{venta.NombreReceptor || venta.ContactoNombre || "—"}</span></div>
+                                <div><small>Teléfono</small><span>{venta.TelefonoEntrega || venta.ContactoTelefono || "—"}</span></div>
+                                <div className="full"><small>Dirección</small><span>{venta.DireccionEntrega || venta.ContactoDireccion || "—"}</span></div>
+                                <div className="full"><small>Costo de envío</small><span>{costoEnvio > 0 ? `$${formatPrecio(costoEnvio)}` : textoCostoEnvio(0)}</span></div>
+                            </>
+                        ) : (
+                            <>
+                                {venta.ContactoNombre && <div><small>Contacto</small><span>{venta.ContactoNombre}</span></div>}
+                                {venta.ContactoTelefono && <div><small>Teléfono</small><span>{venta.ContactoTelefono}</span></div>}
+                                <div className="full"><small>Retiro</small><span>Te avisaremos cuando tu pedido esté listo para recoger.</span></div>
+                            </>
+                        )}
+                    </div>
+                </div>
 
                 <div className="mc-sec">Productos comprados</div>
                 {venta.detalles?.map((det, i) => (
@@ -101,8 +219,12 @@ const ModalDetalle = ({ venta, onClose }) => {
                     </div>
                 ))}
             </div>
-            <div className="mc-mfoot">
-                <button type="button" className="mc-btn" onClick={() => descargarComprobante(venta.VentaID).catch(() => Swal.fire({ icon: "error", title: "No se pudo descargar el comprobante" }))}><FaReceipt size={13} /> Descargar comprobante</button>
+            <div className="mc-mfoot" style={{ gap: 10, flexWrap: "wrap" }}>
+                <BotonWhatsApp numero={config?.whatsapp} texto={`Hola StampLab, tengo una consulta sobre mi pedido #${venta.VentaID}.`} />
+                {(estadoNombre === "Entregada" || estadoNombre === "Cancelada") && (
+                    <button type="button" className="ck-btn ghost" onClick={() => onVolverAPedir(venta)}><FaRedo size={12} /> Volver a pedir</button>
+                )}
+                <button type="button" className="mc-btn" style={{ width: "auto" }} onClick={() => descargarComprobante(venta.VentaID).catch(() => Swal.fire({ icon: "error", title: "No se pudo descargar el comprobante" }))}><FaReceipt size={13} /> Descargar comprobante</button>
                 <button type="button" className="mc-cta" onClick={onClose}>Cerrar</button>
             </div>
         </McModal>
@@ -120,6 +242,9 @@ const MisCompras = () => {
     const [cargando, setCargando] = useState(true);
     const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
     const [documentoID, setDocumentoID] = useState(null);
+    const [reordenando, setReordenando] = useState(false);
+    const config = useConfigPublica();
+    const navigate = useNavigate();
 
     useEffect(() => {
         const usuarioStorage = localStorage.getItem("usuario");
@@ -159,11 +284,52 @@ const MisCompras = () => {
     const verDetalle = async (ventaID) => {
         try {
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas/${ventaID}`);
+            if (!response.ok) throw new Error("detalle");
             const data = await response.json();
             setVentaSeleccionada(data);
         } catch (error) {
             console.error("Error al cargar detalle:", error);
+            Swal.fire({ icon: "error", title: "No pudimos cargar el detalle", text: "Revisa tu conexión e intenta de nuevo.", confirmButtonColor: "#1a2540" });
         }
+    };
+
+    // Tras subir un comprobante: refresca la lista y el detalle abierto
+    const recargarTodo = async () => {
+        await cargarVentas();
+        if (ventaSeleccionada) await verDetalle(ventaSeleccionada.VentaID);
+    };
+
+    // Volver a pedir: agrega al carrito lo que siga disponible, con el precio ACTUAL del catálogo
+    const volverAPedir = async (venta) => {
+        if (reordenando) return;
+        setReordenando(true);
+        try {
+            const [pRes, tRes] = await Promise.all([getProductos(), getTallas()]);
+            const catalogo = pRes?.datos || pRes || [];
+            const tallasCat = tRes?.datos || tRes || [];
+            const { items, omitidos } = itemsParaVolverAPedir(venta, Array.isArray(catalogo) ? catalogo : [], Array.isArray(tallasCat) ? tallasCat : []);
+            const lista = (arr) => arr.length
+                ? `<ul style="text-align:left;margin:8px 0 0;padding-left:20px;font-size:13px;color:#475569">${arr.map(o => `<li><b>${escapeHtml(o.nombre)}</b>: ${escapeHtml(o.motivo)}</li>`).join("")}</ul>`
+                : "";
+            if (items.length === 0) {
+                Swal.fire({ icon: "info", title: "No pudimos agregar este pedido", html: `<p style="margin:0">Ninguno de los productos está disponible ahora mismo.</p>${lista(omitidos)}`, confirmButtonColor: "#1a2540" });
+                return;
+            }
+            let actual = [];
+            try { actual = JSON.parse(localStorage.getItem(CART_KEY) || "[]"); } catch { actual = []; }
+            const nuevo = fusionarCarritos(actual, items);
+            try { localStorage.setItem(CART_KEY, JSON.stringify(nuevo)); } catch { /* sin storage */ }
+            guardarCarritoServidor(nuevo); // si falla, el carrito local sigue valiendo
+            const r = await Swal.fire({
+                icon: omitidos.length ? "warning" : "success",
+                title: `${items.length} ${items.length === 1 ? "producto agregado" : "productos agregados"} al carrito`,
+                html: `<p style="margin:0">Usamos los precios actuales del catálogo.</p>${omitidos.length ? `<p style="margin:10px 0 0;font-weight:700">No pudimos agregar:</p>${lista(omitidos)}` : ""}`,
+                showCancelButton: true, confirmButtonText: "Ir al carrito", cancelButtonText: "Seguir aquí", confirmButtonColor: "#4f8ef7", cancelButtonColor: "#1a2540",
+            });
+            if (r.isConfirmed) navigate("/productosLanding", { state: { abrirCarrito: true } });
+        } catch (error) {
+            Swal.fire({ icon: "error", title: "No se pudo volver a pedir", text: "No pudimos consultar el catálogo. Intenta de nuevo en unos minutos.", confirmButtonColor: "#dc2626" });
+        } finally { setReordenando(false); }
     };
 
     // Cancelar un pedido propio (solo si sigue Pendiente): el servidor devuelve el stock
@@ -200,7 +366,7 @@ const MisCompras = () => {
 
     return (
         <>
-            <style>{MC_CSS + `
+            <style>{MC_CSS + CLIENTE_CSS + `
 .mc-cancel { margin-top: 10px; width: 100%; padding: 11px 16px; border-radius: 10px; border: 1.5px solid #fecaca; background: #fff; color: #dc2626; font: 700 13px "Outfit", sans-serif; cursor: pointer; transition: background .25s, color .25s, transform .25s, box-shadow .25s; }
 .mc-cancel:hover { background: #dc2626; color: #fff; transform: translateY(-2px); box-shadow: 0 10px 24px rgba(220,38,38,.28); }
 `}</style>
@@ -270,9 +436,40 @@ const MisCompras = () => {
                                                     <FaReceipt size={20} color="#16a34a" style={{ opacity: .45 }} />
                                                 </div>
 
+                                                {estadoNombre === "Pendiente" && (() => {
+                                                    const limite = fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras);
+                                                    return (
+                                                        <>
+                                                            {venta.ComprobanteMotivoRechazo && (
+                                                                <div className="ck-alert bad" role="alert" style={{ margin: 0 }}>
+                                                                    <FaExclamationTriangle size={16} />
+                                                                    <div>
+                                                                        <b>Comprobante rechazado</b>
+                                                                        <p>{venta.ComprobanteMotivoRechazo}</p>
+                                                                        <BotonComprobante venta={venta} etiqueta="Subir un nuevo comprobante" onSubido={cargarVentas} />
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {!venta.ComprobanteMotivoRechazo && puedeSubirComprobante(venta) && (
+                                                                <BotonComprobante venta={venta} etiqueta="Subir comprobante" onSubido={cargarVentas} />
+                                                            )}
+                                                            {limite && (
+                                                                <p className="ck-note" style={{ margin: 0, fontWeight: 700, color: "#92400e" }}>
+                                                                    <FaClock size={11} /> Paga antes de {formatoFechaHoraCO(limite)}
+                                                                </p>
+                                                            )}
+                                                        </>
+                                                    );
+                                                })()}
+
                                                 <button type="button" className="mc-btn" onClick={() => verDetalle(venta.VentaID)}>
                                                     <FaEye size={14} /> Ver detalle <FaChevronRight size={10} />
                                                 </button>
+                                                {(estadoNombre === "Entregada" || estadoNombre === "Cancelada") && (
+                                                    <button type="button" className="ck-btn ghost" disabled={reordenando} onClick={() => volverAPedir(venta)}>
+                                                        <FaRedo size={12} /> Volver a pedir
+                                                    </button>
+                                                )}
                                                 {estadoNombre === "Pendiente" && (
                                                     <button type="button" className="mc-cancel" onClick={() => cancelarPedido(venta)}>
                                                         Cancelar pedido
@@ -291,7 +488,7 @@ const MisCompras = () => {
             <FooterComponent />
 
             {ventaSeleccionada && (
-                <ModalDetalle venta={ventaSeleccionada} onClose={() => setVentaSeleccionada(null)} />
+                <ModalDetalle venta={ventaSeleccionada} onClose={() => setVentaSeleccionada(null)} config={config} onRecargar={recargarTodo} onVolverAPedir={volverAPedir} />
             )}
         </>
     );

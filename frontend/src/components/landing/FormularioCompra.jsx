@@ -10,6 +10,9 @@ import { crearVenta } from '../../Services/api-ventas/ventas';
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, leerUsuario, MiCuentaHero } from "./miCuentaKit";
 import { ESTADO_VENTA } from "../../config/estados";
+import { getConfigPublica, CONFIG_POR_DEFECTO } from "../../Services/api-cliente/cliente";
+import { textoCostoEnvio, num } from "../../utils/clienteUtils";
+import { FaStore } from "react-icons/fa";
 
 /* ── Tokens de color ── */
 const C = {
@@ -52,9 +55,9 @@ const SectionCard = ({ title, icon, n, children }) => (
 );
 
 /* ── Radio de método de pago ── */
-const MetodoRadio = ({ id, value, checked, onChange, icon, label, color, desc }) => (
+const MetodoRadio = ({ id, value, checked, onChange, icon, label, color, desc, name = "metodoPago" }) => (
     <label htmlFor={id} className={`mc-pay ${checked ? "on" : ""}`} style={{ "--pc": color }}>
-        <input type="radio" id={id} name="metodoPago" value={value} checked={checked} onChange={onChange} style={{ display: "none" }} />
+        <input type="radio" id={id} name={name} value={value} checked={checked} onChange={onChange} style={{ display: "none" }} />
         <span className="mc-pay-ico">{icon}</span>
         <span style={{ flex: 1 }}>
             <b>{label}</b>
@@ -79,6 +82,8 @@ const FormularioCompra = () => {
     const [telaID, setTelaID] = useState("");
     const [cantidad, setCantidad] = useState(1);
     const [metodoPago, setMetodoPago] = useState("");
+    const [tipoEntrega, setTipoEntrega] = useState("retiro");
+    const [config, setConfig] = useState(CONFIG_POR_DEFECTO);
     const [mostrarQR, setMostrarQR] = useState(false);
     const [comprobanteArchivo, setComprobanteArchivo] = useState(null);
     const [direccionEntrega, setDireccionEntrega] = useState("");
@@ -91,7 +96,10 @@ const FormularioCompra = () => {
     const [cargando, setCargando] = useState(false);
     const enviandoRef = useRef(false); // seguro contra doble clic
 
-    /* ── Focused states ── */
+    useEffect(() => { getConfigPublica().then(setConfig); }, []);
+    const esEnvio = tipoEntrega === "envio";
+    const envioNum = esEnvio ? num(config?.costoEnvio) : 0;
+    const pideDatosEntrega = metodoPago === "contraentrega" || esEnvio;
 
     useEffect(() => {
         verificarAutenticacion();
@@ -209,7 +217,7 @@ const FormularioCompra = () => {
             if (!['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'].includes(comprobanteArchivo.type)) { Swal.fire("Atención", "El comprobante debe ser JPG, PNG o PDF.", "warning"); return false; }
             if (comprobanteArchivo.size > 5 * 1024 * 1024) { Swal.fire("Atención", "El comprobante no puede pesar más de 5MB.", "warning"); return false; }
         }
-        if (metodoPago === "contraentrega") {
+        if (pideDatosEntrega) {
             const vn = validarNombreReceptor(nombreReceptor); if (!vn.valido) { Swal.fire("Atención", vn.mensaje, "warning"); return false; }
             const vt = validarTelefono(telefonoEntrega); if (!vt.valido) { Swal.fire("Atención", vt.mensaje, "warning"); return false; }
             const vd = validarDireccion(direccionEntrega); if (!vd.valido) { Swal.fire("Atención", vd.mensaje, "warning"); return false; }
@@ -256,14 +264,14 @@ const FormularioCompra = () => {
                 DocumentoID: usuario.DocumentoID,
                 Subtotal: precios.subtotal, Total: precios.subtotal, EstadoID: ESTADO_VENTA.PENDIENTE,
                 detalles: [{ ProductoID: producto.ProductoID, ColorID: colorID ? parseInt(colorID) : null, TallaID: tallaID ? parseInt(tallaID) : null, Cantidad: parseInt(cantidad), PrecioUnitario: precios.precioUnitario }],
-                metodoPago,
+                metodoPago, tipoEntrega,
                 ...(metodoPago === "transferencia" && { comprobanteTransferencia: comprobanteBase64, fechaTransferencia: new Date().toISOString() }),
-                ...(metodoPago === "contraentrega" && { nombreReceptor, telefonoEntrega, direccionEntrega }),
+                ...(pideDatosEntrega && { nombreReceptor, telefonoEntrega, direccionEntrega }),
             };
             const response = await crearVenta(ventaData);
             await Swal.fire({
                 icon: "success", title: "¡Pedido registrado!",
-                html: `<p style="font-family:'Outfit',sans-serif"><strong>Pedido #${response.venta?.VentaID || "N/A"}</strong><br>Método: ${metodoPago === "transferencia" ? "Transferencia bancaria" : "Contraentrega"}<br>Total: <strong style="color:${C.success}">$${precios.subtotal.toLocaleString()}</strong></p>`,
+                html: `<p style="font-family:'Outfit',sans-serif"><strong>Pedido #${response.venta?.VentaID || "N/A"}</strong><br>Método: ${metodoPago === "transferencia" ? "Transferencia bancaria" : "Contraentrega"}<br>Total: <strong style="color:${C.success}">$${(precios.subtotal + envioNum).toLocaleString()}</strong>${esEnvio ? "<br>Incluye envío a domicilio" : ""}</p>`,
                 confirmButtonColor: C.navy, confirmButtonText: "OK",
             });
             navigate("/productosLanding");
@@ -357,7 +365,8 @@ const FormularioCompra = () => {
                                     ].map(({ label, value }, i) => (
                                         <div key={i} className="mc-fc-row"><span>{label}</span><b>{value}</b></div>
                                     ))}
-                                    <div className="mc-fc-tot"><span>Total</span><strong>${precios.subtotal.toLocaleString()}</strong></div>
+                                    {esEnvio && <div className="mc-fc-row"><span>Envío a domicilio</span><b>{envioNum > 0 ? `$${envioNum.toLocaleString("es-CO")}` : textoCostoEnvio(config?.costoEnvio)}</b></div>}
+                                    <div className="mc-fc-tot"><span>Total</span><strong>${(precios.subtotal + envioNum).toLocaleString()}</strong></div>
                                     <div className="mc-secure"><FaLock size={11} /> Tus datos viajan protegidos</div>
                                 </div>
                             </div>
@@ -405,6 +414,16 @@ const FormularioCompra = () => {
                                         </p>
                                     )}
                                 </div>
+                            </SectionCard>
+
+                            {/* ── Tipo de entrega ── */}
+                            <SectionCard title="Tipo de entrega" icon={<FaTruck size={13} />}>
+                                <MetodoRadio id="entrega-retiro" name="tipoEntrega" value="retiro" checked={tipoEntrega === "retiro"}
+                                    onChange={e => setTipoEntrega(e.target.value)}
+                                    icon={<FaStore />} label="Recoger en tienda" desc="Te avisamos cuando tu pedido esté listo" color={C.accent} />
+                                <MetodoRadio id="entrega-envio" name="tipoEntrega" value="envio" checked={tipoEntrega === "envio"}
+                                    onChange={e => setTipoEntrega(e.target.value)}
+                                    icon={<FaTruck />} label="Envío a domicilio" desc={`Costo de envío: ${textoCostoEnvio(config?.costoEnvio)}`} color={C.success} />
                             </SectionCard>
 
                             {/* ── Método de pago ── */}
@@ -457,7 +476,7 @@ const FormularioCompra = () => {
                                     onChange={e => setMetodoPago(e.target.value)}
                                     icon={<FaTruck />} label="Pago contraentrega" desc="Paga cuando recibas tu pedido" color={C.success} />
 
-                                {metodoPago === "contraentrega" && (
+                                {pideDatosEntrega && (
                                     <div className="mc-deliver mc-reveal">
                                         <small className="mc-lbl" style={{ color: "#16a34a", margin: 0 }}>Datos de entrega</small>
                                         <InputField label="Nombre de quien recibe" value={nombreReceptor}

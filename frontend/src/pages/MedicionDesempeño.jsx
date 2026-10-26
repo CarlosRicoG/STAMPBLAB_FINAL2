@@ -3,7 +3,9 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
     ResponsiveContainer, Cell, LabelList
 } from "recharts";
-import { FaFilePdf, FaChartBar, FaSyncAlt, FaBoxOpen, FaCubes } from "react-icons/fa";
+import { FaFilePdf, FaChartBar, FaSyncAlt, FaBoxOpen, FaCubes, FaExclamationTriangle } from "react-icons/fa";
+import { Link } from "react-router-dom";
+import { getResumenPendientes } from "../Services/api-resumen/resumen";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 
@@ -110,6 +112,16 @@ const DashboardMedicionDesempeño = () => {
     const [productos, setProductosList]          = useState([]);
     const [filtros, setFiltros]                  = useState({ mes: "", tecnicaId: "", productoId: "" });
     const dashRef                                = useRef(null);
+    const [stockBajo, setStockBajo]              = useState(null); // null = sin dato (no se muestra la tarjeta)
+
+    /* ── Tarjeta "Stock bajo" (fuera del área que se exporta a PDF) ── */
+    useEffect(() => {
+        let vivo = true;
+        getResumenPendientes()
+            .then(r => { if (vivo && r && typeof r.stockBajoCount === "number") setStockBajo(r.stockBajoCount); })
+            .catch(() => { /* endpoint no disponible: se omite la tarjeta */ });
+        return () => { vivo = false; };
+    }, []);
 
     /* ── Opciones filtros ── */
     useEffect(() => {
@@ -227,6 +239,18 @@ const DashboardMedicionDesempeño = () => {
                             {mesLabel} · Análisis de ventas, productos e insumos
                         </p>
                     </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                    {stockBajo !== null && (
+                        <Link to="/dashboard/hoy" title="Ver variantes con stock bajo en la bandeja Hoy"
+                            style={{
+                                display: "flex", alignItems: "center", gap: 8, textDecoration: "none",
+                                background: stockBajo > 0 ? "#fef2f2" : "#f0fdf4", color: stockBajo > 0 ? "#b91c1c" : "#15803d",
+                                border: `1.5px solid ${stockBajo > 0 ? "#fecaca" : "#bbf7d0"}`, borderRadius: 10,
+                                padding: "9px 16px", fontSize: 13, fontWeight: 700, fontFamily: "'Outfit',sans-serif",
+                            }}>
+                            <FaExclamationTriangle size={13} aria-hidden="true" /> Stock bajo: {stockBajo}
+                        </Link>
+                    )}
                     <button className="btn-pdf" onClick={exportarPDF} disabled={exportingPDF || loading}
                         style={{
                             display: "flex", alignItems: "center", gap: 8,
@@ -241,6 +265,7 @@ const DashboardMedicionDesempeño = () => {
                             ? <><div style={{ width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} /> Generando...</>
                             : <><FaFilePdf size={14} /> Exportar PDF</>}
                     </button>
+                    </div>
                 </div>
 
                 {/* FILTROS */}

@@ -1,8 +1,18 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { FaUserCircle, FaTimes, FaShoppingBag, FaFileInvoice, FaEdit, FaSignOutAlt } from "react-icons/fa";
+import CampanaNotificaciones from "../notificaciones/CampanaNotificaciones";
+import { FaUserCircle, FaTimes, FaShoppingBag, FaFileInvoice, FaEdit, FaSignOutAlt, FaTachometerAlt } from "react-icons/fa";
 import logo from "../../assets/images/nuevo_logo_stamplab.png";
 import { cerrarSesion } from "../../Services/api-auth/auth";
+import { useResumenCliente } from "./clienteKit";
+
+/* Punto/contador de "hay algo que requiere tu atención" */
+const PuntoAtencion = ({ n, style }) => n > 0 ? (
+    <span aria-label={`${n} ${n === 1 ? "cosa requiere" : "cosas requieren"} tu atención`}
+        style={{ minWidth: 18, height: 18, padding: "0 5px", borderRadius: 999, background: "#dc2626", color: "#fff", fontSize: 11, fontWeight: 800, display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1, ...style }}>
+        {n > 99 ? "99+" : n}
+    </span>
+) : null;
 
 /* ── Tokens de color ── */
 const C = {
@@ -17,7 +27,7 @@ const C = {
 };
 
 /* ── Modal Perfil ── */
-const PerfilModal = ({ show, onClose, userData, onLogout }) => {
+const PerfilModal = ({ show, onClose, userData, onLogout, pendientes = 0 }) => {
     if (!show || !userData) return null;
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -39,15 +49,17 @@ const PerfilModal = ({ show, onClose, userData, onLogout }) => {
                 {/* Actions */}
                 <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
                     {[
+                        { to: "/micuenta", icon: <FaTachometerAlt size={14} />, label: "Mi cuenta", color: "#7c3aed", badge: pendientes },
                         { to: "/miscotizaciones", icon: <FaFileInvoice size={14} />, label: "Mis Cotizaciones", color: C.accent },
                         { to: "/miscompras", icon: <FaShoppingBag size={14} />, label: "Mis Compras", color: "#16a34a" },
                         { to: "/editarperfil", icon: <FaEdit size={14} />, label: "Editar Información", color: C.navy },
-                    ].map(({ to, icon, label, color }) => (
+                    ].map(({ to, icon, label, color, badge }) => (
                         <Link key={to} to={to} onClick={onClose}
                             style={{ display: "flex", alignItems: "center", gap: 10, padding: "11px 14px", borderRadius: 10, background: "#f8fafc", border: `1.5px solid ${C.border}`, color, fontWeight: 700, fontSize: 13, textDecoration: "none", transition: "all 0.15s" }}
                             onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accentBorder; }}
                             onMouseLeave={e => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = C.border; }}>
                             {icon} {label}
+                            <PuntoAtencion n={badge} style={{ marginLeft: "auto" }} />
                         </Link>
                     ))}
                 </div>
@@ -74,6 +86,9 @@ const NavbarComponent = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
+    // Consulta cotizaciones y compras solo con sesión iniciada; si falla, simplemente no hay contador
+    const { atencion } = useResumenCliente(isAuthenticated);
+    const pendientes = atencion.total;
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 24);
@@ -151,12 +166,14 @@ const NavbarComponent = () => {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }} className="d-none d-md-flex">
                         {isAuthenticated ? (
                             <>
+                                <CampanaNotificaciones />
                                 <button onClick={() => setShowPerfil(true)}
                                     style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: "#f8fafc", color: C.navy, cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600, fontSize: 13, transition: "all 0.15s" }}
                                     onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accentBorder; }}
                                     onMouseLeave={e => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = C.border; }}>
                                     <FaUserCircle size={16} color={C.accent} />
                                     {userData?.Nombre?.split(" ")[0] || "Mi cuenta"}
+                                    <PuntoAtencion n={pendientes} />
                                 </button>
                                 <button onClick={handleLogout}
                                     style={{ padding: "8px 16px", borderRadius: 10, border: "none", background: "#fef2f2", color: C.danger, cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 700, fontSize: 13, display: "flex", alignItems: "center", gap: 6, transition: "all 0.15s" }}
@@ -183,6 +200,9 @@ const NavbarComponent = () => {
                         )}
                     </div>
 
+                    {/* Campana - Mobile */}
+                    {isAuthenticated && <div className="d-flex d-md-none" style={{ marginLeft: "auto", marginRight: 8 }}><CampanaNotificaciones /></div>}
+
                     {/* Hamburger - Mobile */}
                     <button onClick={() => setMobileOpen(!mobileOpen)}
                         style={{ display: "none", width: 36, height: 36, borderRadius: 9, border: `1.5px solid ${C.border}`, background: "#fff", color: C.navy, cursor: "pointer", alignItems: "center", justifyContent: "center", fontSize: 18 }}
@@ -206,6 +226,7 @@ const NavbarComponent = () => {
                                     <button onClick={() => { setMobileOpen(false); setShowPerfil(true); }}
                                         style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 9, border: `1.5px solid ${C.border}`, background: "#f8fafc", color: C.navy, cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600, fontSize: 13 }}>
                                         <FaUserCircle size={15} color={C.accent} /> Mi cuenta
+                                        <PuntoAtencion n={pendientes} />
                                     </button>
                                     <button onClick={handleLogout}
                                         style={{ padding: "10px 12px", borderRadius: 9, border: "none", background: "#fef2f2", color: C.danger, cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 700, fontSize: 13 }}>
@@ -223,7 +244,7 @@ const NavbarComponent = () => {
                 )}
             </nav>
 
-            <PerfilModal show={showPerfil} onClose={() => setShowPerfil(false)} userData={userData} onLogout={handleLogout} />
+            <PerfilModal show={showPerfil} onClose={() => setShowPerfil(false)} userData={userData} onLogout={handleLogout} pendientes={pendientes} />
         </>
     );
 };

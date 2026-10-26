@@ -49,11 +49,13 @@ export const updateVenta = async (id, ventaData) => {
 };
 
 // Actualizar solo el estado (con lógica de devolución de stock si se cancela)
-export const updateEstadoVenta = async (id, estadoID) => {
+// extra (opcional): { nota, fechaEstimadaEntrega }
+export const updateEstadoVenta = async (id, estadoID, extra = {}) => {
     try {
-        const response = await axios.patch(`${API_URL}/${id}/estado`, { 
-            EstadoID: estadoID 
-        });
+        const body = { EstadoID: estadoID };
+        if (extra?.nota) body.nota = extra.nota;
+        if (extra?.fechaEstimadaEntrega) body.fechaEstimadaEntrega = extra.fechaEstimadaEntrega;
+        const response = await axios.patch(`${API_URL}/${id}/estado`, body);
         return response.data;
     } catch (error) {
         console.error("Error al actualizar estado:", error);
@@ -99,4 +101,16 @@ export const descargarComprobante = async (ventaID) => {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+// Historial de estados de un pedido: [{ Fecha, EstadoID, Estado, Nota }]
+export const getHistorialVenta = async (id) => {
+    const response = await axios.get(`${API_URL}/${id}/historial`);
+    return response.data;
+};
+
+// Rechaza el comprobante de transferencia (el pedido sigue Pendiente). motivo: 5-300 caracteres
+export const rechazarComprobante = async (id, motivo) => {
+    const response = await axios.patch(`${API_URL}/${id}/rechazar-comprobante`, { motivo });
+    return response.data;
 };

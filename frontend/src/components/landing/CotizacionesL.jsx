@@ -11,7 +11,12 @@ import {
 import FooterComponent from "./footer";
 import NavbarComponent from "./NavBarLanding";
 import usePlus from "../../hooks/usePlus";
+import { getTarifasPublicas } from "../../Services/api-cliente/cliente";
+import { estimarProducto, estimarCotizacion } from "../../utils/clienteUtils";
 import "../../styles/plus.css";
+
+const dinero = (n) => "$" + (Number(n) || 0).toLocaleString("es-CO");
+const NOTA_ESTIMADO = "Precio final lo confirma StampLab al revisar tus diseños.";
 
 // ── Design tokens (mismo sistema) ──
 const C = {
@@ -232,6 +237,7 @@ const CotizacionLanding = () => {
     const [tallas, setTallas] = useState([]);
     const [telas, setTelas] = useState([]);
     const [cargando, setCargando] = useState(true);
+    const [tarifas, setTarifas] = useState([]);
     const [productoSeleccionado, setProductoSeleccionado] = useState(null);
     const [variantesProducto, setVariantesProducto] = useState([]);
     const [mostrarModalProductos, setMostrarModalProductos] = useState(false);
@@ -288,6 +294,7 @@ const CotizacionLanding = () => {
 
     // ── Carga de datos ──
     const cargarDatos = async () => {
+        getTarifasPublicas().then(setTarifas); // el estimado es opcional: si falla, queda "por cotizar"
         try {
             setCargando(true);
             const [prodData, tecData, partData, colData, tallData, telData] = await Promise.all([
@@ -1125,10 +1132,50 @@ const CotizacionLanding = () => {
                                             <p style={{ margin: 0, fontSize: 11, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Cantidad: <strong>{prod.Cantidad}</strong></p>
                                             <InfoBadge type="purple">{prod.disenos.length} diseño{prod.disenos.length !== 1 ? "s" : ""}</InfoBadge>
                                         </div>
+                                        {(() => {
+                                            const e = estimarProducto(prod, tarifas);
+                                            return (
+                                                <div data-testid="estimado-producto" style={{ marginTop: 8, paddingTop: 8, borderTop: `1px dashed ${C.border}`, fontSize: 11, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>
+                                                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                                        <span>{prod.TraePrenda ? "Prenda (la traes tú)" : `Prenda (${dinero(e.prendaUnit)} × ${e.cantidad})`}</span>
+                                                        <strong style={{ color: C.navy }}>{prod.TraePrenda ? "$0" : dinero(e.prenda)}</strong>
+                                                    </div>
+                                                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                                                        <span>Diseños</span>
+                                                        <strong style={{ color: C.navy }}>
+                                                            {e.disenos > 0 ? dinero(e.disenos) : ""}{e.disenos > 0 && e.porCotizar > 0 ? " + " : ""}{e.porCotizar > 0 ? `${e.porCotizar} por cotizar` : ""}{e.disenos === 0 && e.porCotizar === 0 ? "$0" : ""}
+                                                        </strong>
+                                                    </div>
+                                                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 3, color: C.navy, fontWeight: 800, fontSize: 12 }}>
+                                                        <span>Estimado</span><span>{dinero(e.total)}{e.porCotizar > 0 ? " + diseños por cotizar" : ""}</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
                                 ))
                             )}
                         </SectionCard>
+
+                        {/* Estimado total */}
+                        {productosEnCotizacion.length > 0 && (() => {
+                            const est = estimarCotizacion(productosEnCotizacion, tarifas);
+                            return (
+                                <div data-testid="estimado-total" role="region" aria-label="Estimado de precio" style={{ background: C.successSoft, border: `1.5px solid ${C.successBorder}`, borderRadius: 14, padding: "14px 16px", marginBottom: 14, fontFamily: "'Outfit',sans-serif" }}>
+                                    <p style={{ margin: "0 0 8px", fontSize: 11, fontWeight: 700, color: C.success, textTransform: "uppercase", letterSpacing: "0.06em" }}>Estimado</p>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.muted, marginBottom: 3 }}><span>Prendas</span><strong style={{ color: C.navy }}>{dinero(est.prenda)}</strong></div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: C.muted, marginBottom: 3 }}>
+                                        <span>Diseños</span>
+                                        <strong style={{ color: C.navy }}>{est.disenos > 0 ? dinero(est.disenos) : (est.porCotizar > 0 ? "" : "$0")}{est.disenos > 0 && est.porCotizar > 0 ? " + " : ""}{est.porCotizar > 0 ? `${est.porCotizar} por cotizar` : ""}</strong>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderTop: `1px dashed ${C.successBorder}`, marginTop: 8, paddingTop: 8 }}>
+                                        <span style={{ fontSize: 13, fontWeight: 800, color: C.navy }}>Total estimado</span>
+                                        <span style={{ fontSize: 20, fontWeight: 900, color: C.success }}>{dinero(est.total)}{est.porCotizar > 0 ? "+" : ""}</span>
+                                    </div>
+                                    <p style={{ margin: "8px 0 0", fontSize: 11, color: C.muted, lineHeight: 1.5 }}>{NOTA_ESTIMADO}</p>
+                                </div>
+                            );
+                        })()}
 
                         {/* Botones finales */}
                         {productosEnCotizacion.length > 0 && (

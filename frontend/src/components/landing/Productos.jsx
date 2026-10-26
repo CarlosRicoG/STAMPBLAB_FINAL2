@@ -1,16 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import NavbarComponent from "./NavBarLanding";
 import FooterComponent from "./footer";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { getProductos } from "../../Services/api-productos/productos";
 import { getTallas } from "../../Services/api-productos/atributos";
+import { getConfigPublica, CONFIG_POR_DEFECTO } from "../../Services/api-cliente/cliente";
+import { getCarritoServidor, guardarCarritoServidor } from "../../Services/api-carrito/carrito";
+import { fusionarCarritos, textoCostoEnvio, num } from "../../utils/clienteUtils";
 import Swal from "sweetalert2";
 import usePlus from "../../hooks/usePlus";
 import {
     FaSearch, FaBoxOpen, FaShoppingCart, FaTrash,
     FaEye, FaEdit, FaTimes, FaPlus, FaMinus,
     FaMotorcycle, FaExchangeAlt, FaCheckCircle, FaBolt, FaChevronRight,
-    FaFilter, FaRegSadTear, FaShoppingBag, FaTshirt, FaCloudUploadAlt, FaFilePdf, FaCheck
+    FaFilter, FaRegSadTear, FaShoppingBag, FaTshirt, FaCloudUploadAlt, FaFilePdf, FaCheck, FaStore, FaTruck
 } from "react-icons/fa";
 
 /* ─── Paleta exacta del proyecto ─── */
@@ -496,8 +499,9 @@ const CartDrawer = ({ open, onClose, cart, onRemove, onUpdateQty, onEdit, onChec
 /* ══════════════════════════════════
    MODAL PAGO
 ══════════════════════════════════ */
-const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
+const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
     const [method, setMethod] = useState("");
+    const [tipoEntrega, setTipoEntrega] = useState("retiro");
     const [comprobanteFile, setComprobanteFile] = useState(null);
     const [comprobantePreview, setComprobantePreview] = useState(null);
     const [nombre, setNombre] = useState("");
@@ -509,11 +513,16 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
     const enviandoRef = useRef(false); // seguro contra doble clic
     const fileInputRef = useRef(null);
     const total = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
+    const esEnvio = tipoEntrega === "envio";
+    const envioNum = esEnvio ? num(costoEnvio) : 0;
+    const totalConEnvio = total + envioNum;
+    const pideDatosEntrega = method === "contraentrega" || esEnvio;
 
     // ✅ Autocompletar con datos del usuario al abrir
     useEffect(() => {
         if (open) {
             setMethod("");
+            setTipoEntrega("retiro");
             setComprobanteFile(null);
             setComprobantePreview(null);
             setFecha("");
@@ -581,7 +590,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
         if (method === "transferencia") {
             if (!comprobanteFile) newErrors.comprobante = "Debes subir el comprobante de pago";
         }
-        if (method === "contraentrega") {
+        if (pideDatosEntrega) {
             if (!nombre.trim()) {
                 newErrors.nombre = "El nombre es obligatorio";
             } else if (/\d/.test(nombre)) {
@@ -635,11 +644,12 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
                 Total: total,
                 detalles,
                 metodoPago: method,
+                tipoEntrega,
                 ...(method === "transferencia" ? {
                     comprobanteTransferencia: comprobanteBase64 || comprobanteFile?.name,
                     fechaTransferencia: fecha || new Date().toISOString()
                 } : {}),
-                ...(method === "contraentrega" ? {
+                ...(pideDatosEntrega ? {
                     nombreReceptor: nombre,
                     telefonoEntrega: telefono,
                     direccionEntrega: direccion
@@ -685,7 +695,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
                     <span className="sx-blob b2" style={{ width: 200, height: 200 }} />
                     <button className="cat-x dark" onClick={onClose} aria-label="Cerrar"><FaTimes size={14} /></button>
                     <h3>Finalizar compra</h3>
-                    <p>Total: <strong>{money(total)}</strong></p>
+                    <p>Total: <strong>{money(totalConEnvio)}</strong>{esEnvio && num(costoEnvio) <= 0 && costoEnvio === null ? " + envío a convenir" : ""}</p>
                 </div>
 
                 <div className="cat-pb">
@@ -700,7 +710,28 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
                                 <b>{money(item.precio * item.cantidad)}</b>
                             </div>
                         ))}
-                        <div className="cat-sumtot"><span>Total</span><strong>{money(total)}</strong></div>
+                        {esEnvio && (
+                            <div className="cat-sumrow"><span>Envío a domicilio</span><b>{num(costoEnvio) > 0 ? money(costoEnvio) : textoCostoEnvio(costoEnvio)}</b></div>
+                        )}
+                        <div className="cat-sumtot"><span>Total</span><strong>{money(totalConEnvio)}</strong></div>
+                    </div>
+
+                    <p className="cat-lbl" style={{ margin: "0 0 10px" }}>¿Cómo recibes tu pedido?</p>
+                    <div className="cat-methods" role="radiogroup" aria-label="Tipo de entrega">
+                        {[
+                            { id: "retiro", icon: <FaStore />, label: "Recoger en tienda", desc: "Te avisamos cuando esté listo" },
+                            { id: "envio", icon: <FaTruck />, label: "Envío a domicilio", desc: `Costo de envío: ${textoCostoEnvio(costoEnvio)}` },
+                        ].map(t => (
+                            <div key={t.id} role="radio" aria-checked={tipoEntrega === t.id} tabIndex={0}
+                                className={`cat-method ${tipoEntrega === t.id ? "on" : ""}`}
+                                onClick={() => { setTipoEntrega(t.id); setErrors({}); }}
+                                onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTipoEntrega(t.id); setErrors({}); } }}>
+                                <span className="cat-m-ck"><FaCheck /></span>
+                                <div className="cat-m-ico">{t.icon}</div>
+                                <strong>{t.label}</strong>
+                                <span className="d">{t.desc}</span>
+                            </div>
+                        ))}
                     </div>
 
                     <p className="cat-lbl" style={{ margin: "0 0 10px" }}>Método de pago</p>
@@ -771,15 +802,16 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
                         </div>
                     )}
 
-                    {/* ── CONTRAENTREGA ── */}
-                    {method === "contraentrega" && (
+                    {/* ── DATOS DE ENTREGA (contra entrega o envío a domicilio) ── */}
+                    {pideDatosEntrega && (
                         <div className="cat-sec">
+                            <p className="cat-lbl" style={{ margin: "4px 0 10px" }}>Datos de quien recibe</p>
                             <div className="cat-field">
-                                <label>Nombre del receptor *</label>
+                                <label htmlFor="pay-nombre">Nombre del receptor *</label>
                                 <input
                                     type="text"
                                     className={`cat-input ${errors.nombre ? "err" : ""}`}
-                                    placeholder="Nombre completo"
+                                    id="pay-nombre" placeholder="Nombre completo"
                                     value={nombre}
                                     onChange={e => {
                                         // ✅ No permite números
@@ -792,11 +824,11 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
                             </div>
 
                             <div className="cat-field">
-                                <label>Teléfono de entrega *</label>
+                                <label htmlFor="pay-telefono">Teléfono de entrega *</label>
                                 <input
                                     type="tel"
                                     className={`cat-input ${errors.telefono ? "err" : ""}`}
-                                    placeholder="Ej: 300 123 4567"
+                                    id="pay-telefono" placeholder="Ej: 300 123 4567"
                                     value={telefono}
                                     onChange={e => {
                                         // ✅ Solo números, espacios y guiones
@@ -809,11 +841,11 @@ const PaymentModal = ({ open, onClose, cart, onSuccess }) => {
                             </div>
 
                             <div className="cat-field">
-                                <label>Dirección de entrega *</label>
+                                <label htmlFor="pay-direccion">Dirección de entrega *</label>
                                 <input
                                     type="text"
                                     className={`cat-input ${errors.direccion ? "err" : ""}`}
-                                    placeholder="Calle, barrio, ciudad..."
+                                    id="pay-direccion" placeholder="Calle, barrio, ciudad..."
                                     value={direccion}
                                     onChange={e => {
                                         setDireccion(e.target.value);
@@ -858,10 +890,45 @@ const ProductosLanding = () => {
     const [productModal, setProductModal] = useState({ open: false, product: null, editIdx: null, initColor: "", initTalla: "", initQty: 1 });
     const [paymentOpen, setPaymentOpen] = useState(false);
     const [orderSuccess, setOrderSuccess] = useState(null);
+    const [config, setConfig] = useState(CONFIG_POR_DEFECTO);
     const navigate = useNavigate();
+    const location = useLocation();
+    const carritoSincronizado = useRef(false); // true cuando ya se fusionó con el servidor (solo entonces se sube)
 
     useEffect(() => { saveCart(cart); }, [cart]);
     useEffect(() => { cargarDatos(); }, []);
+    useEffect(() => { getConfigPublica().then(setConfig); }, []);
+
+    // "Volver a pedir" navega aquí con el carrito ya cargado: lo abrimos
+    useEffect(() => {
+        if (location.state?.abrirCarrito) {
+            setCart(loadCart());
+            setCartOpen(true);
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [location.state]);
+
+    // Al entrar con sesión: fusionar el carrito local con el del servidor (si el servidor falla, sigue el local)
+    useEffect(() => {
+        if (!localStorage.getItem("token")) return;
+        let vivo = true;
+        getCarritoServidor().then((remoto) => {
+            if (!vivo || remoto === null) return;
+            carritoSincronizado.current = true;
+            setCart((prev) => {
+                const fusionado = fusionarCarritos(prev, remoto);
+                return JSON.stringify(fusionado) === JSON.stringify(prev) ? prev : fusionado;
+            });
+        });
+        return () => { vivo = false; };
+    }, []);
+
+    // Guardar en el servidor con espera de ~800 ms tras el último cambio
+    useEffect(() => {
+        if (!carritoSincronizado.current || !localStorage.getItem("token")) return undefined;
+        const t = setTimeout(() => { guardarCarritoServidor(cart); }, 800);
+        return () => clearTimeout(t);
+    }, [cart]);
 
     const cargarDatos = async () => {
         setCargando(true);
@@ -1016,7 +1083,7 @@ const ProductosLanding = () => {
                 initColor={productModal.initColor} initTalla={productModal.initTalla} initQty={productModal.initQty}
                 editMode={productModal.editIdx !== null}
             />
-            <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} cart={cart} usuario={usuario} onSuccess={handlePaymentSuccess} />
+            <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} cart={cart} usuario={usuario} onSuccess={handlePaymentSuccess} costoEnvio={config?.costoEnvio} />
 
             {/* Pedido exitoso */}
             {orderSuccess && (

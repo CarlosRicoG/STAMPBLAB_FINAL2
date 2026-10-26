@@ -83,8 +83,33 @@ module.exports = (sequelize, DataTypes) => {
     },
     DireccionEntrega: {
       type: DataTypes.STRING(255),
-      allowNull: true 
-    }
+      allowNull: true
+    },
+    // Retiro en tienda o envío a domicilio (el costo de envío lo fija el servidor)
+    TipoEntrega: {
+      type: DataTypes.STRING(10),
+      allowNull: false,
+      defaultValue: 'retiro',
+      validate: { isIn: [['retiro', 'envio']] }
+    },
+    CostoEnvio: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0
+    },
+    FechaEstimadaEntrega: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
+    // Motivo por el que el administrador rechazó el comprobante (el cliente puede subir otro)
+    ComprobanteMotivoRechazo: {
+      type: DataTypes.STRING(300),
+      allowNull: true
+    },
+    // Datos del cliente al momento de pedir (el perfil puede cambiar después sin alterar el pedido)
+    ContactoNombre: { type: DataTypes.STRING(100), allowNull: true },
+    ContactoTelefono: { type: DataTypes.STRING(20), allowNull: true },
+    ContactoDireccion: { type: DataTypes.STRING(255), allowNull: true }
   }, {
     sequelize,
     modelName: 'Venta',

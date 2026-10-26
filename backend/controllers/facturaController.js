@@ -50,9 +50,11 @@ exports.descargarComprobante = async (req, res) => {
             return yy;
         };
         const u = venta.usuario || {};
-        const y1 = caja('Cliente', [['Nombre', u.Nombre], ['Documento', venta.DocumentoID], ['Correo', u.Correo], ['Teléfono', u.Telefono]], x0, ancho / 2 - 10);
-        const filasPedido = [['Estado', venta.estado?.Nombre], ['Pago', METODOS[venta.MetodoPago] || 'Por confirmar']];
-        if (venta.MetodoPago === 'contraentrega') filasPedido.push(['Recibe', venta.NombreReceptor], ['Teléfono', venta.TelefonoEntrega], ['Dirección', venta.DireccionEntrega]);
+        // Datos del cliente al momento de pedir (si el perfil cambió después, el comprobante no cambia)
+        const y1 = caja('Cliente', [['Nombre', venta.ContactoNombre || u.Nombre], ['Documento', venta.DocumentoID], ['Correo', u.Correo], ['Teléfono', venta.ContactoTelefono || u.Telefono]], x0, ancho / 2 - 10);
+        const filasPedido = [['Estado', venta.estado?.Nombre], ['Pago', METODOS[venta.MetodoPago] || 'Por confirmar'], ['Entrega', venta.TipoEntrega === 'envio' ? 'Envío a domicilio' : 'Retiro en tienda']];
+        if (venta.MetodoPago === 'contraentrega' || venta.TipoEntrega === 'envio') filasPedido.push(['Recibe', venta.NombreReceptor], ['Teléfono', venta.TelefonoEntrega], ['Dirección', venta.DireccionEntrega]);
+        if (venta.FechaEstimadaEntrega && venta.EstadoID !== 11 && venta.EstadoID !== 12) filasPedido.push(['Entrega estimada', new Date(venta.FechaEstimadaEntrega).toLocaleDateString('es-CO', { dateStyle: 'long' })]);
         if (venta.MetodoPago === 'transferencia' && venta.FechaTransferencia) filasPedido.push(['Transferencia', fecha(venta.FechaTransferencia)]);
         const y2 = caja('Pedido', filasPedido, x0 + ancho / 2 + 10, ancho / 2 - 10);
         y = Math.max(y1, y2) + 14;
@@ -84,6 +86,10 @@ exports.descargarComprobante = async (req, res) => {
         doc.fillColor(GRIS).font('Helvetica').fontSize(9.5).text(`${unidades} unidad(es)`, x0, y);
         doc.text('Subtotal', x0 + ancho - 200, y, { width: 100 }).fillColor('#0f172a').text(cop(venta.Subtotal), x0 + ancho - 100, y, { width: 100, align: 'right' });
         y += 18;
+        if (Number(venta.CostoEnvio) > 0) {
+            doc.fillColor(GRIS).font('Helvetica').fontSize(9.5).text('Envío', x0 + ancho - 200, y, { width: 100 }).fillColor('#0f172a').text(cop(venta.CostoEnvio), x0 + ancho - 100, y, { width: 100, align: 'right' });
+            y += 18;
+        }
         doc.rect(x0 + ancho - 220, y, 220, 30).fill(NAVY);
         doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(10).text('TOTAL', x0 + ancho - 208, y + 10).fontSize(13).text(cop(venta.Total), x0 + ancho - 130, y + 8, { width: 118, align: 'right' });
 

@@ -61,7 +61,7 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 
     console.log('--- solo lo del cliente');
     const todos = await buzon();
-    si('todos los correos de esta prueba fueron al cliente (no a otras personas)', todos.filter((m) => [V, V2, C].some((n) => m.asunto.includes('#' + n))).every((m) => m.para === 'cliente@stamplab.com'));
+    si('todos los correos de esta prueba fueron al cliente (no a otras personas)', todos.filter((m) => /^(Recibimos|Tu pedido|Tu cotización)/.test(m.asunto) && [V, V2, C].some((n) => m.asunto.includes('#' + n))).every((m) => m.para === 'cliente@stamplab.com'));
     si('ningún correo contiene contraseñas ni tokens', !todos.some((m) => /Contraseña|eyJhbGciOi/.test(m.html)));
 
     // limpieza
