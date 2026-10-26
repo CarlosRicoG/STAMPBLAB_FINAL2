@@ -107,12 +107,17 @@ const MiCuenta = () => {
                                         </div>
                                     ))}
 
-                                    {atencion.pendientesPago.map(({ venta, limite, restante }) => (
+                                    {atencion.pendientesPago.slice(0, 5).map(({ venta, limite, restante }) => (
                                         <div key={`p${venta.VentaID}`} className={`mcu-item ${restante === "plazo vencido" ? "bad" : "warn"}`}>
                                             <div className="mcu-item-t"><FaClock color="#d97706" /><span>Pedido <b>#{venta.VentaID}</b> pendiente de pago por <b>${formatPrecio(venta.Total)}</b>.{limite ? <> Paga antes de <b>{formatoFechaHoraCO(limite)}</b> ({restante}).</> : null}</span></div>
                                             <Link to="/miscompras" className="ck-btn ghost">Ver pedido</Link>
                                         </div>
                                     ))}
+                                    {atencion.pendientesPago.length > 5 && (
+                                        <p className="ck-muted" style={{ margin: "8px 4px 0" }}>
+                                            y {atencion.pendientesPago.length - 5} pedido(s) más pendientes de pago. <Link to="/miscompras">Ver todos en Mis compras</Link>
+                                        </p>
+                                    )}
                                 </section>
 
                                 <section className="mcu-panel sx-reveal" aria-labelledby="mcu-pedido">

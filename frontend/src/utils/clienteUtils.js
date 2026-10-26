@@ -82,6 +82,18 @@ export function fechaLimitePago(fechaVenta, plazoPagoHoras) {
     return new Date(base.getTime() + h * 3600 * 1000);
 }
 
+/**
+ * ¿Corre un plazo para pagar este pedido? Solo si está pendiente, es por transferencia y todavía no hay un comprobante
+ * válido (sin comprobante, o rechazado). Los de contra entrega y los que tienen el comprobante en revisión no se
+ * cancelan por plazo: el servidor aplica exactamente esta misma regla.
+ */
+export function plazoDePagoAplica(v = {}) {
+    const pendiente = Number(v.EstadoID) === 8 || (v.estado?.Nombre || v.Estado) === "Pendiente";
+    if (!pendiente || v.MetodoPago !== "transferencia") return false;
+    const tieneComprobante = Boolean(v.ComprobanteTransferencia || v.TieneComprobante);
+    return !tieneComprobante || Boolean(v.ComprobanteMotivoRechazo);
+}
+
 /** Texto corto "faltan 5 h" / "faltan 2 días" / "plazo vencido". */
 export function textoTiempoRestante(limite, ahora = new Date()) {
     if (!(limite instanceof Date) || Number.isNaN(limite.getTime())) return "";
@@ -213,7 +225,7 @@ export function resumenAtencion(cotizaciones = [], ventas = [], plazoPagoHoras =
         (Number(c.EstadoID) === 2 || nombreEstado(c) === "Aprobada") && num(c.ValorTotal) > 0);
     const esPendiente = (v) => Number(v.EstadoID) === 8 || nombreEstado(v) === "Pendiente";
     const rechazados = ventas.filter((v) => esPendiente(v) && v.ComprobanteMotivoRechazo);
-    const pendientesPago = ventas.filter((v) => esPendiente(v) && !v.ComprobanteMotivoRechazo).map((v) => {
+    const pendientesPago = ventas.filter((v) => plazoDePagoAplica(v) && !v.ComprobanteMotivoRechazo).map((v) => {
         const limite = fechaLimitePago(v.FechaVenta, plazoPagoHoras);
         return { venta: v, limite, restante: textoTiempoRestante(limite, ahora) };
     });

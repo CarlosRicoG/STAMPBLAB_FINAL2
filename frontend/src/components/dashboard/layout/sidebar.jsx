@@ -19,6 +19,7 @@ const menuItems = [
     {
         title: "Hoy",
         key: "hoy",
+        directo: true, // un solo destino: se muestra como enlace, sin submenú repetido
         icon: <FaInbox size={15} />,
         items: [
             { to: "/dashboard/hoy", label: "Hoy", icon: <FaInbox size={13} />, badge: (r) => n(r.total) }
@@ -441,6 +442,31 @@ const Sidebar = () => {
                         const sumaGrupo = resumen ? group.items.reduce((a, i) => a + (i.badge ? i.badge(resumen) : 0), 0) : 0;
                         const alertaGrupo = resumen ? group.items.some(i => i.alerta && i.alerta(resumen) > 0) : false;
                         const tituloGrupo = `${sumaGrupo} por atender en ${group.title}`;
+                        if (group.directo) {
+                            const destino = group.items[0];
+                            const activo = actual === destino.to;
+                            return (
+                                <div key={group.key} className={`sb-group ${activo ? "has-active" : ""}`}>
+                                    <Link
+                                        to={destino.to}
+                                        className="sb-group-btn"
+                                        title={collapsed ? group.title : undefined}
+                                        aria-current={activo ? "page" : undefined}
+                                        style={{ textDecoration: "none", display: "flex", alignItems: "center", ...(collapsed ? { justifyContent: "center", padding: "9px 0" } : {}) }}
+                                    >
+                                        <span className="sb-icon">{group.icon}
+                                            {collapsed && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className="sb-badge-dot" />}
+                                        </span>
+                                        {!collapsed && (
+                                            <>
+                                                <span className="sb-label">{group.title}</span>
+                                                <Insignia valor={sumaGrupo} titulo={tituloGrupo} />
+                                            </>
+                                        )}
+                                    </Link>
+                                </div>
+                            );
+                        }
                         return (
                             <div key={group.key} className={`sb-group ${tieneActivo ? "has-active" : ""}`}>
                                 <button

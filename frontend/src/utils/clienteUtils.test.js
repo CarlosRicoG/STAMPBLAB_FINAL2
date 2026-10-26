@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
+import { plazoDePagoAplica,
     precioUnitarioPrenda, estimarProducto, estimarCotizacion, desgloseCotizacion, fechaLimitePago,
     textoTiempoRestante, textoCostoEnvio, fusionarCarritos, itemsParaVolverAPedir, urlWhatsApp,
     validarComprobante, resumenAtencion, ultimoPedidoEnCurso, formatoFechaCO,
@@ -105,8 +105,8 @@ describe("whatsapp y comprobante", () => {
 describe("resumen de atención", () => {
     const cots = [{ EstadoID: 2, ValorTotal: 1000 }, { EstadoID: 2, ValorTotal: 0 }, { EstadoID: 1, ValorTotal: 0 }];
     const ventas = [
-        { VentaID: 1, EstadoID: 8, FechaVenta: "2026-01-01T00:00:00Z" },
-        { VentaID: 2, EstadoID: 8, FechaVenta: "2026-01-02T00:00:00Z", ComprobanteMotivoRechazo: "borroso" },
+        { VentaID: 1, EstadoID: 8, MetodoPago: "transferencia", FechaVenta: "2026-01-01T00:00:00Z" },
+        { VentaID: 2, EstadoID: 8, MetodoPago: "transferencia", ComprobanteTransferencia: "x", FechaVenta: "2026-01-02T00:00:00Z", ComprobanteMotivoRechazo: "borroso" },
         { VentaID: 3, EstadoID: 11, FechaVenta: "2026-01-03T00:00:00Z" },
         { VentaID: 4, EstadoID: 10, FechaVenta: "2026-01-04T00:00:00Z" },
     ];
@@ -121,5 +121,19 @@ describe("resumen de atención", () => {
     it("último pedido en curso", () => {
         expect(ultimoPedidoEnCurso(ventas).VentaID).toBe(4);
         expect(ultimoPedidoEnCurso([])).toBeNull();
+    });
+});
+
+describe("plazoDePagoAplica", () => {
+    const base = { EstadoID: 8, MetodoPago: "transferencia" };
+    it("corre solo si es transferencia pendiente sin comprobante válido", () => {
+        expect(plazoDePagoAplica({ ...base })).toBe(true);
+        expect(plazoDePagoAplica({ ...base, ComprobanteTransferencia: "x", ComprobanteMotivoRechazo: "borroso" })).toBe(true);
+    });
+    it("no corre con el comprobante en revisión, contra entrega ni pedidos que no están pendientes", () => {
+        expect(plazoDePagoAplica({ ...base, ComprobanteTransferencia: "x" })).toBe(false);
+        expect(plazoDePagoAplica({ ...base, MetodoPago: "contraentrega" })).toBe(false);
+        expect(plazoDePagoAplica({ ...base, EstadoID: 9 })).toBe(false);
+        expect(plazoDePagoAplica({ EstadoID: 8 })).toBe(false);
     });
 });
