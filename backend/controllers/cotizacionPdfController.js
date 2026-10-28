@@ -21,6 +21,9 @@ const log = require('../utils/log');
 const PDFDocument = require('pdfkit');
 const https = require('https');
 const http  = require('http');
+const E = require('../utils/pdfEstilo');
+const { P } = E;
+const { leer: leerConfig } = require('../services/config');
 
 // ─────────────────────────────────────────────────────────
 // Descarga una imagen remota y devuelve un Buffer
@@ -66,90 +69,6 @@ async function cargarImagenDiseno(clave) {
 }
 
 // ─────────────────────────────────────────────────────────
-// Paleta de colores (coherente con el design system)
-// ─────────────────────────────────────────────────────────
-const P = {
-    navy:        '#1a2540',
-    navyLight:   '#2d3f6e',
-    accent:      '#4f8ef7',
-    accentSoft:  '#eef3fe',
-    success:     '#16a34a',
-    successSoft: '#f0fdf4',
-    warning:     '#d97706',
-    warningSoft: '#fffbeb',
-    danger:      '#dc2626',
-    dangerSoft:  '#fef2f2',
-    purple:      '#7c3aed',
-    purpleSoft:  '#f5f3ff',
-    muted:       '#64748b',
-    border:      '#e2e8f0',
-    bg:          '#f8fafc',
-    white:       '#ffffff',
-    text:        '#0f172a',
-};
-
-// Estado → color de badge
-const estadoColor = (nombre) => ({
-    Pendiente:  P.warning,
-    Aprobada:   P.success,
-    Cancelada:  P.danger,
-    Procesada:  P.accent,
-}[nombre] || P.muted);
-
-const estadoSoft = (nombre) => ({
-    Pendiente:  P.warningSoft,
-    Aprobada:   P.successSoft,
-    Cancelada:  P.dangerSoft,
-    Procesada:  P.accentSoft,
-}[nombre] || P.bg);
-
-// ─────────────────────────────────────────────────────────
-// Helpers de dibujo reutilizables
-// ─────────────────────────────────────────────────────────
-
-/** Rectángulo con relleno y radio (PDFKit no tiene roundedRect nativo en todos los trazados) */
-function fillRect(doc, x, y, w, h, color) {
-    doc.rect(x, y, w, h).fill(color);
-}
-
-/** Línea divisoria suave */
-function divider(doc, x1, x2, y, color = P.border, lw = 0.5) {
-    doc.moveTo(x1, y).lineTo(x2, y).strokeColor(color).lineWidth(lw).stroke();
-}
-
-/** Etiqueta + valor en dos líneas (para la ficha de cliente) */
-function labelValue(doc, label, value, x, y, colW) {
-    doc.fillColor(P.muted).font('Helvetica').fontSize(8).text(label.toUpperCase(), x, y, { width: colW });
-    doc.fillColor(P.text).font('Helvetica-Bold').fontSize(10).text(value || 'N/A', x, y + 10, { width: colW });
-}
-
-/** Badge de estado (rectángulo coloreado con texto) */
-function drawEstadoBadge(doc, texto, x, y, w = 90) {
-    const color = estadoColor(texto);
-    const soft  = estadoSoft(texto);
-    doc.roundedRect(x, y, w, 20, 10).fill(soft);
-    doc.fillColor(color).font('Helvetica-Bold').fontSize(8)
-        .text(texto.toUpperCase(), x, y + 6, { width: w, align: 'center' });
-}
-
-/** Chip pequeño de texto (tallas, colores…) */
-function drawChip(doc, texto, x, y, color = P.accent, softColor = P.accentSoft) {
-    const tw = doc.widthOfString(texto, { font: 'Helvetica', size: 8 });
-    const chipW = tw + 14;
-    doc.roundedRect(x, y, chipW, 14, 7).fill(softColor);
-    doc.fillColor(color).font('Helvetica').fontSize(8).text(texto, x + 7, y + 3);
-    return chipW + 5; // margen derecho
-}
-
-/** Cabecera de sección reutilizable */
-function sectionHeader(doc, titulo, y, pageW, iconChar = '') {
-    fillRect(doc, 50, y, pageW, 24, P.navy);
-    doc.fillColor(P.white).font('Helvetica-Bold').fontSize(10)
-        .text(`${iconChar}  ${titulo}`.trim(), 62, y + 7, { width: pageW - 24 });
-    return y + 24;
-}
-
-// ─────────────────────────────────────────────────────────
 // CONTROLADOR PRINCIPAL
 // ─────────────────────────────────────────────────────────
 exports.descargarPdfCotizacion = async (req, res) => {
@@ -176,7 +95,6 @@ exports.descargarPdfCotizacion = async (req, res) => {
                             include: [
                                 { model: Tecnica,  as: 'tecnica'  },
                                 { model: Parte,    as: 'parte'    },
-                                // Incluye SubParte si existe en el modelo
                                 ...(SubParte ? [{ model: SubParte, as: 'subparte' }] : []),
                             ]
                         },
@@ -223,7 +141,8 @@ exports.descargarPdfCotizacion = async (req, res) => {
         // ── 4. Crear el documento PDF ──
         const doc = new PDFDocument({
             size: 'A4',
-            margin: 50,
+            margin: E.MARGEN,
+            bufferPages: true,
             info: {
                 Title:   `Cotización #${cotizacion.CotizacionID}`,
                 Author:  'StampLab',
@@ -235,256 +154,178 @@ exports.descargarPdfCotizacion = async (req, res) => {
         res.setHeader('Content-Disposition', `attachment; filename="cotizacion_${cotizacion.CotizacionID}.pdf"`);
         doc.pipe(res);
 
-        const pageW  = doc.page.width - 100;   // ancho útil
-        const LEFT   = 50;
-        const RIGHT  = doc.page.width - 50;
+        const { left: LEFT, right: RIGHT, ancho: pageW } = E.medidas(doc);
 
-        // ══════════════════════════════════════════════
-        // ▌ ENCABEZADO NAVY
-        // ══════════════════════════════════════════════
-        const HEADER_H = 100;
-        // Fondo degradado simulado con dos rectángulos
-        doc.rect(0, 0, doc.page.width, HEADER_H).fill(P.navy);
-        doc.rect(0, 0, doc.page.width / 2, HEADER_H).fill(P.navyLight);
+        // ── Encabezado ──
+        let y = E.encabezado(doc, {
+            titulo:    'Cotización de productos personalizados',
+            subtitulo: 'Tu marca, nuestra pasión',
+            numero:    `#${cotizacion.CotizacionID}`,
+            fecha:     E.fechaLarga(cotizacion.FechaCotizacion),
+            estado:    cotizacion.estado?.Nombre || 'Pendiente',
+        });
 
-        // Nombre empresa
-        doc.fillColor(P.white).font('Helvetica-Bold').fontSize(24)
-            .text('StampLab', LEFT, 22);
+        // ── Información del cliente ──
+        y = E.seccion(doc, 'Información del cliente', y);
+        const u = cotizacion.usuario || {};
+        const colW = pageW / 2 - 30;
+        doc.roundedRect(LEFT, y, pageW, 82, 8).fillAndStroke(P.bg, P.border);
+        E.campo(doc, 'Nombre',    u.Nombre,      LEFT + 18,            y + 12, colW);
+        E.campo(doc, 'Documento', u.DocumentoID, LEFT + pageW / 2 + 6, y + 12, colW);
+        E.campo(doc, 'Correo',    u.Correo,      LEFT + 18,            y + 47, colW);
+        E.campo(doc, 'Teléfono',  u.Telefono,    LEFT + pageW / 2 + 6, y + 47, colW);
+        y += 82 + 22;
 
-        doc.fillColor('rgba(255,255,255,0.6)').font('Helvetica').fontSize(9)
-            .text('Cotización de Productos Personalizados', LEFT, 50);
-
-        // Número de cotización (derecha)
-        doc.fillColor(P.white).font('Helvetica-Bold').fontSize(20)
-            .text(`#${cotizacion.CotizacionID}`, 0, 18, { align: 'right', width: RIGHT });
-
-        // Fecha (derecha)
-        doc.fillColor('rgba(255,255,255,0.6)').font('Helvetica').fontSize(9)
-            .text(
-                new Date(cotizacion.FechaCotizacion).toLocaleDateString('es-CO', { year: 'numeric', month: 'long', day: 'numeric' }),
-                0, 44, { align: 'right', width: RIGHT }
-            );
-
-        // Badge estado
-        const estadoNombre = cotizacion.estado?.Nombre || 'Pendiente';
-        drawEstadoBadge(doc, estadoNombre, RIGHT - 95, 62, 95);
-
-        let y = HEADER_H + 24;
-
-        // ══════════════════════════════════════════════
-        // ▌ INFORMACIÓN DEL CLIENTE
-        // ══════════════════════════════════════════════
-        y = sectionHeader(doc, 'INFORMACIÓN DEL CLIENTE', y, pageW);
-        y += 14;
-
-        const u    = cotizacion.usuario || {};
-        const colW = pageW / 2 - 10;
-
-        // Fila 1
-        labelValue(doc, 'Nombre',    u.Nombre                  || 'N/A', LEFT,          y, colW);
-        labelValue(doc, 'Documento', String(u.DocumentoID || 'N/A'),     LEFT + colW + 20, y, colW);
-        y += 30;
-
-        // Fila 2
-        labelValue(doc, 'Correo',    u.Correo   || 'N/A', LEFT,              y, colW);
-        labelValue(doc, 'Teléfono',  u.Telefono || 'N/A', LEFT + colW + 20,  y, colW);
-        y += 30;
-
-        divider(doc, LEFT, RIGHT, y);
-        y += 20;
-
-        // ══════════════════════════════════════════════
-        // ▌ DETALLE DE PRODUCTOS
-        // ══════════════════════════════════════════════
-        y = sectionHeader(doc, 'DETALLE DE PRODUCTOS', y, pageW);
-        y += 16;
+        // ── Detalle de productos ──
+        y = E.seccion(doc, 'Detalle de productos', y);
 
         for (let idx = 0; idx < cotizacion.detalles.length; idx++) {
             const detalle = cotizacion.detalles[idx];
+            const color   = idx % 2 === 0 ? P.accent : P.violet;
+            const soft    = idx % 2 === 0 ? P.accentSoft : P.violetSoft;
 
-            // Altura estimada del bloque completo
-            const blockH = estimarAltura(detalle, imagenesDisenos);
-
-            if (y + blockH > doc.page.height - 60) {
+            // La cabecera y el primer bloque deben caber juntos
+            y = E.asegurarEspacio(doc, y, 110);
+            let segY = y;
+            const cerrarTramo = (fin) => {
+                doc.roundedRect(LEFT, segY, pageW, fin - segY, 6).strokeColor(P.border).lineWidth(0.8).stroke();
+                doc.rect(LEFT, segY, 4, fin - segY).fill(color);
+            };
+            // Salta de página si el bloque no cabe, cerrando el tramo actual de la tarjeta
+            const espacio = (cy, alto) => {
+                if (cy + alto <= doc.page.height - 56) return cy;
+                cerrarTramo(cy + 6);
                 doc.addPage();
-                y = 50;
-            }
+                segY = E.MARGEN;
+                return segY + 12;
+            };
 
-            // ── Tarjeta del producto ──
-            // Borde izquierdo accent
-            doc.rect(LEFT, y, 4, blockH - 10).fill(idx % 2 === 0 ? P.accent : P.purple);
-
-            // Fondo de la tarjeta
-            doc.rect(LEFT + 4, y, pageW - 4, blockH - 10).fill(idx % 2 === 0 ? P.accentSoft : P.purpleSoft);
-
-            const cardX = LEFT + 14;
-            const cardW = pageW - 24;
-
-            // Nombre del producto
+            // Cabecera de la tarjeta
+            doc.rect(LEFT, y, pageW, 34).fill(soft);
             const nombreProducto = detalle.TraePrenda
                 ? 'Prenda llevada por el cliente'
                 : (detalle.producto?.Nombre || nombrePersonalizado(detalle) || 'Producto sin especificar');
-
-            doc.fillColor(idx % 2 === 0 ? P.accent : P.purple)
-                .font('Helvetica-Bold').fontSize(12)
-                .text(`${idx + 1}.  ${nombreProducto}`, cardX, y + 8, { width: cardW - 100 });
-
-            // Chip cantidad (top-right de la tarjeta)
-            doc.roundedRect(RIGHT - 90, y + 6, 85, 18, 9).fill(idx % 2 === 0 ? P.accent : P.purple);
+            doc.fillColor(P.navy).font('Helvetica-Bold').fontSize(12)
+                .text(`${idx + 1}.  ${nombreProducto}`, LEFT + 16, y + 11, { width: pageW - 130, height: 15, ellipsis: true });
+            const uni = `${detalle.Cantidad} ${Number(detalle.Cantidad) === 1 ? 'unidad' : 'unidades'}`;
+            doc.roundedRect(RIGHT - 92, y + 8, 80, 18, 9).fill(color);
             doc.fillColor(P.white).font('Helvetica-Bold').fontSize(8)
-                .text(`${detalle.Cantidad} unidades`, RIGHT - 90, y + 11, { width: 85, align: 'center' });
+                .text(uni, RIGHT - 92, y + 13.5, { width: 80, align: 'center', lineBreak: false });
 
-            let cy = y + 26;
+            const cardX = LEFT + 18;
+            const cardW = pageW - 36;
+            let cy = y + 34 + 14;
 
-            // Descripción de prenda propia
+            // Prenda propia
             if (detalle.TraePrenda && detalle.PrendaDescripcion) {
-                doc.fillColor(P.muted).font('Helvetica').fontSize(8).text('Descripción:', cardX, cy);
-                cy += 11;
-                doc.fillColor(P.text).font('Helvetica').fontSize(9).text(detalle.PrendaDescripcion, cardX + 10, cy, { width: cardW - 20 });
-                cy += 14;
+                cy = espacio(cy, 40);
+                cy = E.etiquetaGrupo(doc, 'Descripción', cardX, cy);
+                doc.fillColor(P.text).font('Helvetica').fontSize(9).text(detalle.PrendaDescripcion, cardX, cy, { width: cardW });
+                cy += doc.heightOfString(detalle.PrendaDescripcion, { width: cardW }) + 10;
             }
 
             // Tallas
             if (!detalle.TraePrenda && detalle.tallas?.length > 0) {
-                doc.fillColor(P.muted).font('Helvetica-Bold').fontSize(8).text('TALLAS', cardX, cy);
-                cy += 12;
-                let cx2 = cardX;
-                for (const t of detalle.tallas) {
-                    const txt = `${t.talla?.Nombre || '?'} · ${t.Cantidad} uds · $${Number(t.talla?.Precio || 0).toLocaleString('es-CO')}`;
-                    const w2  = drawChip(doc, txt, cx2, cy, P.navy, '#e8edf5');
-                    cx2 += w2;
-                    if (cx2 > RIGHT - 60) { cx2 = cardX; cy += 18; }
-                }
-                cy += 18;
+                cy = espacio(cy, 44);
+                cy = E.etiquetaGrupo(doc, 'Tallas', cardX, cy);
+                cy = E.filaChips(doc, detalle.tallas.map(t =>
+                    `${t.talla?.Nombre || '?'} · ${t.Cantidad} uds · ${E.cop(t.talla?.Precio)}`), cardX, cy, cardW, P.navy, '#e8edf5');
             }
 
             // Colores
             if (!detalle.TraePrenda && detalle.colores?.length > 0) {
-                doc.fillColor(P.muted).font('Helvetica-Bold').fontSize(8).text('COLORES', cardX, cy);
-                cy += 12;
-                let cx2 = cardX;
-                for (const c of detalle.colores) {
-                    const txt = `${c.color?.Nombre || '?'} · ${c.Cantidad} uds`;
-                    const w2  = drawChip(doc, txt, cx2, cy, P.success, P.successSoft);
-                    cx2 += w2;
-                    if (cx2 > RIGHT - 60) { cx2 = cardX; cy += 18; }
-                }
-                cy += 18;
+                cy = espacio(cy, 44);
+                cy = E.etiquetaGrupo(doc, 'Colores', cardX, cy);
+                cy = E.filaChips(doc, detalle.colores.map(c =>
+                    `${c.color?.Nombre || '?'} · ${c.Cantidad} uds`), cardX, cy, cardW, P.success, P.successSoft);
             }
 
-            // Telas / Insumos
+            // Telas / insumos
             if (!detalle.TraePrenda && detalle.insumos?.length > 0) {
-                doc.fillColor(P.muted).font('Helvetica-Bold').fontSize(8).text('TELAS / INSUMOS', cardX, cy);
-                cy += 12;
-                let cx2 = cardX;
-                for (const ins of detalle.insumos) {
-                    const txt = `${ins.insumo?.Nombre || 'Tela'} · +$${Number(ins.insumo?.PrecioTela || 0).toLocaleString('es-CO')}`;
-                    const w2  = drawChip(doc, txt, cx2, cy, P.warning, P.warningSoft);
-                    cx2 += w2;
-                    if (cx2 > RIGHT - 60) { cx2 = cardX; cy += 18; }
-                }
-                cy += 18;
+                cy = espacio(cy, 44);
+                cy = E.etiquetaGrupo(doc, 'Telas / insumos', cardX, cy);
+                cy = E.filaChips(doc, detalle.insumos.map(i =>
+                    `${i.insumo?.Nombre || 'Tela'} · +${E.cop(i.insumo?.PrecioTela)}`), cardX, cy, cardW, P.warning, P.warningSoft);
             }
 
-            // ── Diseños (técnicas) ──
+            // Diseños aplicados
             if (detalle.tecnicas?.length > 0) {
-                cy += 4;
-
-                // Header de diseños
-                fillRect(doc, cardX, cy, cardW, 18, P.purple);
-                doc.fillColor(P.white).font('Helvetica-Bold').fontSize(9)
-                    .text(`DISEÑOS APLICADOS  (${detalle.tecnicas.length})`, cardX + 8, cy + 5, { width: cardW - 16 });
-                cy += 20;
+                cy = espacio(cy, 110); // el título no debe quedar solo al final de una página
+                cy = E.etiquetaGrupo(doc, `Diseños aplicados (${detalle.tecnicas.length})`, cardX, cy + 2);
 
                 for (const tec of detalle.tecnicas) {
-                    if (cy > doc.page.height - 120) {
-                        doc.addPage();
-                        cy = 50;
-                    }
-
-                    // Imagen del diseño (si existe)
                     const imgUrl    = claveImagenDiseno(tec);
                     const imgBuffer = imgUrl ? imagenesDisenos[imgUrl] : null;
+                    const IMG = 64;
+                    const textX = imgBuffer ? cardX + IMG + 26 : cardX + 14;
+                    const textW = cardW - (textX - cardX) - 100;
 
-                    const IMG_W  = 72;
-                    const IMG_H  = 72;
-                    const hasImg = !!imgBuffer;
-                    const rowH   = hasImg ? IMG_H + 12 : 56;
+                    doc.font('Helvetica-Oblique').fontSize(8);
+                    const obsH = tec.Observaciones ? doc.heightOfString(`Obs: ${tec.Observaciones}`, { width: textW }) + 3 : 0;
+                    const rowH = Math.max(imgBuffer ? IMG + 16 : 0, 58 + obsH);
 
-                    // Fondo fila diseño
-                    doc.rect(cardX, cy, cardW, rowH).fill('#f0ebff');
+                    cy = espacio(cy, rowH + 8);
 
-                    // Imagen (izquierda)
-                    if (hasImg) {
+                    doc.roundedRect(cardX, cy, cardW, rowH, 6).fillAndStroke(P.white, '#ddd6fe');
+                    doc.rect(cardX, cy + 6, 3, rowH - 12).fill(P.violet);
+
+                    if (imgBuffer) {
+                        doc.roundedRect(cardX + 10, cy + 8, IMG + 4, IMG + 4, 4).fillAndStroke(P.bg, P.border);
                         try {
-                            doc.image(imgBuffer, cardX + 6, cy + 6, { width: IMG_W, height: IMG_H, fit: [IMG_W, IMG_H] });
+                            doc.image(imgBuffer, cardX + 12, cy + 10, { fit: [IMG, IMG], align: 'center', valign: 'center' });
                         } catch (_) {
-                            // Si falla el render, dibujar placeholder
-                            doc.rect(cardX + 6, cy + 6, IMG_W, IMG_H).fill(P.border);
-                            doc.fillColor(P.muted).font('Helvetica').fontSize(7)
-                                .text('sin imagen', cardX + 6, cy + IMG_H / 2 - 4, { width: IMG_W, align: 'center' });
+                            doc.fillColor(P.soft).font('Helvetica').fontSize(7)
+                                .text('sin imagen', cardX + 12, cy + 10 + IMG / 2 - 4, { width: IMG, align: 'center', lineBreak: false });
                         }
                     }
 
-                    const textX = hasImg ? cardX + IMG_W + 14 : cardX + 10;
-                    const textW = hasImg ? cardW - IMG_W - 20 : cardW - 20;
+                    doc.fillColor(P.violet).font('Helvetica-Bold').fontSize(10)
+                        .text(tec.tecnica?.Nombre || 'Técnica', textX, cy + 10, { width: textW, height: 13, ellipsis: true });
 
-                    // Nombre de la técnica
-                    doc.fillColor(P.purple).font('Helvetica-Bold').fontSize(10)
-                        .text(tec.tecnica?.Nombre || 'Técnica', textX, cy + 8, { width: textW });
-
-                    // Parte
-                    const parteNombre    = tec.parte?.Nombre    || null;
-                    const subParteNombre = tec.subparte?.Nombre || tec.SubParteNombre || tec.NombreSubParte || null;
-
-                    const parteLabel    = parteNombre    ? parteNombre    : 'Sin parte';
-                    const subParteLabel = subParteNombre ? subParteNombre : 'Sin subparte';
-
-                    doc.fillColor(P.muted).font('Helvetica').fontSize(8)
-                        .text('Parte:', textX, cy + 22, { continued: true })
-                        .fillColor(P.text).font('Helvetica-Bold')
-                        .text(`  ${parteLabel}`);
-
-                    doc.fillColor(P.muted).font('Helvetica').fontSize(8)
-                        .text('Subparte:', textX, cy + 34, { continued: true })
-                        .fillColor(P.text).font('Helvetica-Bold')
-                        .text(`  ${subParteLabel}`);
-
-                    // Observaciones
+                    const parteLabel    = tec.parte?.Nombre || 'Sin parte';
+                    const subParteLabel = tec.subparte?.Nombre || tec.SubParteNombre || tec.NombreSubParte || 'Sin subparte';
+                    doc.fillColor(P.muted).font('Helvetica').fontSize(8).text('Parte', textX, cy + 26, { lineBreak: false });
+                    doc.fillColor(P.text).font('Helvetica-Bold').text(parteLabel, textX + 42, cy + 26, { width: textW - 42, height: 10, ellipsis: true });
+                    doc.fillColor(P.muted).font('Helvetica').text('Subparte', textX, cy + 38, { lineBreak: false });
+                    doc.fillColor(P.text).font('Helvetica-Bold').text(subParteLabel, textX + 42, cy + 38, { width: textW - 42, height: 10, ellipsis: true });
                     if (tec.Observaciones) {
-                        doc.fillColor(P.muted).font('Helvetica').fontSize(8)
-                            .text('Obs:', textX, cy + 46, { continued: true })
-                            .fillColor(P.text).font('Helvetica')
-                            .text(`  ${tec.Observaciones}`, { width: textW - 20 });
+                        doc.fillColor(P.muted).font('Helvetica-Oblique').fontSize(8)
+                            .text(`Obs: ${tec.Observaciones}`, textX, cy + 51, { width: textW });
                     }
 
-                    // Costo (badge verde)
-                    const costoTxt = `$${Number(tec.CostoTecnica || 0).toLocaleString('es-CO')}`;
-                    const costoW   = 80;
-                    doc.roundedRect(RIGHT - costoW - 10, cy + 6, costoW, 18, 9).fill(P.successSoft);
-                    doc.fillColor(P.success).font('Helvetica-Bold').fontSize(9)
-                        .text(costoTxt, RIGHT - costoW - 10, cy + 11, { width: costoW, align: 'center' });
+                    // Costo (píldora verde)
+                    const costoW = 82;
+                    doc.roundedRect(cardX + cardW - costoW - 10, cy + 9, costoW, 20, 10).fill(P.successSoft);
+                    doc.fillColor(P.success).font('Helvetica-Bold').fontSize(9.5)
+                        .text(E.cop(tec.CostoTecnica), cardX + cardW - costoW - 10, cy + 15, { width: costoW, align: 'center', lineBreak: false });
 
-                    cy += rowH + 6;
+                    cy += rowH + 8;
                 }
             }
 
+            cy += 6;
+            cerrarTramo(cy);
             y = cy + 16;
         }
 
-        // ══════════════════════════════════════════════
-        // ▌ RESUMEN DE PRECIOS
-        // ══════════════════════════════════════════════
-        if (y > doc.page.height - 200) {
-            doc.addPage();
-            y = 50;
-        }
+        // ── Resumen de precios ──
+        y = E.asegurarEspacio(doc, y, 150);
+        y = E.seccion(doc, 'Resumen de precios', y);
 
-        y = sectionHeader(doc, 'RESUMEN DE PRECIOS', y, pageW);
-        y += 14;
+        const cDesc = LEFT + 14, cCant = LEFT + pageW * 0.52, cUnit = LEFT + pageW * 0.64, cSub = LEFT + pageW * 0.82;
+        const wCant = pageW * 0.10, wUnit = pageW * 0.16, wSub = pageW * 0.18 - 14;
+        const cabeceraTabla = (yy) => {
+            doc.rect(LEFT, yy, pageW, 22).fill(P.navy);
+            doc.fillColor(P.white).font('Helvetica-Bold').fontSize(7.5);
+            doc.text('PRODUCTO', cDesc, yy + 7.5, { lineBreak: false, characterSpacing: 0.7 });
+            doc.text('CANT.', cCant, yy + 7.5, { width: wCant, align: 'right', lineBreak: false, characterSpacing: 0.7 });
+            doc.text('P. UNITARIO', cUnit, yy + 7.5, { width: wUnit, align: 'right', lineBreak: false, characterSpacing: 0.7 });
+            doc.text('SUBTOTAL', cSub, yy + 7.5, { width: wSub, align: 'right', lineBreak: false, characterSpacing: 0.7 });
+            return yy + 22;
+        };
+        y = cabeceraTabla(y);
 
         let granTotal = 0;
-
         for (let idx = 0; idx < cotizacion.detalles.length; idx++) {
             const detalle = cotizacion.detalles[idx];
 
@@ -498,94 +339,56 @@ exports.descargarPdfCotizacion = async (req, res) => {
             const subtotal      = precioUnit * detalle.Cantidad;
             granTotal          += subtotal;
 
-            const bg = idx % 2 === 0 ? P.bg : P.white;
-            fillRect(doc, LEFT, y - 4, pageW, 30, bg);
+            const desglose = [
+                precioBase    > 0 ? `Base ${E.cop(precioBase)}`       : null,
+                precioTalla   > 0 ? `Talla ${E.cop(precioTalla)}`     : null,
+                precioTela    > 0 ? `Tela ${E.cop(precioTela)}`       : null,
+                costoTecnicas > 0 ? `Diseños ${E.cop(costoTecnicas)}` : null,
+            ].filter(Boolean).join('   ·   ');
 
+            const filaH = desglose ? 36 : 24;
+            if (y + filaH > doc.page.height - 60) { doc.addPage(); y = cabeceraTabla(E.MARGEN); }
+
+            if (idx % 2 === 0) doc.rect(LEFT, y, pageW, filaH).fill(P.bg);
             const nombreProd = detalle.TraePrenda
                 ? 'Prenda propia'
                 : (detalle.producto?.Nombre || nombrePersonalizado(detalle) || 'Producto');
-
-            doc.fillColor(P.navy).font('Helvetica-Bold').fontSize(9)
-                .text(`${idx + 1}. ${nombreProd}`, LEFT + 8, y, { width: pageW / 2 });
-
-            doc.fillColor(P.muted).font('Helvetica').fontSize(9)
-                .text(`${detalle.Cantidad} × $${precioUnit.toLocaleString('es-CO')}`, LEFT + pageW / 2, y, { width: 120, align: 'right' });
-
-            doc.fillColor(P.text).font('Helvetica-Bold').fontSize(10)
-                .text(`$${subtotal.toLocaleString('es-CO')}`, RIGHT - 70, y, { width: 70, align: 'right' });
-
-            y += 16;
-
-            // Sub-ítems
-            const subItems = [
-                precioBase    > 0 ? ['Precio base',        precioBase]    : null,
-                precioTalla   > 0 ? ['Talla',              precioTalla]   : null,
-                precioTela    > 0 ? ['Tela',               precioTela]    : null,
-                costoTecnicas > 0 ? ['Diseños/técnicas',   costoTecnicas] : null,
-            ].filter(Boolean);
-
-            for (const [subLabel, subVal] of subItems) {
+            doc.fillColor(P.navy).font('Helvetica-Bold').fontSize(9.5)
+                .text(`${idx + 1}. ${nombreProd}`, cDesc, y + 6, { width: cCant - cDesc - 8, height: 12, ellipsis: true });
+            if (desglose) {
                 doc.fillColor(P.muted).font('Helvetica').fontSize(7.5)
-                    .text(`+ ${subLabel}`, LEFT + 22, y, { width: 160 });
-                doc.fillColor(P.muted).font('Helvetica').fontSize(7.5)
-                    .text(`$${subVal.toLocaleString('es-CO')}`, RIGHT - 70, y, { width: 70, align: 'right' });
-                y += 12;
+                    .text(desglose, cDesc + 10, y + 21, { width: cCant - cDesc - 18, height: 10, ellipsis: true });
             }
-            y += 4;
+            doc.fillColor(P.text).font('Helvetica').fontSize(9.5)
+                .text(String(detalle.Cantidad), cCant, y + 6, { width: wCant, align: 'right', lineBreak: false });
+            doc.text(E.cop(precioUnit), cUnit, y + 6, { width: wUnit, align: 'right', lineBreak: false });
+            doc.font('Helvetica-Bold').text(E.cop(subtotal), cSub, y + 6, { width: wSub, align: 'right', lineBreak: false });
+            y += filaH;
         }
+        doc.moveTo(LEFT, y).lineTo(RIGHT, y).strokeColor(P.border).lineWidth(0.8).stroke();
 
-        // Línea + TOTAL
-        divider(doc, LEFT + pageW / 2, RIGHT, y, P.navy, 1.5);
-        y += 10;
+        // Total
+        y = E.asegurarEspacio(doc, y + 14, 44);
+        const totW = 230;
+        doc.roundedRect(RIGHT - totW, y, totW, 40, 8).fill(P.navy);
+        doc.rect(RIGHT - totW, y + 8, 4, 24).fill(P.accent);
+        doc.fillColor('#cbd5e1').font('Helvetica-Bold').fontSize(8.5)
+            .text('TOTAL', RIGHT - totW + 18, y + 16, { lineBreak: false, characterSpacing: 1 });
+        doc.fillColor(P.white).font('Helvetica-Bold').fontSize(16)
+            .text(E.cop(cotizacion.ValorTotal || granTotal), RIGHT - totW + 60, y + 12, { width: totW - 76, align: 'right', lineBreak: false });
+        y += 40 + 22;
 
-        fillRect(doc, LEFT + pageW / 2 - 10, y, pageW - pageW / 2 + 10, 36, P.navy);
-        doc.fillColor(P.white).font('Helvetica-Bold').fontSize(11)
-            .text('TOTAL', LEFT + pageW / 2 + 4, y + 11);
-        doc.fillColor(P.white).font('Helvetica-Bold').fontSize(14)
-            .text(
-                `$${Number(cotizacion.ValorTotal || granTotal).toLocaleString('es-CO')}`,
-                RIGHT - 80, y + 8,
-                { width: 80, align: 'right' }
-            );
-        y += 50;
+        // ── Notas ──
+        const { vigenciaCotizacionDias: vigencia } = leerConfig();
+        y = E.cajaNotas(doc, 'Notas importantes', [
+            vigencia > 0
+                ? `Esta cotización es válida por ${vigencia} días calendario a partir de la fecha de emisión.`
+                : 'Esta cotización no tiene fecha de vencimiento.',
+            'Los precios están expresados en pesos colombianos (COP).',
+            'El stock se descuenta únicamente al convertir la cotización en venta.',
+        ], y);
 
-        // ══════════════════════════════════════════════
-        // ▌ NOTAS
-        // ══════════════════════════════════════════════
-        if (y > doc.page.height - 120) {
-            doc.addPage();
-            y = 50;
-        }
-
-        fillRect(doc, LEFT, y, pageW, 70, P.successSoft);
-        doc.roundedRect(LEFT, y, pageW, 70, 8).strokeColor(P.successBorder || '#bbf7d0').lineWidth(1).stroke();
-
-        doc.fillColor(P.success).font('Helvetica-Bold').fontSize(9)
-            .text('Notas importantes', LEFT + 12, y + 10);
-
-        doc.fillColor(P.success).font('Helvetica').fontSize(8)
-            .text(
-                '•  Esta cotización es válida por 15 días calendario a partir de la fecha de emisión.\n' +
-                '•  Los precios están expresados en pesos colombianos (COP).\n' +
-                '•  El stock se descuenta únicamente al convertir la cotización en venta.',
-                LEFT + 12, y + 24,
-                { width: pageW - 24 }
-            );
-
-        y += 80;
-
-        // ══════════════════════════════════════════════
-        // ▌ PIE DE PÁGINA
-        // ══════════════════════════════════════════════
-        const footerY = doc.page.height - 38;
-        divider(doc, LEFT, RIGHT, footerY - 10, P.border, 0.5);
-        doc.fillColor(P.muted).font('Helvetica').fontSize(8)
-            .text(
-                `StampLab  ·  Cotización #${cotizacion.CotizacionID}  ·  Generado el ${new Date().toLocaleDateString('es-CO')}`,
-                LEFT, footerY,
-                { align: 'center', width: pageW }
-            );
-
+        E.pies(doc, `StampLab  ·  Cotización #${cotizacion.CotizacionID}  ·  Generado el ${new Date().toLocaleDateString('es-CO')}`);
         doc.end();
 
         log(`✅ PDF generado correctamente para cotización #${cotizacionID}`);
@@ -601,24 +404,3 @@ exports.descargarPdfCotizacion = async (req, res) => {
         }
     }
 };
-
-// ─────────────────────────────────────────────────────────
-// Helper: estima la altura de un bloque producto
-// ─────────────────────────────────────────────────────────
-function estimarAltura(detalle, imagenesDisenos = {}) {
-    let h = 54;  // cabecera + cantidad
-    if (detalle.TraePrenda && detalle.PrendaDescripcion) h += 30;
-    if (detalle.tallas?.length)   h += 34;
-    if (detalle.colores?.length)  h += 34;
-    if (detalle.insumos?.length)  h += 34;
-
-    if (detalle.tecnicas?.length) {
-        h += 24; // header diseños
-        for (const tec of detalle.tecnicas) {
-            const imgUrl = claveImagenDiseno(tec);
-            const hasImg = imgUrl && !!imagenesDisenos[imgUrl];
-            h += (hasImg ? 84 : 62) + 6;
-        }
-    }
-    return h + 16;
-}
