@@ -94,6 +94,8 @@ router.patch('/:id/estado', admin, ventaController.updateEstadoVenta);
 // Seguimiento y comprobante de pago
 router.get('/:id/historial', verificarToken, ventaPropiaOAdmin, ventaController.historial);
 router.patch('/:id/rechazar-comprobante', admin, ventaController.rechazarComprobante);
+// PATCH /api/ventas/:id/reembolsado - marca como hecho el reembolso de un pedido pagado que se canceló
+router.patch('/:id/reembolsado', admin, ventaController.marcarReembolsado);
 router.patch('/:id/comprobante', verificarToken, ventaPropiaOAdmin, ventaController.subirComprobante);
 
 // GET /api/ventas/:id/factura - comprobante de venta en PDF (el dueño del pedido o un administrador)

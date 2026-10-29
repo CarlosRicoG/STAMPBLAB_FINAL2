@@ -241,6 +241,42 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     r = await call('POST', '/resumen/mantenimiento', {}, adm);
     si('el pedido sin pago a 18 h de vencer avisa al cliente y sigue Pendiente', !!(await hay(cli, new RegExp(`pedido #${VPV} se cancelará`))) && (await est(VPV)) === 8, JSON.stringify(r.j));
 
+    console.log('--- cancelar un pedido ya pagado: stock y reembolso');
+    const base = await stock();
+    const VPG = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VPG);
+    si('el pedido reservó 1 unidad', (await stock()) === base - 1, `${base} -> ${await stock()}`);
+    await call('PATCH', `/ventas/${VPG}/estado`, { EstadoID: 9 }, adm);
+    r = await call('PATCH', `/ventas/${VPG}/estado`, { EstadoID: 12 }, adm);
+    si('cancelar un pedido Pagada responde 200 con reembolso pendiente', r.s === 200 && r.j.reembolsoPendiente === true && r.j.stockDevuelto === true, JSON.stringify(r.j).slice(0, 200));
+    si('el stock vuelve (la prenda no entró a producción)', (await stock()) === base, `${base} -> ${await stock()}`);
+    si('el pedido queda con el reembolso pendiente', (await call('GET', '/ventas/' + VPG, undefined, adm)).j.ReembolsoPendiente === true);
+    si('el historial lo deja anotado', (await call('GET', `/ventas/${VPG}/historial`, undefined, adm)).j.some((h) => /Reembolso pendiente/.test(h.Nota || '')));
+    r = await call('PATCH', `/ventas/${VPG}/reembolsado`, {}, cli); si('el cliente no puede marcar el reembolso', r.s === 403, r.s);
+    r = await call('PATCH', `/ventas/${VPG}/reembolsado`, {}, adm); si('el administrador marca el reembolso como realizado', r.s === 200 && r.j.venta.ReembolsoPendiente === false, JSON.stringify(r.j).slice(0, 160));
+    r = await call('PATCH', `/ventas/${VPG}/reembolsado`, {}, adm); si('marcarlo dos veces se rechaza', r.s === 400, r.s);
+
+    const VPR = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VPR);
+    for (const e of [9, 10]) await call('PATCH', `/ventas/${VPR}/estado`, { EstadoID: e }, adm);
+    r = await call('PATCH', `/ventas/${VPR}/estado`, { EstadoID: 12 }, adm);
+    si('cancelar en producción deja reembolso pendiente pero NO repone el stock', r.s === 200 && r.j.reembolsoPendiente === true && r.j.stockDevuelto === false && (await stock()) === base - 1, `${JSON.stringify(r.j).slice(0, 120)} stock ${await stock()}`);
+    const VPN = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VPN);
+    r = await call('PATCH', `/ventas/${VPN}/estado`, { EstadoID: 12 }, adm);
+    si('cancelar un pedido sin pagar no genera reembolso', r.s === 200 && r.j.reembolsoPendiente === false, JSON.stringify(r.j).slice(0, 120));
+
+    console.log('--- contra entrega: plazo y aviso');
+    const contra = async () => (await call('POST', '/ventas', pedido({ metodoPago: 'contraentrega', comprobanteTransferencia: undefined, nombreReceptor: 'A', telefonoEntrega: '3000000000', direccionEntrega: 'Calle 1' }), cli)).j?.venta?.VentaID;
+    const CEV = await contra(); const CEA = await contra(); const CEN = await contra();
+    limpiar.ventas.push(CEV, CEA, CEN);
+    await db.Venta.update({ FechaVenta: new Date(Date.now() - 8 * 864e5) }, { where: { VentaID: CEV } });      // pasó el plazo de 7 días
+    await db.Venta.update({ FechaVenta: new Date(Date.now() - 6.5 * 864e5) }, { where: { VentaID: CEA } });    // a menos de 24 h de vencer
+    const baseCE = await stock();
+    r = await call('POST', '/resumen/mantenimiento', {}, adm);
+    si('el contra entrega de más de 7 días se canceló solo', (await est(CEV)) === 12, JSON.stringify(r.j));
+    si('y devolvió su stock', (await stock()) === baseCE + 1, `${baseCE} -> ${await stock()}`);
+    si('el cliente recibe el aviso de la cancelación por entrega', !!(await hay(cli, new RegExp(`Cancelamos tu pedido #${CEV}`))));
+    si('el contra entrega a punto de vencer avisa y sigue Pendiente', !!(await hay(cli, new RegExp(`pedido #${CEA} se cancelará`))) && (await est(CEA)) === 8);
+    si('el contra entrega reciente no se toca ni se avisa', (await est(CEN)) === 8 && !(await hay(cli, new RegExp(`pedido #${CEN} se cancelará`))));
+
     console.log('--- limpieza');
     for (const id of limpiar.ventas.filter(Boolean)) { await call('PATCH', `/ventas/${id}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${id}`, undefined, adm); }
     for (const id of limpiar.cots.filter(Boolean)) { await call('PUT', `/cotizaciones/${id}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${id}`, undefined, adm); }

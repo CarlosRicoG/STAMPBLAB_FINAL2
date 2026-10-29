@@ -110,6 +110,12 @@ export const getHistorialVenta = async (id) => {
 };
 
 // Rechaza el comprobante de transferencia (el pedido sigue Pendiente). motivo: 5-300 caracteres
+// Marca como hecho el reembolso de un pedido pagado que se canceló
+export const marcarReembolsado = async (id) => {
+    const response = await axios.patch(`${API_URL}/${id}/reembolsado`);
+    return response.data;
+};
+
 export const rechazarComprobante = async (id, motivo) => {
     const response = await axios.patch(`${API_URL}/${id}/rechazar-comprobante`, { motivo });
     return response.data;

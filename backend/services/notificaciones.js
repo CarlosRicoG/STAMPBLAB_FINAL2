@@ -102,6 +102,13 @@ const pedidoCanceladoPorCliente = seguro(async (ventaId) => {
     await avisos.paraAdmins({ tipo: 'pedido', mensaje: `${nombreCliente(venta.usuario)} canceló su pedido #${venta.VentaID}.`, enlace: '/dashboard/ventas' });
 });
 
+/** Se canceló un pedido que ya estaba pagado: el equipo debe devolver el dinero. */
+const reembolsoPendiente = seguro(async (ventaId) => {
+    const venta = await cargarVenta(ventaId);
+    if (!venta) return;
+    await avisos.paraAdmins({ tipo: 'pago', mensaje: `Se canceló el pedido #${venta.VentaID} de ${nombreCliente(venta.usuario)} y ya estaba pagado (${cop(venta.Total)}): hay un reembolso pendiente.`, enlace: '/dashboard/ventas' });
+});
+
 /** El cliente subió (o volvió a subir) un comprobante de transferencia. */
 const comprobanteSubido = seguro(async (ventaId) => {
     const venta = await cargarVenta(ventaId);
@@ -125,26 +132,26 @@ const comprobanteRechazado = seguro(async (ventaId, motivo) => {
 });
 
 /** Pedido cancelado automáticamente por no pagarse a tiempo. */
-const pedidoVencido = seguro(async (ventaId, horas) => {
+const pedidoVencido = seguro(async (ventaId, horas, contraentrega = false) => {
     const venta = await cargarVenta(ventaId);
     if (!venta) return;
     if (venta.usuario?.Correo) {
-        const { asunto, html } = plantillas.pedidoVencido({ usuario: venta.usuario, venta, horas });
+        const { asunto, html } = plantillas.pedidoVencido({ usuario: venta.usuario, venta, horas, contraentrega });
         await correo.enviar({ para: venta.usuario.Correo, asunto, html });
     }
-    await avisos.paraUsuario(venta.DocumentoID, { tipo: 'pedido', enlace: '/miscompras', mensaje: `Cancelamos tu pedido #${venta.VentaID} porque pasaron más de ${horas} horas sin pago. Puedes volver a pedir con un clic.` });
-    await avisos.paraAdmins({ tipo: 'pedido', mensaje: `El pedido #${venta.VentaID} de ${nombreCliente(venta.usuario)} se canceló solo por falta de pago.`, enlace: '/dashboard/ventas' });
+    await avisos.paraUsuario(venta.DocumentoID, { tipo: 'pedido', enlace: '/miscompras', mensaje: contraentrega ? `Cancelamos tu pedido #${venta.VentaID} porque pasaron más de ${Math.round(horas / 24)} días sin concretar la entrega. Puedes volver a pedir con un clic.` : `Cancelamos tu pedido #${venta.VentaID} porque pasaron más de ${horas} horas sin pago. Puedes volver a pedir con un clic.` });
+    await avisos.paraAdmins({ tipo: 'pedido', mensaje: `El pedido #${venta.VentaID} de ${nombreCliente(venta.usuario)} se canceló solo por ${contraentrega ? 'no concretarse la entrega contra entrega' : 'falta de pago'}.`, enlace: '/dashboard/ventas' });
 });
 
 /** Aviso previo: el pedido se cancelará pronto si no se paga. */
-const pedidoPorVencer = seguro(async (ventaId, horas) => {
+const pedidoPorVencer = seguro(async (ventaId, horas, contraentrega = false) => {
     const venta = await cargarVenta(ventaId);
     if (!venta) return;
     if (venta.usuario?.Correo) {
-        const { asunto, html } = plantillas.pedidoPorVencer({ usuario: venta.usuario, venta, horas });
+        const { asunto, html } = plantillas.pedidoPorVencer({ usuario: venta.usuario, venta, horas, contraentrega });
         await correo.enviar({ para: venta.usuario.Correo, asunto, html });
     }
-    await avisos.paraUsuario(venta.DocumentoID, { tipo: 'pedido', enlace: '/miscompras', mensaje: `Tu pedido #${venta.VentaID} se cancelará en unas ${horas} horas si no recibimos el pago. Sube tu comprobante para conservarlo.` });
+    await avisos.paraUsuario(venta.DocumentoID, { tipo: 'pedido', enlace: '/miscompras', mensaje: contraentrega ? `Tu pedido #${venta.VentaID} se cancelará en unas ${horas} horas si no coordinamos la entrega. Escríbenos para conservarlo.` : `Tu pedido #${venta.VentaID} se cancelará en unas ${horas} horas si no recibimos el pago. Sube tu comprobante para conservarlo.` });
 });
 
 // ───────────────────────── Cotizaciones ─────────────────────────
@@ -223,6 +230,6 @@ const stockBajo = seguro(async (items) => {
 });
 
 module.exports = {
-    pedidoRecibido, pedidoEstado, pedidoCanceladoPorCliente, comprobanteSubido, comprobanteRechazado, pedidoVencido, pedidoPorVencer,
+    pedidoRecibido, pedidoEstado, pedidoCanceladoPorCliente, comprobanteSubido, comprobanteRechazado, pedidoVencido, pedidoPorVencer, reembolsoPendiente,
     cotizacionRecibida, cotizacionEstado, cotizacionRespuesta, cotizacionVencida, cotizacionPorVencer, stockBajo,
 };

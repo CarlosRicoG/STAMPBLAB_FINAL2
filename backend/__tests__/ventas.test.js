@@ -159,13 +159,22 @@ describe('VentaController - Pruebas Unitarias', () => {
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ stockDevuelto: true }));
         });
 
-        test('cancelar una venta que YA está pagada NO devuelve stock', async () => {
+        test('cancelar una venta pagada (aún sin producir) devuelve el stock y deja el reembolso pendiente', async () => {
             Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
             Venta.findByPk.mockResolvedValue(ventaConEstado(9));
             const res = mockRes();
             await controller.updateEstadoVenta({ params: { id: '1' }, body: { EstadoID: 12 } }, res);
+            expect(inventario.devolver).toHaveBeenCalled();
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ stockDevuelto: true, reembolsoPendiente: true }));
+        });
+
+        test('cancelar una venta que ya está en producción NO devuelve stock pero deja el reembolso pendiente', async () => {
+            Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
+            Venta.findByPk.mockResolvedValue(ventaConEstado(10));
+            const res = mockRes();
+            await controller.updateEstadoVenta({ params: { id: '1' }, body: { EstadoID: 12 } }, res);
             expect(inventario.devolver).not.toHaveBeenCalled();
-            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ stockDevuelto: false }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ stockDevuelto: false, reembolsoPendiente: true }));
         });
 
         test('una venta cancelada no puede cambiar de estado (evita descuadrar el inventario)', async () => {

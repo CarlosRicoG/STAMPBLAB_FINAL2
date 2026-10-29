@@ -5,13 +5,13 @@ describe('Reglas del negocio configurables', () => {
     afterEach(() => { process.env = { ...guardado }; });
 
     test('valores por defecto sensatos', () => {
-        for (const k of ['PLAZO_PAGO_HORAS', 'VIGENCIA_COTIZACION_DIAS', 'COSTO_ENVIO', 'STOCK_MINIMO', 'WHATSAPP']) delete process.env[k];
-        expect(configuracion.leer()).toEqual({ plazoPagoHoras: 48, vigenciaCotizacionDias: 30, costoEnvio: 0, stockMinimo: 5, whatsapp: '' });
+        for (const k of ['PLAZO_PAGO_HORAS', 'PLAZO_CONTRAENTREGA_DIAS', 'VIGENCIA_COTIZACION_DIAS', 'COSTO_ENVIO', 'STOCK_MINIMO', 'WHATSAPP']) delete process.env[k];
+        expect(configuracion.leer()).toEqual({ plazoPagoHoras: 48, plazoContraentregaDias: 7, vigenciaCotizacionDias: 30, costoEnvio: 0, stockMinimo: 5, whatsapp: '' });
     });
 
     test('lee las variables de entorno', () => {
-        Object.assign(process.env, { PLAZO_PAGO_HORAS: '24', VIGENCIA_COTIZACION_DIAS: '10', COSTO_ENVIO: '12000', STOCK_MINIMO: '3', WHATSAPP: '+57 300 123 4567' });
-        expect(configuracion.leer()).toEqual({ plazoPagoHoras: 24, vigenciaCotizacionDias: 10, costoEnvio: 12000, stockMinimo: 3, whatsapp: '573001234567' });
+        Object.assign(process.env, { PLAZO_PAGO_HORAS: '24', PLAZO_CONTRAENTREGA_DIAS: '3', VIGENCIA_COTIZACION_DIAS: '10', COSTO_ENVIO: '12000', STOCK_MINIMO: '3', WHATSAPP: '+57 300 123 4567' });
+        expect(configuracion.leer()).toEqual({ plazoPagoHoras: 24, plazoContraentregaDias: 3, vigenciaCotizacionDias: 10, costoEnvio: 12000, stockMinimo: 3, whatsapp: '573001234567' });
     });
 
     test('0 desactiva el plazo; valores inválidos o negativos vuelven al defecto', () => {

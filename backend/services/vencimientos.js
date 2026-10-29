@@ -20,22 +20,38 @@ const { ESTADO_VENTA, ESTADO_COTIZACION } = require('../config/estados');
 const HORAS_AVISO_PEDIDO = 24;
 const DIAS_AVISO_COTIZACION = 1;
 
-// Pedidos por transferencia sin comprobante válido (los únicos que se cancelan solos)
-const sinComprobanteValido = () => ({
-    EstadoID: ESTADO_VENTA.PENDIENTE, MetodoPago: 'transferencia',
-    [Op.or]: [{ ComprobanteTransferencia: null }, { ComprobanteTransferencia: '' }, { ComprobanteMotivoRechazo: { [Op.ne]: null } }],
-});
+// Pedidos que pueden cancelarse solos si se pasa su plazo: transferencia sin comprobante válido (plazo en horas) y
+// contra entrega (plazo en días). Los de transferencia con comprobante en revisión nunca se cancelan solos.
+// `ahora` y los plazos fijan hasta qué fecha de venta cuenta como vencido.
+const pedidosConPlazo = ({ ahora, plazoPagoHoras, plazoContraentregaDias, margenHoras = 0, desde = false }) => {
+    const antes = (horas) => new Date(ahora.getTime() - (horas - margenHoras) * 3600 * 1000);
+    const o = [];
+    if (plazoPagoHoras) {
+        o.push({
+            MetodoPago: 'transferencia',
+            FechaVenta: desde ? { [Op.between]: [antes(plazoPagoHoras + margenHoras), antes(plazoPagoHoras)] } : { [Op.lt]: antes(plazoPagoHoras) },
+            [Op.or]: [{ ComprobanteTransferencia: null }, { ComprobanteTransferencia: '' }, { ComprobanteMotivoRechazo: { [Op.ne]: null } }],
+        });
+    }
+    if (plazoContraentregaDias) {
+        const h = plazoContraentregaDias * 24;
+        o.push({
+            MetodoPago: 'contraentrega',
+            FechaVenta: desde ? { [Op.between]: [antes(h + margenHoras), antes(h)] } : { [Op.lt]: antes(h) },
+        });
+    }
+    return o.length ? { EstadoID: ESTADO_VENTA.PENDIENTE, [Op.or]: o } : null;
+};
 
 async function cancelarPedidosSinPago(ahora = new Date()) {
-    const { plazoPagoHoras } = configuracion.leer();
-    if (!plazoPagoHoras) return 0;
-    const limite = new Date(ahora.getTime() - plazoPagoHoras * 3600 * 1000);
-    const candidatos = await db.Venta.findAll({
-        where: { ...sinComprobanteValido(), FechaVenta: { [Op.lt]: limite } },
-        attributes: ['VentaID'], raw: true,
-    });
+    const { plazoPagoHoras, plazoContraentregaDias } = configuracion.leer();
+    const donde = pedidosConPlazo({ ahora, plazoPagoHoras, plazoContraentregaDias });
+    if (!donde) return 0;
+    const candidatos = await db.Venta.findAll({ where: donde, attributes: ['VentaID', 'MetodoPago'], raw: true });
     let canceladas = 0;
-    for (const { VentaID } of candidatos) {
+    for (const { VentaID, MetodoPago } of candidatos) {
+        const contraentrega = MetodoPago === 'contraentrega';
+        const plazoHoras = contraentrega ? plazoContraentregaDias * 24 : plazoPagoHoras;
         const t = await db.sequelize.transaction();
         try {
             const venta = await db.Venta.findByPk(VentaID, { transaction: t, lock: t.LOCK.UPDATE });
@@ -43,10 +59,10 @@ async function cancelarPedidosSinPago(ahora = new Date()) {
             const detalles = await db.DetalleVenta.findAll({ where: { VentaID }, transaction: t });
             await inventario.devolver(detalles, t);
             await venta.update({ EstadoID: ESTADO_VENTA.CANCELADA }, { transaction: t });
-            await historial.registrar({ tipo: 'venta', refId: VentaID, estadoId: ESTADO_VENTA.CANCELADA, nota: `Cancelado automáticamente: pasaron ${plazoPagoHoras} horas sin pago` }, t);
+            await historial.registrar({ tipo: 'venta', refId: VentaID, estadoId: ESTADO_VENTA.CANCELADA, nota: contraentrega ? `Cancelado automáticamente: pasaron ${plazoContraentregaDias} días sin concretar la entrega` : `Cancelado automáticamente: pasaron ${plazoPagoHoras} horas sin pago` }, t);
             await t.commit();
             canceladas++;
-            notificaciones.pedidoVencido(VentaID, plazoPagoHoras);
+            notificaciones.pedidoVencido(VentaID, plazoHoras, contraentrega);
         } catch (e) {
             await t.rollback().catch(() => {});
             console.error(`[vencimientos] pedido #${VentaID}:`, e.message);
@@ -99,15 +115,27 @@ async function vencerCotizaciones(ahora = new Date()) {
 
 /** Avisa una sola vez al cliente que su pedido se cancelará pronto si no paga. */
 async function avisarPedidosPorVencer(ahora = new Date()) {
-    const { plazoPagoHoras } = configuracion.leer();
-    const horasAviso = Math.min(HORAS_AVISO_PEDIDO, Math.floor(plazoPagoHoras / 2));
-    if (!plazoPagoHoras || horasAviso < 1) return 0;
-    const desde = new Date(ahora.getTime() - plazoPagoHoras * 3600 * 1000);
-    const hasta = new Date(ahora.getTime() - (plazoPagoHoras - horasAviso) * 3600 * 1000);
-    const candidatos = await db.Venta.findAll({
-        where: { ...sinComprobanteValido(), AvisoVencimiento: false, FechaVenta: { [Op.between]: [desde, hasta] } },
-        attributes: ['VentaID', 'FechaVenta'], raw: true,
-    });
+    const { plazoPagoHoras, plazoContraentregaDias } = configuracion.leer();
+    // Margen de aviso: 24 h, o la mitad del plazo si es más corto. Una ventana por método de pago.
+    const margen = (horas) => Math.min(HORAS_AVISO_PEDIDO, Math.floor(horas / 2));
+    const ventanas = [
+        { metodo: 'transferencia', plazo: plazoPagoHoras },
+        { metodo: 'contraentrega', plazo: plazoContraentregaDias * 24 },
+    ].filter((v) => v.plazo && margen(v.plazo) >= 1);
+    let avisados = 0;
+    for (const { metodo, plazo } of ventanas) {
+        const donde = pedidosConPlazo({
+            ahora, margenHoras: margen(plazo), desde: true,
+            plazoPagoHoras: metodo === 'transferencia' ? plazo : 0, plazoContraentregaDias: metodo === 'contraentrega' ? plazo / 24 : 0,
+        });
+        // pedidosConPlazo con margen devuelve los pedidos que ya pasaron "plazo - margen" y aún no el plazo completo
+        const candidatos = await db.Venta.findAll({ where: { ...donde, AvisoVencimiento: false }, attributes: ['VentaID', 'FechaVenta'], raw: true });
+        avisados += await avisarPedidos(candidatos, plazo, metodo === 'contraentrega', ahora);
+    }
+    return avisados;
+}
+
+async function avisarPedidos(candidatos, plazoPagoHoras, contraentrega, ahora) {
     let avisados = 0;
     for (const { VentaID, FechaVenta } of candidatos) {
         try {
@@ -115,7 +143,7 @@ async function avisarPedidosPorVencer(ahora = new Date()) {
             const [n] = await db.Venta.update({ AvisoVencimiento: true }, { where: { VentaID, AvisoVencimiento: false } });
             if (!n) continue;
             const horasRestantes = Math.max(1, Math.round((new Date(FechaVenta).getTime() + plazoPagoHoras * 3600 * 1000 - ahora.getTime()) / 3600000));
-            notificaciones.pedidoPorVencer(VentaID, horasRestantes);
+            notificaciones.pedidoPorVencer(VentaID, horasRestantes, contraentrega);
             avisados++;
         } catch (e) { console.error(`[vencimientos] aviso pedido #${VentaID}:`, e.message); }
     }

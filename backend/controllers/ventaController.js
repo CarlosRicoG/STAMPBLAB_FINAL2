@@ -297,22 +297,50 @@ exports.updateEstadoVenta = async (req, res) => {
 
         log(`Cambio de estado de venta #${ventaId}: ${estadoAnterior} -> ${estadoNuevo}`);
 
-        const devuelveStock = estadoAnterior === ESTADO_VENTA.PENDIENTE && estadoNuevo === ESTADO_VENTA.CANCELADA;
+        const cancela = estadoNuevo === ESTADO_VENTA.CANCELADA;
+        // Pendiente y Pagada todavía no entraron a producción: las prendas siguen en bodega y el stock vuelve.
+        // Desde En Producción ya se trabajó sobre ellas, así que el stock no se repone.
+        const devuelveStock = cancela && [ESTADO_VENTA.PENDIENTE, ESTADO_VENTA.PAGADA].includes(estadoAnterior);
         if (devuelveStock) {
             const detalles = await DetalleVenta.findAll({ where: { VentaID: ventaId }, transaction: t });
             await inventario.devolver(detalles, t);
         }
+        // Un pedido que ya se pagó y se cancela deja un reembolso por hacer
+        const reembolsoPendiente = cancela && [ESTADO_VENTA.PAGADA, ESTADO_VENTA.EN_PRODUCCION, ESTADO_VENTA.LISTA_ENTREGA].includes(estadoAnterior);
 
-        await venta.update({ EstadoID: estadoNuevo, ...(fechaEstimada ? { FechaEstimadaEntrega: fechaEstimada } : {}) }, { transaction: t });
+        await venta.update({
+            EstadoID: estadoNuevo,
+            ...(fechaEstimada ? { FechaEstimadaEntrega: fechaEstimada } : {}),
+            ...(reembolsoPendiente ? { ReembolsoPendiente: true } : {}),
+        }, { transaction: t });
         const porCliente = !esAdmin(req);
-        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: estadoNuevo, nota: nota || (porCliente ? 'Cancelado por el cliente' : null), documentoId: req.usuario?.id }, t);
+        const notaFinal = [nota || (porCliente ? 'Cancelado por el cliente' : null), reembolsoPendiente ? 'Reembolso pendiente: el pedido ya estaba pagado' : null].filter(Boolean).join(' · ') || null;
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: estadoNuevo, nota: notaFinal, documentoId: req.usuario?.id }, t);
         await t.commit();
+        if (reembolsoPendiente) notificaciones.reembolsoPendiente(venta.VentaID);
         notificaciones.pedidoEstado(venta.VentaID, nota || null); // correo y aviso al cliente con el nuevo estado
         if (porCliente && estadoNuevo === ESTADO_VENTA.CANCELADA) notificaciones.pedidoCanceladoPorCliente(venta.VentaID);
-        return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock });
+        return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock, reembolsoPendiente });
     } catch (error) {
         await t.rollback();
         return responderError(res, error, 'Error al actualizar estado');
+    }
+};
+
+// MARCAR EL REEMBOLSO COMO REALIZADO (pedido pagado que se canceló)
+exports.marcarReembolsado = async (req, res) => {
+    const t = await sequelize.transaction();
+    try {
+        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
+        if (!venta.ReembolsoPendiente) { await t.rollback(); return res.status(400).json({ message: 'Este pedido no tiene un reembolso pendiente' }); }
+        await venta.update({ ReembolsoPendiente: false }, { transaction: t });
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Reembolso realizado', documentoId: req.usuario?.id }, t);
+        await t.commit();
+        return res.json({ message: 'Reembolso marcado como realizado', venta });
+    } catch (error) {
+        await t.rollback();
+        return responderError(res, error, 'Error al marcar el reembolso');
     }
 };
 

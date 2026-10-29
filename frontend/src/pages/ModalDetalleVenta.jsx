@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- módulo de utilidades y componentes compartidos; solo afecta al recargado en caliente en desarrollo */
-import { descargarComprobante, getHistorialVenta, rechazarComprobante } from "../Services/api-ventas/ventas";
+import { descargarComprobante, getHistorialVenta, rechazarComprobante, marcarReembolsado } from "../Services/api-ventas/ventas";
 import { getConfigPublica } from "../Services/api-resumen/resumen";
 import { siguientesEstados, NOMBRE_ESTADO_VENTA, ESTADOS_CON_FECHA, hoyISO, whatsappUrl, fechaLimitePago } from "../Services/api-ventas/flujo";
 import React, { useEffect, useState } from 'react';
@@ -468,6 +468,8 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
     const [config, setConfig] = useState(configCache);
     const [motivoLocal, setMotivoLocal] = useState(undefined); // undefined = usar el de la venta
     const [rechazando, setRechazando] = useState(false);
+    const [reembolsoHecho, setReembolsoHecho] = useState(false);
+    const [marcandoReembolso, setMarcandoReembolso] = useState(false);
     const ventaID = venta?.VentaID;
 
     useEffect(() => {
@@ -486,6 +488,25 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
         getConfigPublica().then(c => { configCache = c || {}; if (vivo) setConfig(configCache); }).catch(() => { });
         return () => { vivo = false; };
     }, []);
+
+    const handleReembolso = async () => {
+        const r = await Swal.fire({
+            icon: "question", title: "¿Ya devolviste el dinero?",
+            text: "Marca el reembolso como realizado solo cuando el cliente ya recibió su dinero.",
+            showCancelButton: true, confirmButtonText: "Sí, ya lo devolví", cancelButtonText: "Todavía no",
+            didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; },
+        });
+        if (!r.isConfirmed) return;
+        setMarcandoReembolso(true);
+        try {
+            await marcarReembolsado(venta.VentaID);
+            setReembolsoHecho(true);
+            onActualizado?.();
+        } catch (e) {
+            Swal.fire({ icon: "error", title: "No se pudo marcar el reembolso", text: e?.response?.data?.message || e?.message || "Intenta de nuevo.",
+                didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; } });
+        } finally { setMarcandoReembolso(false); }
+    };
 
     const handleRechazar = async () => {
         const r = await Swal.fire({
@@ -584,6 +605,16 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
                             </div>
                         )}
                     </div>
+
+                    {venta.ReembolsoPendiente && !reembolsoHecho && (
+                        <div role="alert" style={{ background: VT.warningSoft, border: `1px solid ${VT.warningBorder}`, borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 12.5, display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                            <span style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                                <FaInfoCircle style={{ marginTop: 2, flexShrink: 0 }} />
+                                <span><b>Reembolso pendiente:</b> este pedido ya estaba pagado cuando se canceló. Devuelve el dinero al cliente y márcalo aquí.</span>
+                            </span>
+                            <button className="vt-btn-ghost" onClick={handleReembolso} disabled={marcandoReembolso}>{marcandoReembolso ? "Guardando..." : "Marcar reembolso realizado"}</button>
+                        </div>
+                    )}
 
                     {limitePago && (
                         <div role="status" style={{ background: VT.warningSoft, border: `1px solid ${VT.warningBorder}`, borderRadius: 12, padding: "10px 14px", marginBottom: 14, fontSize: 12.5, color: "#92400e", fontWeight: 600, display: "flex", gap: 8, alignItems: "flex-start" }}>

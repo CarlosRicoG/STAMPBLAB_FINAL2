@@ -102,6 +102,12 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: true
     },
     // Motivo por el que el administrador rechazó el comprobante (el cliente puede subir otro)
+    // true cuando se canceló un pedido que ya estaba pagado y falta devolverle el dinero al cliente
+    ReembolsoPendiente: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false
+    },
     // true cuando ya se avisó al cliente que el pedido está por cancelarse por falta de pago
     AvisoVencimiento: {
       type: DataTypes.BOOLEAN,

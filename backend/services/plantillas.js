@@ -95,7 +95,17 @@ function comprobanteRechazado({ usuario, venta, motivo }) {
     };
 }
 
-function pedidoVencido({ usuario, venta, horas }) {
+function pedidoVencido({ usuario, venta, horas, contraentrega }) {
+    if (contraentrega) {
+        return {
+            asunto: `Tu pedido #${venta.VentaID} fue cancelado`,
+            html: base({
+                titulo: `Cancelamos tu pedido #${venta.VentaID}`, saludo: `Hola ${primerNombre(usuario)},`,
+                cuerpo: `<p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Pasaron más de ${esc(Math.round(horas / 24))} días sin poder concretar la entrega, así que liberamos las prendas reservadas. Si aún las quieres, puedes volver a pedir desde "Mis compras" con un solo clic.</p>`,
+                boton: { texto: 'Volver a pedir', url: `${URL_WEB()}/miscompras` },
+            }),
+        };
+    }
     return {
         asunto: `Tu pedido #${venta.VentaID} fue cancelado por falta de pago`,
         html: base({
@@ -117,7 +127,17 @@ function cotizacionVencida({ usuario, cotizacion, dias }) {
     };
 }
 
-function pedidoPorVencer({ usuario, venta, horas }) {
+function pedidoPorVencer({ usuario, venta, horas, contraentrega }) {
+    if (contraentrega) {
+        return {
+            asunto: `Tu pedido #${venta.VentaID} se cancelará pronto si no coordinamos la entrega`,
+            html: base({
+                titulo: `Tu pedido #${venta.VentaID} está por vencer`, saludo: `Hola ${primerNombre(usuario)},`,
+                cuerpo: `<p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Todavía no hemos podido coordinar la entrega. Si no lo logramos en unas ${esc(horas)} horas, cancelaremos el pedido y liberaremos las prendas reservadas. Escríbenos para conservarlo.</p>`,
+                boton: { texto: 'Ver mi pedido', url: `${URL_WEB()}/miscompras` },
+            }),
+        };
+    }
     return {
         asunto: `Tu pedido #${venta.VentaID} se cancelará pronto si no recibimos el pago`,
         html: base({
