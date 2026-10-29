@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- módulo de utilidades y componentes compartidos; solo afecta al recargado en caliente en desarrollo */
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -48,7 +49,7 @@ const CustomTooltip = ({ active, payload, label, unit = "unidades" }) => {
 };
 
 /* ── Tarjeta KPI ── */
-const KpiCard = ({ label, value, icon: Icon, color, bg, border }) => (
+const KpiCard = ({ label, value, color, bg, border }) => (
     <div style={{
         background: bg, borderRadius: 16, padding: "20px 24px",
         border: `1.5px solid ${border}`, display: "flex", alignItems: "center", gap: 16,
@@ -108,7 +109,7 @@ const DashboardMedicionDesempeño = () => {
     const [loading, setLoading]                  = useState(true);
     const [exportingPDF, setExportingPDF]        = useState(false);
     const [error, setError]                      = useState(null);
-    const [tecnicas, setTecnicas]                = useState([]);
+    const [, setTecnicas]                = useState([]);
     const [productos, setProductosList]          = useState([]);
     const [filtros, setFiltros]                  = useState({ mes: "", tecnicaId: "", productoId: "" });
     const dashRef                                = useRef(null);

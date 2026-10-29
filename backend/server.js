@@ -5,10 +5,17 @@ const cors = require("cors");
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { admin, adminParaEscritura } = require('./middleware/authMiddleware');
+const { cotizacionEditable } = require('./middleware/cotizacionEditable');
 const app = express();
 
 
 const PORT = process.env.PORT || 3000;
+
+// Detrás de un proxy inverso (Vercel/Render/nginx) la IP real viene en X-Forwarded-For: sin esto todos los usuarios
+// comparten IP y el límite de intentos bloquearía a todos a la vez. TRUST_PROXY = número de proxies (p. ej. 1).
+const trustProxy = (process.env.TRUST_PROXY || '').trim();
+if (/^\d+$/.test(trustProxy)) { if (Number(trustProxy) > 0) app.set('trust proxy', Number(trustProxy)); }
+else if (trustProxy && !['false', 'no'].includes(trustProxy.toLowerCase())) app.set('trust proxy', trustProxy === 'true' ? true : trustProxy);
 
 
 // ==================== MIDDLEWARES ====================
@@ -31,6 +38,10 @@ app.use((req, res, next) => {
         if (res.statusCode >= 400 && cuerpo && typeof cuerpo === 'object' && !Array.isArray(cuerpo)) {
             if (cuerpo.message && !cuerpo.mensaje) cuerpo.mensaje = cuerpo.message;
             else if (cuerpo.mensaje && !cuerpo.message) cuerpo.message = cuerpo.mensaje;
+            // En producción los errores 5xx no exponen detalles internos (SQL, nombres de tablas o columnas, trazas)
+            if (res.statusCode >= 500 && process.env.NODE_ENV === 'production') {
+                delete cuerpo.error; delete cuerpo.stack; delete cuerpo.detalle;
+            }
         }
         return json(cuerpo);
     };
@@ -39,10 +50,10 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '12mb' }));
 app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); }); // cuerpo vacío o de otro tipo: no rompe los controladores
+app.use(express.urlencoded({ limit: '12mb', extended: true })); // antes del filtro: así también se revisan los formularios urlencoded
 const saneamiento = require('./middleware/saneamiento');
 app.use('/api', saneamiento.ocultarSecretos);
 app.use('/api', saneamiento.rechazarHtml);
-app.use(express.urlencoded({ limit: '12mb', extended: true }));
 const path = require('path');
 const fs = require('fs');
 
@@ -95,7 +106,6 @@ app.get('/', (req, res) => {
             // Proveedores y Compras
             proveedores: '/api/proveedores',
             compras: '/api/compras',
-            detallecompras: '/api/detallecompras',
 
             // Cotizaciones
             cotizaciones: '/api/cotizaciones',
@@ -108,7 +118,6 @@ app.get('/', (req, res) => {
 
             // Ventas
             ventas: '/api/ventas',
-            detalleventas: '/api/detalleventas',
             estados: '/api/estados'
         }
     });
@@ -139,7 +148,6 @@ const inventarioproductoRoutes = require('./routes/inventarioproducto');
 // Proveedores y Compras
 const proveedoresRoutes = require('./routes/proveedores');
 const comprasRoutes = require('./routes/compras');
-const detallecomprasRoutes = require('./routes/detallecompras');
 
 // Cotizaciones
 const cotizacionesRoutes = require('./routes/cotizaciones');
@@ -152,7 +160,6 @@ const cotizacionPdfController = require('./controllers/cotizacionPdfController')
 
 // Ventas
 const ventasRoutes = require('./routes/ventas');
-const detalleventasRoutes = require('./routes/detalleventas');
 const estadosRoutes = require('./routes/estados');
 
 // Limite de intentos FALLIDOS por IP en login/registro/recuperacion (frena fuerza bruta)
@@ -168,6 +175,15 @@ const limiteAuth = rateLimit({
     message: { mensaje: 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.', estado: false }
 });
 app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password', '/api/usuarios/login'], limiteAuth);
+
+// Estas dos rutas responden "bien" aunque se abuse de ellas (200 siempre / 400 por duplicado): se limitan TODAS las
+// peticiones por IP para frenar el envío masivo de correos de recuperación y la creación/enumeración masiva de cuentas.
+const limitePorIp = (limit, mensaje) => rateLimit({
+    windowMs: 60 * 60 * 1000, limit, standardHeaders: true, legacyHeaders: false,
+    message: { mensaje, estado: false },
+});
+app.use('/api/recuperar-password', limitePorIp(Number(process.env.RECUPERAR_MAX_HORA) || 5, 'Demasiadas solicitudes de recuperación. Intenta de nuevo en una hora.'));
+app.use('/api/registro', limitePorIp(Number(process.env.REGISTRO_MAX_HORA) || 20, 'Demasiados registros desde esta conexión. Intenta de nuevo más tarde.'));
 
 // ==================== USAR RUTAS ====================
 // admin = token valido + rol Administrador. adminParaEscritura = lectura publica (catalogo de la tienda),
@@ -196,22 +212,20 @@ app.use('/api/inventarioproducto', adminParaEscritura, inventarioproductoRoutes)
 // Proveedores y Compras
 app.use('/api/proveedores', admin, proveedoresRoutes);
 app.use('/api/compras', admin, comprasRoutes);
-app.use('/api/detallecompras', admin, detallecomprasRoutes);
 
 // Cotizaciones
 app.use('/api/cotizaciones', cotizacionesRoutes);
-app.use('/api/detallecotizaciones', admin, detallecotizacionesRoutes);
-app.use('/api/cotizaciontecnicas', admin, cotizaciontecnicasRoutes);
-app.use('/api/cotizaciontallas', admin, cotizaciontallasRoutes);
-app.use('/api/cotizacioncolores', admin, cotizacioncoloresRoutes);
-app.use('/api/cotizacioninsumos', admin, cotizacioninsumosRoutes);
+app.use('/api/detallecotizaciones', admin, cotizacionEditable('DetalleCotizacion'), detallecotizacionesRoutes);
+app.use('/api/cotizaciontecnicas', admin, cotizacionEditable('CotizacionTecnica'), cotizaciontecnicasRoutes);
+app.use('/api/cotizaciontallas', admin, cotizacionEditable('CotizacionTalla'), cotizaciontallasRoutes);
+app.use('/api/cotizacioncolores', admin, cotizacionEditable('CotizacionColor'), cotizacioncoloresRoutes);
+app.use('/api/cotizacioninsumos', admin, cotizacionEditable('CotizacionInsumo'), cotizacioninsumosRoutes);
 
 // Agrega esta línea después del bloque de cotizaciones
 app.get('/api/cotizaciones/:cotizacionID/pdf', admin, cotizacionPdfController.descargarPdfCotizacion);
 
 // Ventas
 app.use('/api/ventas', ventasRoutes);
-app.use('/api/detalleventas', admin, detalleventasRoutes);
 app.use('/api/estados', adminParaEscritura, estadosRoutes);
 
 // Mejoras de flujo: notificaciones (campana), bandeja del administrador, tarifas, carrito y configuración pública
@@ -291,7 +305,6 @@ db.sequelize.authenticate()
             console.log('');
             console.log('Ventas:');
             console.log('   • http://localhost:' + PORT + '/api/ventas');
-            console.log('   • http://localhost:' + PORT + '/api/detalleventas');
             console.log('');
             console.log('='.repeat(60));
             console.log('Todo listo para recibir peticiones');

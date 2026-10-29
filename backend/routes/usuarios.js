@@ -32,9 +32,6 @@ router.get('/util/roles', admin, async (req, res) => {
     }
 });
 
-// POST /api/usuarios/login - Login de usuario (sin token, debe ir antes de las rutas protegidas)
-router.post('/login', usuarioController.login);
-
 // GET /api/usuarios - Obtener todos los usuarios
 router.get('/', admin, usuarioController.getAllUsuarios);
 

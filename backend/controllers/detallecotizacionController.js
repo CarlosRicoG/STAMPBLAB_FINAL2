@@ -12,6 +12,7 @@ const {
     Insumo,
     Parte
 } = require('../models');
+const { ESTADO_COTIZACION } = require('../config/estados');
 
 // Obtener todos los detalles de cotización
 exports.getAllDetalleCotizaciones = async (req, res) => {
@@ -153,6 +154,14 @@ exports.updateDetalleCotizacion = async (req, res) => {
 
         if (!detalleCotizacion) {
             return res.status(404).json({ message: 'Detalle de cotización no encontrado' });
+        }
+        // Precio congelado: solo se edita mientras la cotización está Pendiente o En revisión
+        const cotPadre = await Cotizacion.findByPk(detalleCotizacion.CotizacionID, { attributes: ['CotizacionID', 'EstadoID'] });
+        if (cotPadre && ![ESTADO_COTIZACION.PENDIENTE, ESTADO_COTIZACION.EN_REVISION].includes(cotPadre.EstadoID)) {
+            return res.status(400).json({ message: 'La cotización ya fue aprobada o cerrada: no se puede modificar' });
+        }
+        if (PrecioUnitario !== undefined && PrecioUnitario !== null && !(parseFloat(PrecioUnitario) >= 0)) {
+            return res.status(400).json({ message: 'El precio unitario no puede ser negativo' });
         }
 
         // Si se va a actualizar el ProductoID, validar que existe

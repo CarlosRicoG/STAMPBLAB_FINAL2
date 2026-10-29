@@ -139,7 +139,7 @@ const FormularioCompra = () => {
             const variantesRes = await getVariantesByProducto(producto.ProductoID);
             const variantes = variantesRes.datos || variantesRes;
             setVariantesProducto(variantes.filter(v => v.Estado && v.Stock > 0));
-        } catch (error) {
+        } catch {
             Swal.fire("Error", "No se pudieron cargar los datos del producto", "error");
         }
     };

@@ -194,7 +194,9 @@ router.post('/recuperar-password', async (req, res) => {
         // Credenciales del correo en variables de entorno (MAIL_USER / MAIL_PASS = contraseña de aplicación de Gmail)
         const { MAIL_USER, MAIL_PASS } = process.env;
         if (!MAIL_USER || !MAIL_PASS) {
-            console.warn('MAIL_USER/MAIL_PASS no configurados: no se envia correo. Enlace de recuperacion:', urlRecuperacion);
+            // El enlace equivale a una contraseña temporal: solo se muestra en desarrollo, nunca en los logs de producción
+            if (process.env.NODE_ENV === 'production') console.warn('MAIL_USER/MAIL_PASS no configurados: no se envia el correo de recuperacion.');
+            else console.warn('MAIL_USER/MAIL_PASS no configurados: no se envia correo. Enlace de recuperacion:', urlRecuperacion);
             return res.json({
                 mensaje: 'Si el correo existe, recibirás un enlace de recuperación',
                 estado: true
@@ -202,6 +204,7 @@ router.post('/recuperar-password', async (req, res) => {
         }
 
         const nodemailer = require('nodemailer');
+        const escapar = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -215,7 +218,7 @@ router.post('/recuperar-password', async (req, res) => {
             html: `
                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #333;">Recuperación de Contraseña</h2>
-                    <p>Hola <strong>${usuario.Nombre}</strong>,</p>
+                    <p>Hola <strong>${escapar(usuario.Nombre)}</strong>,</p>
                     <p>Recibimos una solicitud para restablecer tu contraseña.</p>
                     <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
                     <a href="${urlRecuperacion}" 
@@ -235,9 +238,11 @@ router.post('/recuperar-password', async (req, res) => {
             `
         };
 
-        await transporter.sendMail(mailOptions);
-
-        log('Email de recuperación enviado a:', usuario.Correo);
+        // Se responde ya y el correo sale en segundo plano: un SMTP lento no retiene la petición y el tiempo de respuesta
+        // es el mismo exista o no el correo (no se puede enumerar cuentas midiendo la demora).
+        transporter.sendMail(mailOptions)
+            .then(() => log('Email de recuperación enviado a:', usuario.Correo))
+            .catch((e) => console.error('No se pudo enviar el correo de recuperación:', e.message));
 
         res.json({
             mensaje: 'Si el correo existe, recibirás un enlace de recuperación',

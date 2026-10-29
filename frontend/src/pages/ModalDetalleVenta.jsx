@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- módulo de utilidades y componentes compartidos; solo afecta al recargado en caliente en desarrollo */
 import { descargarComprobante, getHistorialVenta, rechazarComprobante } from "../Services/api-ventas/ventas";
 import { getConfigPublica } from "../Services/api-resumen/resumen";
 import { siguientesEstados, NOMBRE_ESTADO_VENTA, ESTADOS_CON_FECHA, hoyISO, whatsappUrl, fechaLimitePago } from "../Services/api-ventas/flujo";

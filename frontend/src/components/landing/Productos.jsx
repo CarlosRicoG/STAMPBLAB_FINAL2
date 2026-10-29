@@ -42,7 +42,7 @@ const coloresHex = {
 /* Swal siempre por encima de los modales */
 const swalTop = (opts) => Swal.fire({ ...opts, customClass: { container: "swal-ontop", ...(opts.customClass || {}) } });
 
-const saveCart = (c) => { try { localStorage.setItem(CART_KEY, JSON.stringify(c)); } catch { } };
+const saveCart = (c) => { try { localStorage.setItem(CART_KEY, JSON.stringify(c)); } catch { /* sin storage */ } };
 const loadCart = () => { try { return JSON.parse(localStorage.getItem(CART_KEY) || "[]"); } catch { return []; } };
 const money = (n) => "$" + (Number(n) || 0).toLocaleString("es-CO");
 
@@ -598,7 +598,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
             }
             if (!telefono.trim()) {
                 newErrors.telefono = "El teléfono es obligatorio";
-            } else if (!/^\d+$/.test(telefono.replace(/[\s\-]/g, ""))) {
+            } else if (!/^\d+$/.test(telefono.replace(/[\s-]/g, ""))) {
                 newErrors.telefono = "El teléfono solo puede contener números";
             }
             if (!direccion.trim()) newErrors.direccion = "La dirección es obligatoria";
@@ -661,8 +661,9 @@ const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || data.message || "Error al procesar");
+            let data = {};
+            try { data = JSON.parse(await res.text()); } catch { /* respuesta no JSON */ }
+            if (!res.ok) throw new Error(data.error || data.message || data.mensaje || "No se pudo procesar el pedido. Intenta de nuevo.");
             onSuccess(data.venta?.VentaID);
         } catch (err) {
             swalTop({ icon: "error", title: "Error al procesar", text: err.message, confirmButtonColor: C.accent });
@@ -680,11 +681,6 @@ const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
     const ErrorMsg = ({ field }) => errors[field]
         ? <p className="cat-err">⚠ {errors[field]}</p>
         : null;
-
-    const stepCls = (n) => {
-        const cur = method ? 3 : 2;
-        return n < cur ? "done" : n === cur ? "on" : "";
-    };
 
     return (
         <div className="cat-layer cat-overlay" onClick={onClose}>
@@ -832,7 +828,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
                                     value={telefono}
                                     onChange={e => {
                                         // ✅ Solo números, espacios y guiones
-                                        const val = e.target.value.replace(/[^0-9\s\-]/g, "");
+                                        const val = e.target.value.replace(/[^0-9\s-]/g, "");
                                         setTelefono(val);
                                         if (errors.telefono) setErrors(prev => ({ ...prev, telefono: "" }));
                                     }}
@@ -1043,8 +1039,6 @@ const ProductosLanding = () => {
     const usuario = (() => { try { return JSON.parse(localStorage.getItem("usuario")); } catch { return null; } })();
 
     /* Opciones de filtro derivadas de los datos (solo vista) */
-    const todosColores = [...new Set(productos.flatMap(obtenerColores))];
-    const todasTallas = [...new Set(productos.flatMap(obtenerTallas))];
     const hayFiltros = !!(search || filtroColor || filtroTalla);
     const limpiar = () => { setSearch(""); setFiltroColor(""); setFiltroTalla(""); setPage(1); };
 

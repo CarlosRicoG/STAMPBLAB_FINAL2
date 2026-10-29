@@ -37,7 +37,7 @@ const responderError = (res, error, mensaje) => {
 exports.getAllVentas = async (req, res) => {
     try {
         const page   = Math.max(1, parseInt(req.query.page)  || 1);
-        const limit  = Math.max(1, parseInt(req.query.limit) || 10);
+        const limit  = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 10));
         const search = (req.query.search || "").trim();
         const estado = req.query.estado;
         const offset = (page - 1) * limit;

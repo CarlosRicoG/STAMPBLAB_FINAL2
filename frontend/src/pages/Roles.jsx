@@ -274,7 +274,7 @@ const Roles = () => {
       if (response.estado) { setShowForm(false); setRolEdit(null); }
       else throw new Error(response.mensaje || "Error al guardar el rol");
     } catch (err) {
-      const mensaje = err.message || err.response?.data?.mensaje || "Error al guardar el rol";
+      const mensaje = err.response?.data?.mensaje || err.response?.data?.message || err.message || "Error al guardar el rol";
       if (mensaje.toLowerCase().includes("ya existe")) {
         Swal.fire({ icon: "warning", title: "Rol duplicado", text: mensaje, confirmButtonColor: C.warning });
       } else if (mensaje.toLowerCase().includes("protegido")) {

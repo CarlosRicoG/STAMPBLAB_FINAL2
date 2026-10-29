@@ -69,9 +69,9 @@ exports.createEstado = async (req, res) => {
             });
         }
 
-        if (!['venta', 'cotizacion', 'compra'].includes(Tipo)) {
-            return res.status(400).json({ 
-                message: 'Tipo inválido. Use: venta, cotizacion o compra' 
+        if (!['venta', 'cotizacion'].includes(Tipo)) {
+            return res.status(400).json({
+                message: 'Tipo inválido. Use: venta o cotizacion'
             });
         }
 
@@ -104,10 +104,15 @@ exports.updateEstado = async (req, res) => {
             return res.status(404).json({ message: 'Estado no encontrado' });
         }
 
-        if (Tipo && !['venta', 'cotizacion', 'compra'].includes(Tipo)) {
-            return res.status(400).json({ 
-                message: 'Tipo inválido. Use: venta, cotizacion o compra' 
+        if (Tipo && !['venta', 'cotizacion'].includes(Tipo)) {
+            return res.status(400).json({
+                message: 'Tipo inválido. Use: venta o cotizacion'
             });
+        }
+
+        // Los estados del sistema (IDs fijos de config/estados.js) los usa el código: no se les puede cambiar el tipo
+        if (Number(estado.EstadoID) <= 13 && Tipo && Tipo !== estado.Tipo) {
+            return res.status(400).json({ message: 'No se puede cambiar el tipo de un estado del sistema' });
         }
 
         await estado.update({
@@ -135,6 +140,11 @@ exports.deleteEstado = async (req, res) => {
 
         if (!estado) {
             return res.status(404).json({ message: 'Estado no encontrado' });
+        }
+
+        // Los estados del sistema (IDs fijos de config/estados.js) los usa el código aunque aún no tengan registros
+        if (Number(estado.EstadoID) <= 13) {
+            return res.status(400).json({ message: 'No se puede eliminar un estado del sistema' });
         }
 
         await estado.destroy();

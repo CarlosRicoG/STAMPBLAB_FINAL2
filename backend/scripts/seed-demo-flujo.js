@@ -35,7 +35,13 @@ const all = (r) => r.j?.datos ?? r.j;
     const v2r = await call('POST', '/ventas', { DocumentoID: cliente, Subtotal: 105000, Total: 105000, EstadoID: 9, detalles: [det(productos[1], v2, 3)] });
     ok('venta pagada', v2r);
     const v3 = await call('POST', '/ventas', { DocumentoID: cliente, Subtotal: 35000, Total: 35000, EstadoID: 8, detalles: [det(productos[1], v2, 1)] });
-    if (v3.j.venta) ok('venta entregada', await call('PATCH', `/ventas/${v3.j.venta.VentaID}/estado`, { EstadoID: 11 }));
+    if (v3.j.venta) {
+        // El pedido avanza por el camino normal: Pagada → En producción → Lista para entrega → Entregada
+        for (const estado of [9, 10, 13, 11]) {
+            const r = await call('PATCH', `/ventas/${v3.j.venta.VentaID}/estado`, { EstadoID: estado });
+            if (estado === 11) ok('venta entregada', r); else if (r.s >= 300) ok(`venta estado ${estado}`, r);
+        }
+    }
 
     const cot = (p, v, q) => ({ ProductoID: p.ProductoID, Cantidad: q, TraePrenda: false, PrendaDescripcion: '', tallas: [{ TallaID: v.TallaID, Cantidad: q, PrecioTalla: 0 }], colores: [{ ColorID: v.ColorID, Cantidad: q }], insumos: v.TelaID ? [{ InsumoID: v.TelaID, CantidadRequerida: q }] : [], tecnicas: [{ TecnicaID: tecnica.TecnicaID, ParteID: parte.ParteID, ImagenDiseño: '', Observaciones: 'Logo de la empresa', CostoTecnica: 0 }] });
     const c1 = await call('POST', '/cotizaciones/completa', { DocumentoID: Number(cliente), FechaCotizacion: new Date().toISOString(), ValorTotal: 0, EstadoID: 1, detalles: [cot(productos[0], v1, 5)] });

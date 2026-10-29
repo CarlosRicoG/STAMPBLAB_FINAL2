@@ -100,7 +100,7 @@ const Proveedores = () => {
             const response = await getProveedores();
             if (response) setProveedores(response);
             else setError("Error al cargar los proveedores");
-        } catch (err) { setError("Error de conexión al cargar proveedores"); }
+        } catch { setError("Error de conexión al cargar proveedores"); }
         finally { setLoading(false); }
     };
 

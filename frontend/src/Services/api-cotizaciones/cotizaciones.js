@@ -17,21 +17,6 @@ export const getCotizaciones = async (params = {}) => {
 };
 
 
-// Crear cotización
-export const crearCotizacion = async (dataCotizacion) => {
-    // dataCotizacion incluye:
-    // - DocumentoID (usuario logueado)
-    // - Detalles de producto, cantidad, trae prenda, etc.
-    // - Diseños (array)
-    try {
-        const response = await axios.post(API_URL, dataCotizacion);
-        return response.data;
-    } catch (error) {
-        console.error("Error al crear cotizacion:", error);
-        throw error;
-    }
-};
-
 // Obtener cotizaciones de un usuario
 export const getCotizacionesByUsuario = async (documentoID) => {
     try {
@@ -67,16 +52,6 @@ export const updateCotizacion = async (cotizacionID, data) => {
 };
 
 
-export const createCotizacionInteligente = async (data) => {
-    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/inteligente`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    });
-    return await response.json();
-};
-
-
 // Cancelar cotización (devuelve stock si es necesario)
 export const cancelarCotizacion = async (cotizacionID) => {
     try {
@@ -88,14 +63,3 @@ export const cancelarCotizacion = async (cotizacionID) => {
     }
 };
 
-
-// Convertir cotización a venta
-export const convertirCotizacionAVenta = async (cotizacionID) => {
-    try {
-        const response = await axios.post(`${API_URL}/${cotizacionID}/convertir-venta`);
-        return response.data;
-    } catch (error) {
-        console.error("Error al convertir cotización:", error);
-        throw error;
-    }
-};

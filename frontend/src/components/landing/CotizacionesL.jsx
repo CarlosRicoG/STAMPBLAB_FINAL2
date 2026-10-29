@@ -535,9 +535,10 @@ const CotizacionLanding = () => {
                     try {
                         const fd = new FormData(); fd.append('imagen', dis.ImagenDiseno);
                         const r = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/upload-diseno`, { method: 'POST', body: fd });
-                        const d = await r.json();
+                        const d = await r.json().catch(() => ({}));
+                        if (!r.ok || !d.filename) throw new Error(d.message || d.mensaje || "No se pudo subir la imagen de un diseño. Intenta de nuevo.");
                         return { ...dis, ImagenNombre: d.filename };
-                    } catch { return dis; }
+                    } catch (e) { throw new Error(e.message || "No se pudo subir la imagen de un diseño. Intenta de nuevo."); }
                 }));
                 return { ...prod, disenos };
             }));
@@ -1112,7 +1113,7 @@ const CotizacionLanding = () => {
                                     <p style={{ color: C.muted, fontSize: 12, margin: 0, fontFamily: "'Outfit',sans-serif" }}>Agrega productos para comenzar</p>
                                 </div>
                             ) : (
-                                productosEnCotizacion.map((prod, idx) => (
+                                productosEnCotizacion.map((prod) => (
                                     <div key={prod.id} style={{ background: C.bg, border: `1.5px solid ${C.border}`, borderRadius: 12, padding: "12px 14px", marginBottom: 10, animation: "fadeUp 0.3s ease" }}>
                                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                                             <p style={{ margin: 0, fontWeight: 800, fontSize: 13, color: C.navy, fontFamily: "'Outfit',sans-serif" }}>

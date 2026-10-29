@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaRulerHorizontal, FaExclamationCircle } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { createTalla, updateTalla, getTallas } from "../../Services/api-tallas/tallas";
+import { createTalla, updateTalla } from "../../Services/api-tallas/tallas";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -244,8 +244,10 @@ const TallasForm = ({ onClose, onSave, tallaEdit, tallasExistentes = [] }) => {
     };
 
     const validarPrecio = (valor, nombre) => {
-        if (!tallasConPrecio.includes(nombre.toUpperCase())) return "";
-        if (valor === "" || valor === null || valor === undefined) return "El precio es obligatorio para esta talla.";
+        const vacio = valor === "" || valor === null || valor === undefined;
+        const obligatorio = tallasConPrecio.includes(nombre.trim().toUpperCase());
+        if (!obligatorio && vacio) return "";
+        if (vacio) return "El precio es obligatorio para esta talla.";
         if (isNaN(valor)) return "El precio debe ser un número válido.";
         if (Number(valor) < 0) return "El precio no puede ser negativo.";
         return "";
@@ -288,9 +290,8 @@ const TallasForm = ({ onClose, onSave, tallaEdit, tallasExistentes = [] }) => {
 
         const dataEnviar = {
             Nombre: formData.Nombre.trim(),
-            Precio: tallasConPrecio.includes(formData.Nombre.toUpperCase())
-                ? (formData.Precio !== "" && !isNaN(formData.Precio) ? Number(formData.Precio) : null)
-                : null,
+            // Las tallas no XXL/XXXL pueden tener un recargo opcional: no se borra al editar
+            Precio: formData.Precio !== "" && formData.Precio !== null && !isNaN(formData.Precio) ? Number(formData.Precio) : null,
         };
 
         try {
@@ -308,11 +309,11 @@ const TallasForm = ({ onClose, onSave, tallaEdit, tallasExistentes = [] }) => {
                 throw new Error(result.mensaje);
             }
         } catch (err) {
-            Swal.fire({ icon: "error", title: "Error", text: err.message || "No se pudo guardar la talla", confirmButtonColor: C.danger });
+            Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.mensaje || err.response?.data?.message || err.message || "No se pudo guardar la talla", confirmButtonColor: C.danger });
         }
     };
 
-    const mostrarPrecio = tallasConPrecio.includes(formData.Nombre.toUpperCase());
+    const mostrarPrecio = tallasConPrecio.includes(formData.Nombre.trim().toUpperCase()) || (tallaEdit?.Precio !== null && tallaEdit?.Precio !== undefined);
     const hasErrors = !!errors.Nombre || (mostrarPrecio && !!errors.Precio);
 
     const estado = (campo) => (touched[campo] && errors[campo] ? " cf-p-bad" : touched[campo] && String(formData[campo]).trim() !== "" ? " cf-p-good" : "");

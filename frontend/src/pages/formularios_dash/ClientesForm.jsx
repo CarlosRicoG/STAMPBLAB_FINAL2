@@ -91,7 +91,6 @@ const ClientesForm = ({ onClose, onSave, cliente = null }) => {
         const pass = String(contraseña || "");
         if (!pass) return "La contraseña es obligatoria";
         return errorContrasena(pass);
-        return "";
     };
 
     const handleChange = (e) => {
@@ -271,7 +270,7 @@ const ClientesForm = ({ onClose, onSave, cliente = null }) => {
                             required={!cliente}
                         />
                         {errors.Contraseña && <div className="invalid-feedback">{errors.Contraseña}</div>}
-                        <small style={{ color: C.muted }}>Mínimo 4 caracteres</small>
+                        <small style={{ color: C.muted }}>8 a 100 caracteres, con letras y números</small>
                     </div>
 
                     <div className="col-12 d-flex justify-content-center gap-2">

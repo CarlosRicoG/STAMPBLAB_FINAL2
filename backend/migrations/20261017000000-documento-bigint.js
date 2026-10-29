@@ -14,6 +14,15 @@ async function cambiarTipo(queryInterface, tipo) {
   const q = (sql, opts = {}) => sequelize.query(sql, opts);
   const { QueryTypes } = require('sequelize');
 
+  // Si las 3 columnas ya tienen el tipo destino (base nueva creada por el baseline) no hay nada que cambiar:
+  // se evita tocar las claves foráneas, que además se nombran distinto según el motor (MySQL / MariaDB).
+  const columnas = await q(
+    `SELECT TABLE_NAME AS tabla, DATA_TYPE AS tipo FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = 'DocumentoID' AND TABLE_NAME IN (:tablas)`,
+    { replacements: { tablas: TABLAS }, type: QueryTypes.SELECT }
+  );
+  if (columnas.length === TABLAS.length && columnas.every((c) => String(c.tipo).toLowerCase() === tipo.toLowerCase())) return;
+
   // Claves foráneas que referencian usuarios.DocumentoID (con sus reglas ON UPDATE / ON DELETE)
   const fks = await q(
     `SELECT k.CONSTRAINT_NAME AS nombre, k.TABLE_NAME AS tabla, k.COLUMN_NAME AS columna,

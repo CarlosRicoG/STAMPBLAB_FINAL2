@@ -12,7 +12,7 @@ export const getInsumos = async () => {
     } catch (error) {
         console.error("Error al obtener insumos:", error);
         throw new Error(
-            error.response?.data?.message || "Error al obtener los insumos"
+            error.response?.data?.message || error.response?.data?.mensaje || "Error al obtener los insumos"
         );
     }
 };
@@ -25,7 +25,7 @@ export const getInsumoById = async (id) => {
     } catch (error) {
         console.error("Error al obtener insumo:", error);
         throw new Error(
-            error.response?.data?.message || "Error al obtener el insumo"
+            error.response?.data?.message || error.response?.data?.mensaje || "Error al obtener el insumo"
         );
     }
 };
@@ -38,7 +38,7 @@ export const createInsumo = async (insumo) => {
     } catch (error) {
         console.error("Error al crear insumo:", error);
         throw new Error(
-            error.response?.data?.message || "Error al crear el insumo"
+            error.response?.data?.message || error.response?.data?.mensaje || "Error al crear el insumo"
         );
     }
 };
@@ -51,7 +51,7 @@ export const updateInsumo = async (id, insumo) => {
     } catch (error) {
         console.error("Error al actualizar insumo:", error);
         throw new Error(
-            error.response?.data?.message || "Error al actualizar el insumo"
+            error.response?.data?.message || error.response?.data?.mensaje || "Error al actualizar el insumo"
         );
     }
 };
@@ -72,7 +72,7 @@ export const cambiarEstadoInsumo = async (id, nuevoEstado) => {
             );
         }
         throw new Error(
-            error.response?.data?.message || "Error al cambiar el estado del insumo"
+            error.response?.data?.message || error.response?.data?.mensaje || "Error al cambiar el estado del insumo"
         );
     }
 };
@@ -85,7 +85,7 @@ export const deleteInsumo = async (id) => {
     } catch (error) {
         console.error("Error al eliminar insumo:", error);
         throw new Error(
-            error.response?.data?.message || "Error al eliminar el insumo"
+            error.response?.data?.message || error.response?.data?.mensaje || "Error al eliminar el insumo"
         );
     }
 };

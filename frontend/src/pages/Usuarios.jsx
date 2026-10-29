@@ -315,7 +315,7 @@ const DetailModal = ({ show, onClose, usuario, getRoleName, onEdit }) => {
             { label: "Correo Electrónico", value: usuario.Correo, icon: <FaEnvelope size={10} /> },
             { label: "Dirección", value: usuario.Direccion, icon: <FaMapMarkerAlt size={10} /> },
             { label: "Teléfono", value: usuario.Telefono, icon: <FaPhone size={10} /> },
-          ].map(({ label, value, icon }) => (
+          ].map(({ label, value }) => (
             <div key={label} className="cf-p-kv">
               <small>{label}</small>
               <span>{value}</span>

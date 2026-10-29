@@ -1,4 +1,5 @@
 const { InventarioProducto, Producto, Color, Talla, Insumo } = require('../models');
+const { ESTADO_VENTA } = require('../config/estados');
 
 // Obtener todas las variantes (inventario)
 exports.getAllInventario = async (req, res) => {
@@ -136,6 +137,9 @@ exports.getInventarioById = async (req, res) => {
     }
 };
 
+// El stock solo puede ser un entero >= 0 (nunca negativo ni texto)
+const stockValido = (v) => v !== '' && v !== null && Number.isInteger(Number(v)) && Number(v) >= 0;
+
 // Crear una nueva variante
 exports.createInventario = async (req, res) => {
     try {
@@ -146,6 +150,13 @@ exports.createInventario = async (req, res) => {
             return res.status(400).json({
                 estado: false,
                 mensaje: 'ProductoID, ColorID y TallaID son obligatorios'
+            });
+        }
+
+        if (Stock !== undefined && !stockValido(Stock)) {
+            return res.status(400).json({
+                estado: false,
+                mensaje: 'El stock debe ser un número entero igual o mayor que 0'
             });
         }
 
@@ -214,6 +225,12 @@ exports.updateInventario = async (req, res) => {
         }
 
         // Preparar datos de actualización
+        if (Stock !== undefined && !stockValido(Stock)) {
+            return res.status(400).json({
+                estado: false,
+                mensaje: 'El stock debe ser un número entero igual o mayor que 0'
+            });
+        }
         const updateData = {};
         if (Stock !== undefined) updateData.Stock = parseInt(Stock);
         if (TelaID !== undefined) updateData.TelaID = TelaID ? parseInt(TelaID) : null;
@@ -255,6 +272,21 @@ exports.deleteInventario = async (req, res) => {
                 estado: false,
                 mensaje: 'Variante no encontrada'
             });
+        }
+
+        // Un pedido pendiente tiene stock reservado en esta variante: si se borra, al cancelarlo no habría a dónde devolverlo
+        const { DetalleVenta, Venta } = require('../models');
+        if (DetalleVenta?.findAll && Venta?.count) {
+            const detalles = await DetalleVenta.findAll({ where: { InventarioID: inventario.InventarioID }, attributes: ['VentaID'], raw: true });
+            const pendientes = detalles.length
+                ? await Venta.count({ where: { VentaID: detalles.map((d) => d.VentaID), EstadoID: ESTADO_VENTA.PENDIENTE } })
+                : 0;
+            if (pendientes > 0) {
+                return res.status(400).json({
+                    estado: false,
+                    mensaje: `No se puede eliminar: hay ${pendientes} pedido(s) pendiente(s) con stock reservado en esta variante.`
+                });
+            }
         }
 
         await inventario.destroy();

@@ -35,7 +35,6 @@ export const getUsuarios = async (params = {}) => {
 export const getUsuarioById = async (documentoID) => {
     try {
         const response = await axios.get(`${API_URL}/${documentoID}`, getAuthHeaders());
-        console.log("getUsuarioById response:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error en getUsuarioById:", error);
@@ -46,9 +45,7 @@ export const getUsuarioById = async (documentoID) => {
 // Crear un usuario - CORREGIDO
 export const createUsuario = async (nuevoUsuario) => {
     try {
-        console.log("createUsuario - Enviando:", nuevoUsuario);
         const response = await axios.post(API_URL, nuevoUsuario, getAuthHeaders());
-        console.log("createUsuario - Respuesta completa:", response.data);
         
         // El backend devuelve: { estado: true, mensaje: "...", datos: {...} }
         return response.data;
@@ -77,8 +74,6 @@ export const updateUsuario = async (documentoID, usuarioActualizado) => {
             usuarioActualizado.RolID = String(usuarioActualizado.RolID);
         }
         
-        console.log("updateUsuario - DocumentoID:", documentoID);
-        console.log("updateUsuario - Enviando:", usuarioActualizado);
         
         const response = await axios.put(
             `${API_URL}/${documentoID}`, 
@@ -86,7 +81,6 @@ export const updateUsuario = async (documentoID, usuarioActualizado) => {
             getAuthHeaders()
         );
         
-        console.log("updateUsuario - Respuesta completa:", response.data);
         
         // El backend devuelve: { estado: true, mensaje: "...", datos: {...} }
         return response.data;
@@ -111,7 +105,6 @@ export const updateUsuario = async (documentoID, usuarioActualizado) => {
 export const deleteUsuario = async (documentoID) => {
     try {
         const response = await axios.delete(`${API_URL}/${documentoID}`, getAuthHeaders());
-        console.log("deleteUsuario response:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error en deleteUsuario:", error);
@@ -123,7 +116,6 @@ export const deleteUsuario = async (documentoID) => {
 export const getRoles = async () => {
     try {
         const response = await axios.get(`${API_URL}/util/roles`, getAuthHeaders());
-        console.log("getRoles response:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error en getRoles:", error);

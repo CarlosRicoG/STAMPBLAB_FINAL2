@@ -338,7 +338,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
     const [archivoDiseno, setArchivoDiseno] = useState(null);
     const [observacionDiseno, setObservacionDiseno] = useState("");
 
-    const [cargando, setCargando] = useState(false);
+    const [, setCargando] = useState(false);
     const [cargandoVariantes, setCargandoVariantes] = useState(false);
     const [validacionStock, setValidacionStock] = useState({ valido: false, mensaje: "", cargando: false });
     const [submitting, setSubmitting] = useState(false);
@@ -475,7 +475,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
             TecnicaID: parseInt(tecnicaID), TecnicaNombre: tecnica?.Nombre,
             ParteID: parseInt(parteID), ParteNombre: parte?.Nombre,
             SubparteDescripcion: subparteDescripcion, Archivo: archivoDiseno,
-            ImagenNombre: archivoDiseno?.name || "Sin archivo", Observaciones: observacionDiseno
+            ImagenNombre: archivoDiseno?.name || null, Observaciones: observacionDiseno
         }]);
         setTecnicaID(""); setParteID(""); setSubparteDescripcion(""); setArchivoDiseno(null); setObservacionDiseno("");
     };
@@ -605,15 +605,15 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                 carritoProductos.map(async (prod) => {
                     const disenosConImagen = await Promise.all(
                         (prod.disenos || []).map(async (dis) => {
-                            if (!dis.Archivo) return { ...dis, ImagenSubida: dis.ImagenNombre };
+                            if (!dis.Archivo) return { ...dis, ImagenSubida: null };
                             try {
                                 const formData = new FormData();
                                 formData.append('imagen', dis.Archivo);
                                 const res = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/upload-diseno`, { method: 'POST', body: formData });
-                                if (!res.ok) throw new Error('Upload falló');
-                                const data = await res.json();
+                                const data = await res.json().catch(() => ({}));
+                                if (!res.ok || !data.filename) throw new Error(data.message || data.mensaje || `No se pudo subir el diseño "${dis.ImagenNombre}"`);
                                 return { ...dis, ImagenSubida: data.filename };
-                            } catch { return { ...dis, ImagenSubida: dis.ImagenNombre }; }
+                            } catch (e) { throw new Error(e.message || `No se pudo subir el diseño "${dis.ImagenNombre}"`); }
                         })
                     );
                     return { ...prod, disenos: disenosConImagen };
@@ -624,6 +624,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                 if (prod.EsPersonalizado) {
                     return {
                         ProductoID: null, Cantidad: prod.Cantidad, TraePrenda: false,
+                        PrecioUnitario: prod.precioUnitario,
                         PrendaDescripcion: `[PERSONALIZADO] ${prod.ProductoNombre}${prod.PrendaDescripcion ? ' - ' + prod.PrendaDescripcion : ''}`,
                         tallas: [], colores: [], insumos: [],
                         tecnicas: prod.disenos?.map(dis => ({
@@ -968,7 +969,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                                         ? <span title={d.Observaciones} style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.Observaciones}</span>
                                                                         : <span style={{ color: C.muted }}>—</span>}
                                                                 </td>
-                                                                <td style={{ padding: "9px 12px" }}><Badge type="muted">{d.ImagenNombre}</Badge></td>
+                                                                <td style={{ padding: "9px 12px" }}><Badge type="muted">{d.ImagenNombre || "Sin archivo"}</Badge></td>
                                                                 <td style={{ padding: "8px 12px", textAlign: "center" }}>
                                                                     <button type="button" onClick={() => setDisenos(disenos.filter(x => x.id !== d.id))}
                                                                         style={{ width: 28, height: 28, borderRadius: 7, border: `1.5px solid ${C.danger}20`, background: `${C.danger}0d`, color: C.danger, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>

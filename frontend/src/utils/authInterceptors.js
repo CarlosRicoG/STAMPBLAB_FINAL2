@@ -36,8 +36,14 @@ function cerrarSesionSiVencio(status, url) {
     try {
         localStorage.removeItem("token");
         localStorage.removeItem("usuario");
+        localStorage.removeItem("user");
+        // El carrito NO se borra aquí: solo en el cierre de sesión voluntario (cerrarSesion)
     } catch { /* sin storage */ }
     if (!/^\/(login|signup|recuperarcontrase|restablecercontrase)/i.test(window.location.pathname)) {
+        const destino = window.location.pathname + window.location.search;
+        if (destino.startsWith("/") && !destino.startsWith("//")) {
+            try { sessionStorage.setItem("redirectAfterLogin", destino); } catch { /* sin storage */ }
+        }
         window.location.assign("/login");
     }
 }

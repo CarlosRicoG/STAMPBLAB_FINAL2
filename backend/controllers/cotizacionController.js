@@ -71,19 +71,31 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
             continue;
         }
         const colorID = detalle.colores?.[0]?.ColorID;
-        const tallaID = detalle.tallas?.[0]?.TallaID;
         const insumoID = detalle.insumos?.[0]?.InsumoID;
-        if (!colorID || !tallaID) throw new ErrorNegocio('Se requiere Color y Talla');
+        // Una línea por talla pedida (con su cantidad); con una sola talla sin cantidad propia se usa la del producto
+        const tallasPedidas = (detalle.tallas || []).filter((t) => t?.TallaID);
+        const porTalla = tallasPedidas
+            .map((t) => ({ tallaID: t.TallaID, cantidad: parseInt(t.Cantidad, 10) || (tallasPedidas.length === 1 ? cantidad : 0) }))
+            .filter((t) => t.cantidad > 0);
+        if (!colorID || !porTalla.length) throw new ErrorNegocio('Se requiere Color y Talla');
         const producto = await Producto.findByPk(detalle.ProductoID);
         if (!producto) throw new ErrorNegocio(`Producto ${detalle.ProductoID} no encontrado`, 404);
-        const precioUnitario = (parseFloat(producto.PrecioBase) || 0)
-            + (parseFloat((await Talla.findByPk(tallaID))?.Precio) || 0)
-            + (parseFloat((await Insumo.findByPk(insumoID))?.PrecioTela) || 0);
-        subtotal += precioUnitario * cantidad;
-        lineas.push({
-            ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID, TelaID: insumoID || null,
-            Cantidad: cantidad, PrecioUnitario: precioUnitario, TraePrenda: false, Nombre: producto.Nombre
-        });
+        const precioTela = parseFloat((await Insumo.findByPk(insumoID))?.PrecioTela) || 0;
+        for (const { tallaID, cantidad: cantTalla } of porTalla) {
+            const precioUnitario = (parseFloat(producto.PrecioBase) || 0)
+                + (parseFloat((await Talla.findByPk(tallaID))?.Precio) || 0)
+                + precioTela;
+            subtotal += precioUnitario * cantTalla;
+            lineas.push({
+                ProductoID: detalle.ProductoID, ColorID: colorID, TallaID: tallaID, TelaID: insumoID || null,
+                Cantidad: cantTalla, PrecioUnitario: precioUnitario, TraePrenda: false, Nombre: producto.Nombre
+            });
+        }
+    }
+
+    // Un pedido solo de "prenda propia" y sin diseños no tiene nada que cobrar ni fabricar: se rechaza (evita pedidos de $0)
+    if (!lineas.some((l) => !l.TraePrenda)) {
+        throw new ErrorNegocio('Agrega al menos un producto del catálogo o un diseño (estampado) para continuar');
     }
 
     // 2) Todo en una transacción: descuenta stock (con bloqueo, sin sobreventa), crea la venta y sus detalles
@@ -199,18 +211,23 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
 
 
 
-// Precio unitario de una línea de cotización (misma regla que calcularValorTotalCotizacion)
-function precioUnitarioDetalle(detalle) {
-    let unit;
+// Subtotal de una línea de cotización. ÚNICA fórmula de precio: la usan el valor que ve el cliente
+// (calcularValorTotalCotizacion) y el pedido que se crea al aceptar (convertirCotizacionAVenta), para que nunca difieran.
+// Requiere el detalle con producto, tallas(+talla), insumos(+insumo) y tecnicas.
+function subtotalDetalle(detalle) {
+    const cantidad = parseFloat(detalle.Cantidad) || 0;
+    let subtotal = 0;
     if (detalle.PrecioUnitario && parseFloat(detalle.PrecioUnitario) > 0) {
-        unit = parseFloat(detalle.PrecioUnitario);
+        // Producto personalizado con precio propio
+        subtotal += parseFloat(detalle.PrecioUnitario) * cantidad;
     } else {
-        unit = parseFloat(detalle.producto?.PrecioBase || 0)
-            + parseFloat(detalle.tallas?.[0]?.talla?.Precio || 0)
-            + parseFloat(detalle.insumos?.[0]?.insumo?.PrecioTela || 0);
+        subtotal += (parseFloat(detalle.producto?.PrecioBase) || 0) * cantidad;
+        for (const insumo of detalle.insumos || []) subtotal += (parseFloat(insumo.insumo?.PrecioTela) || 0) * (parseFloat(insumo.CantidadRequerida) || 0);
+        for (const talla of detalle.tallas || []) subtotal += (parseFloat(talla.talla?.Precio) || 0) * (parseInt(talla.Cantidad, 10) || 0);
     }
-    const tecnicas = (detalle.tecnicas || []).reduce((s, t) => s + (parseFloat(t.CostoTecnica) || 0), 0);
-    return unit + tecnicas;
+    // Las técnicas siempre suman
+    for (const tecnica of detalle.tecnicas || []) subtotal += (parseFloat(tecnica.CostoTecnica) || 0) * cantidad;
+    return subtotal;
 }
 
 // ============================================
@@ -260,14 +277,41 @@ exports.convertirCotizacionAVenta = async (req, res) => {
         });
 
         // 1) Líneas de la venta con su precio
+        // El pedido respeta lo que el cliente aprobó: su total es el ValorTotal aprobado (precio congelado) y el precio
+        // de cada línea se reparte con la misma fórmula (subtotalDetalle), así Σ líneas = total del pedido.
+        const subtotales = cotizacion.detalles.map(subtotalDetalle);
+        const sumaSubtotales = subtotales.reduce((s, v) => s + v, 0);
+        const aprobado = parseFloat(cotizacion.ValorTotal) || 0;
+        const total = aprobado > 0 ? aprobado : sumaSubtotales;
+        const factor = sumaSubtotales > 0 ? total / sumaSubtotales : 1;
+
         const lineas = [];
-        for (const detalle of cotizacion.detalles) {
+        cotizacion.detalles.forEach((detalle, i) => {
             const traePrenda = Boolean(detalle.TraePrenda);
             const colorID = detalle.colores?.[0]?.ColorID || null;
-            const tallaID = detalle.tallas?.[0]?.TallaID || null;
             const telaID = detalle.insumos?.[0]?.InsumoID || null;
-            const usaInventario = !traePrenda && detalle.ProductoID && colorID && tallaID;
-            lineas.push({ detalle, colorID, tallaID, telaID, usaInventario, precioUnitario: precioUnitarioDetalle(detalle) });
+            // Una línea de pedido por talla cotizada (con su cantidad); sin cantidades por talla, una sola línea
+            const cantidadProducto = parseInt(detalle.Cantidad, 10) || 0;
+            const porTalla = (detalle.tallas || [])
+                .map((t) => ({ tallaID: t.TallaID, cantidad: parseInt(t.Cantidad, 10) || 0 }))
+                .filter((t) => t.cantidad > 0);
+            // Si las cantidades por talla no suman la cantidad cotizada del producto, no se confía en ellas
+            // (se cobraría una cantidad y se reservaría otra): una sola línea con la cantidad del producto.
+            const coincide = porTalla.reduce((s, t) => s + t.cantidad, 0) === cantidadProducto;
+            const variantes = porTalla.length && coincide ? porTalla : [{ tallaID: detalle.tallas?.[0]?.TallaID || null, cantidad: cantidadProducto }];
+            const unidades = variantes.reduce((s, v) => s + v.cantidad, 0);
+            for (const v of variantes) {
+                const usaInventario = !traePrenda && detalle.ProductoID && colorID && v.tallaID;
+                lineas.push({ detalle, colorID, tallaID: v.tallaID, telaID, cantidad: v.cantidad, usaInventario, subtotalLinea: unidades > 0 ? subtotales[i] * (v.cantidad / unidades) : 0 });
+            }
+        });
+        // Precio de cada línea: su parte del subtotal aprobado entre sus unidades (Σ líneas = total del pedido).
+        // Si todo el subtotal calculado es 0 pero el total aprobado no (valor fijado a mano), se reparte por unidades.
+        const unidadesTotales = lineas.reduce((s, l) => s + l.cantidad, 0);
+        for (const l of lineas) {
+            l.precioUnitario = l.cantidad <= 0 ? 0
+                : sumaSubtotales > 0 ? (l.subtotalLinea * factor) / l.cantidad
+                : (unidadesTotales > 0 ? total / unidadesTotales : 0);
         }
 
         // 2) Todo dentro de una transacción: si algo falla no queda una venta a medias
@@ -279,13 +323,12 @@ exports.convertirCotizacionAVenta = async (req, res) => {
 
             const lineasInv = lineas.filter((l) => l.usaInventario).map((l) => ({
                 ProductoID: l.detalle.ProductoID, ColorID: l.colorID, TallaID: l.tallaID, TelaID: l.telaID,
-                Cantidad: parseInt(l.detalle.Cantidad) || 0, _linea: l,
-                Nombre: [l.detalle.producto?.Nombre || `Producto ${l.detalle.ProductoID}`, l.detalle.colores?.[0]?.color?.Nombre, l.detalle.tallas?.[0]?.talla?.Nombre].filter(Boolean).join(' / ')
+                Cantidad: l.cantidad, _linea: l,
+                Nombre: [l.detalle.producto?.Nombre || `Producto ${l.detalle.ProductoID}`, l.detalle.colores?.[0]?.color?.Nombre, l.detalle.tallas?.find((x) => x.TallaID === l.tallaID)?.talla?.Nombre].filter(Boolean).join(' / ')
             }));
             await inventario.reservar(lineasInv, t);
             for (const li of lineasInv) li._linea.inventarioID = li.InventarioID;
 
-            const total = lineas.reduce((s, l) => s + l.precioUnitario * (parseInt(l.detalle.Cantidad) || 0), 0);
             const venta = await Venta.create({
                 DocumentoID: cotizacion.DocumentoID, FechaVenta: new Date(),
                 Subtotal: total, Total: total, EstadoID: ESTADO_VENTA.PENDIENTE,
@@ -298,7 +341,7 @@ exports.convertirCotizacionAVenta = async (req, res) => {
                 await DetalleVenta.create({
                     VentaID: venta.VentaID, ProductoID: l.detalle.ProductoID || null,
                     ColorID: l.colorID, TallaID: l.tallaID, InventarioID: l.inventarioID || null,
-                    Cantidad: l.detalle.Cantidad, PrecioUnitario: l.precioUnitario
+                    Cantidad: l.cantidad, PrecioUnitario: l.precioUnitario
                 }, { transaction: t });
             }
             await cotizacion.update({ EstadoID: ESTADO_COTIZACION.PROCESADA, ValorTotal: total }, { transaction: t });
@@ -323,12 +366,12 @@ exports.convertirCotizacionAVenta = async (req, res) => {
 // ============================================
 exports.getImagenDiseno = async (req, res) => {
     try {
-        const { filename } = req.params;
-        // Ajusta esta ruta según donde tu backend guarda las imágenes de diseño
-        const uploadsDir = path.join(__dirname, '..', 'uploads', 'disenos');
-        const filePath = path.join(uploadsDir, filename);
+        // Solo el nombre del archivo: nada de rutas (evita salirse de la carpeta con ../ o %2f)
+        const filename = path.basename(String(req.params.filename || ''));
+        const uploadsDir = path.resolve(__dirname, '..', 'uploads', 'disenos');
+        const filePath = path.resolve(uploadsDir, filename);
 
-        if (!fs.existsSync(filePath)) {
+        if (!/^[\w.-]+$/.test(filename) || !filePath.startsWith(uploadsDir + path.sep) || !fs.existsSync(filePath)) {
             return res.status(404).json({ message: 'Imagen no encontrada', filename });
         }
 
@@ -420,7 +463,7 @@ exports.createCotizacionCompleta = async (req, res) => {
 exports.getAllCotizaciones = async (req, res) => {
     try {                                                                               // 1
         const page = Math.max(1, parseInt(req.query.page) || 1);                        // 2
-        const limit = Math.max(1, parseInt(req.query.limit) || 10);                     // 3
+        const limit = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 10));                     // 3
         const search = (req.query.search || "").trim();                                 // 4
         const estado = (req.query.estado || "Todos").trim();                            // 5
         const offset = (page - 1) * limit;                                              // 6
@@ -535,6 +578,17 @@ exports.updateCotizacion = async (req, res) => {
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada' }); // 10
         const estadoAnterior = cotizacion.EstadoID;                                     // 11
         const estadoNuevo = EstadoID ? parseInt(EstadoID) : estadoAnterior;             // 12
+        if (!Object.values(ESTADO_COTIZACION).includes(estadoNuevo)) {
+            return res.status(400).json({ message: 'Estado de cotización no válido' });
+        }
+        // El valor de una cotización aprobada o cerrada está congelado: solo se puede fijar a mano antes de aprobarla
+        if (ValorTotal !== undefined && ![ESTADO_COTIZACION.PENDIENTE, ESTADO_COTIZACION.EN_REVISION].includes(estadoAnterior)
+            && Number(ValorTotal) !== Number(cotizacion.ValorTotal)) {
+            return res.status(400).json({ message: 'La cotización ya fue aprobada o cerrada: su valor no se puede modificar' });
+        }
+        if (ValorTotal !== undefined && !(Number(ValorTotal) >= 0)) {
+            return res.status(400).json({ message: 'El valor total no es válido' });
+        }
         if (estadoNuevo !== estadoAnterior) {
             if ([ESTADO_COTIZACION.CANCELADA, ESTADO_COTIZACION.PROCESADA].includes(estadoAnterior)) {
                 return res.status(400).json({ message: `No se puede cambiar el estado de una cotización ${estadoAnterior === ESTADO_COTIZACION.PROCESADA ? 'procesada' : 'cancelada'}` });
@@ -553,13 +607,23 @@ exports.updateCotizacion = async (req, res) => {
             }
         }
         // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
-        await cotizacion.update({                                                       // 27
-            ValorTotal: ValorTotal !== undefined ? ValorTotal : cotizacion.ValorTotal,  // 28
-            EstadoID: estadoNuevo                                                       // 29
-        });                                                                             // 30
+        // Bajo bloqueo: si el cliente responde (acepta, rechaza o cancela) mientras el administrador edita, no se pisan
+        const tx = await sequelize.transaction();
+        try {
+            const fresca = await Cotizacion.findByPk(cotizacion.CotizacionID, { transaction: tx, lock: tx.LOCK.UPDATE });
+            if (fresca.EstadoID !== estadoAnterior) {
+                await tx.rollback();
+                return res.status(409).json({ message: 'La cotización cambió mientras la editabas (por ejemplo, el cliente respondió). Recárgala e inténtalo de nuevo.' });
+            }
+            await cotizacion.update({
+                ValorTotal: ValorTotal !== undefined ? ValorTotal : cotizacion.ValorTotal,
+                EstadoID: estadoNuevo
+            }, { transaction: tx });
+            await tx.commit();
+        } catch (e) { await tx.rollback().catch(() => {}); throw e; }
         // Al aprobar, el valor que ve el cliente se calcula con los precios ya asignados (si el panel no lo mandó)
         if (estadoNuevo === ESTADO_COTIZACION.APROBADA && estadoAnterior !== estadoNuevo && ValorTotal === undefined) {
-            const calculado = await calcularValorTotalCotizacion(cotizacion.CotizacionID);
+            const calculado = await calcularValorTotalCotizacion(cotizacion.CotizacionID, { forzar: true });
             if (calculado > 0) await cotizacion.update({ ValorTotal: calculado });
         }
         // Aviso al cliente cuando cambia el estado (aprobada, rechazada, cancelada...)
@@ -636,9 +700,19 @@ exports.cancelarCotizacion = async (req, res) => {
         if (cotizacion.EstadoID === ESTADO_COTIZACION.CANCELADA) return res.status(400).json({ message: 'La cotización ya está cancelada' });
         // El stock se descuenta solo al convertir a venta; cancelar no devuelve stock.
         const stockDevuelto = false;
-        await cotizacion.update({ EstadoID: ESTADO_COTIZACION.CANCELADA });
         const porCliente = !esAdmin(req);
-        await historial.registrar({ tipo: 'cotizacion', refId: cotizacion.CotizacionID, estadoId: ESTADO_COTIZACION.CANCELADA, nota: porCliente ? 'Cancelada por el cliente' : null, documentoId: req.usuario?.id });
+        // Bajo bloqueo: si el cliente la acepta a la vez, no puede quedar "cancelada" con un pedido ya creado
+        const t = await sequelize.transaction();
+        try {
+            const fresca = await Cotizacion.findByPk(cotizacion.CotizacionID, { transaction: t, lock: t.LOCK.UPDATE });
+            if ([ESTADO_COTIZACION.PROCESADA, ESTADO_COTIZACION.CANCELADA].includes(fresca.EstadoID)) {
+                await t.rollback();
+                return res.status(400).json({ message: fresca.EstadoID === ESTADO_COTIZACION.PROCESADA ? 'No se puede cancelar una cotización ya convertida a venta' : 'La cotización ya está cancelada' });
+            }
+            await fresca.update({ EstadoID: ESTADO_COTIZACION.CANCELADA }, { transaction: t });
+            await historial.registrar({ tipo: 'cotizacion', refId: cotizacion.CotizacionID, estadoId: ESTADO_COTIZACION.CANCELADA, nota: porCliente ? 'Cancelada por el cliente' : null, documentoId: req.usuario?.id }, t);
+            await t.commit();
+        } catch (e) { await t.rollback().catch(() => {}); throw e; }
         notificaciones.cotizacionEstado(cotizacion.CotizacionID);
         if (porCliente) notificaciones.cotizacionRespuesta(cotizacion.CotizacionID, 'cancelada');                                       // 24
         return res.status(200).json({                                                   // 25
@@ -651,7 +725,7 @@ exports.cancelarCotizacion = async (req, res) => {
 };
 
 
-const calcularValorTotalCotizacion = async (cotizacionID) => {
+const calcularValorTotalCotizacion = async (cotizacionID, { forzar = false } = {}) => {
     try {
         const cotizacion = await Cotizacion.findByPk(cotizacionID, {
             include: [{
@@ -660,26 +734,9 @@ const calcularValorTotalCotizacion = async (cotizacionID) => {
             }]
         });
         if (!cotizacion) return 0;
-        let total = 0;
-        for (const detalle of cotizacion.detalles) {
-            let subtotalDetalle = 0;
-
-            // Si tiene precio unitario propio (producto personalizado), usarlo directamente
-            if (detalle.PrecioUnitario && parseFloat(detalle.PrecioUnitario) > 0) {
-                subtotalDetalle += parseFloat(detalle.PrecioUnitario) * detalle.Cantidad;
-            } else {
-                // Cálculo normal para productos del catálogo
-                const precioBase = parseFloat(detalle.producto?.PrecioBase || 0);
-                subtotalDetalle += precioBase * detalle.Cantidad;
-                if (detalle.insumos?.length > 0) for (const insumo of detalle.insumos) subtotalDetalle += parseFloat(insumo.insumo?.PrecioTela || 0) * parseFloat(insumo.CantidadRequerida || 0);
-                if (detalle.tallas?.length > 0) for (const talla of detalle.tallas) subtotalDetalle += parseFloat(talla.talla?.Precio || 0) * parseInt(talla.Cantidad || 0);
-            }
-
-            // Las técnicas siempre suman
-            if (detalle.tecnicas?.length > 0) for (const tecnica of detalle.tecnicas) subtotalDetalle += parseFloat(tecnica.CostoTecnica || 0) * detalle.Cantidad;
-
-            total += subtotalDetalle;
-        }
+        // Una cotización ya aprobada o cerrada tiene el precio congelado: solo se recalcula al aprobarla (forzar)
+        if (!forzar && ![ESTADO_COTIZACION.PENDIENTE, ESTADO_COTIZACION.EN_REVISION].includes(cotizacion.EstadoID)) return parseFloat(cotizacion.ValorTotal) || 0;
+        const total = cotizacion.detalles.reduce((s, detalle) => s + subtotalDetalle(detalle), 0);
         await cotizacion.update({ ValorTotal: total });
         return total;
     } catch (error) {
@@ -707,11 +764,17 @@ exports.aceptarCotizacion = async (req, res) => {
 exports.rechazarCotizacion = async (req, res) => {
     try {
         const motivo = typeof req.body.motivo === 'string' ? req.body.motivo.trim().slice(0, 250) : '';
-        const cot = await Cotizacion.findByPk(req.params.cotizacionID);
-        if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
-        if (cot.EstadoID !== ESTADO_COTIZACION.APROBADA) return res.status(400).json({ message: 'Solo puedes responder cotizaciones que ya tienen precio' });
-        await cot.update({ EstadoID: ESTADO_COTIZACION.RECHAZADA });
-        await historial.registrar({ tipo: 'cotizacion', refId: cot.CotizacionID, estadoId: ESTADO_COTIZACION.RECHAZADA, nota: motivo ? 'Rechazada por el cliente: ' + motivo : 'Rechazada por el cliente', documentoId: req.usuario?.id });
+        // Bajo bloqueo: aceptar y rechazar a la vez no pueden dejar un pedido creado con la cotización "rechazada"
+        const t = await sequelize.transaction();
+        let cot;
+        try {
+            cot = await Cotizacion.findByPk(req.params.cotizacionID, { transaction: t, lock: t.LOCK.UPDATE });
+            if (!cot) { await t.rollback(); return res.status(404).json({ message: 'Cotización no encontrada' }); }
+            if (cot.EstadoID !== ESTADO_COTIZACION.APROBADA) { await t.rollback(); return res.status(400).json({ message: 'Solo puedes responder cotizaciones que ya tienen precio' }); }
+            await cot.update({ EstadoID: ESTADO_COTIZACION.RECHAZADA }, { transaction: t });
+            await historial.registrar({ tipo: 'cotizacion', refId: cot.CotizacionID, estadoId: ESTADO_COTIZACION.RECHAZADA, nota: motivo ? 'Rechazada por el cliente: ' + motivo : 'Rechazada por el cliente', documentoId: req.usuario?.id }, t);
+            await t.commit();
+        } catch (e) { await t.rollback().catch(() => {}); throw e; }
         notificaciones.cotizacionRespuesta(cot.CotizacionID, 'rechazada', motivo || null);
         return res.json({ message: 'Listo, avisamos al equipo. Gracias por tu respuesta.' });
     } catch (error) {
@@ -732,7 +795,7 @@ exports.aplicarTarifas = async (req, res) => {
         const cotizacionID = req.params.cotizacionID;
         const cot = await Cotizacion.findByPk(cotizacionID);
         if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
-        if ([ESTADO_COTIZACION.PROCESADA, ESTADO_COTIZACION.CANCELADA].includes(cot.EstadoID)) return res.status(400).json({ message: 'Esta cotización ya no se puede modificar' });
+        if (![ESTADO_COTIZACION.PENDIENTE, ESTADO_COTIZACION.EN_REVISION].includes(cot.EstadoID)) return res.status(400).json({ message: 'Esta cotización ya no se puede modificar' });
         const tarifas = await require('../models').TarifaTecnica.findAll({ raw: true });
         const mapa = new Map(tarifas.map((t) => [t.TecnicaID + '-' + t.ParteID, Number(t.Costo)]));
         const tecnicas = await CotizacionTecnica.findAll({

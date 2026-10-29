@@ -7,6 +7,11 @@ const {
 
 // IMPORTAR LA FUNCIÓN DESDE cotizacionController
 const { calcularValorTotalCotizacion } = require('./cotizacionController');
+const { ESTADO_COTIZACION } = require('../config/estados');
+
+// El precio de una cotización solo se puede tocar mientras está Pendiente o En revisión (después queda congelado)
+const ESTADOS_EDITABLES = [ESTADO_COTIZACION.PENDIENTE, ESTADO_COTIZACION.EN_REVISION];
+const MSG_CONGELADA = 'La cotización ya fue aprobada o cerrada: sus costos no se pueden modificar';
 
 // ============================================
 // ACTUALIZAR TÉCNICA Y RECALCULAR TOTAL
@@ -25,6 +30,13 @@ exports.updateCotizacionTecnica = async (req, res) => {
 
         if (!cotizacionTecnica) {
             return res.status(404).json({ message: 'Técnica de cotización no encontrada' });
+        }
+        const estadoCot = cotizacionTecnica.detalleCotizacion?.cotizacion?.EstadoID;
+        if (estadoCot !== undefined && !ESTADOS_EDITABLES.includes(estadoCot)) {
+            return res.status(400).json({ message: MSG_CONGELADA });
+        }
+        if (CostoTecnica !== undefined && !(parseFloat(CostoTecnica) >= 0)) {
+            return res.status(400).json({ message: 'El costo de la técnica no puede ser negativo' });
         }
 
         // Actualizar costo de técnica
@@ -109,12 +121,17 @@ exports.deleteCotizacionTecnica = async (req, res) => {
         const tecnica = await CotizacionTecnica.findByPk(req.params.id, {
             include: [{ 
                 model: DetalleCotizacion, 
-                as: 'detalleCotizacion'
+                as: 'detalleCotizacion',
+                include: [{ model: Cotizacion, as: 'cotizacion' }]
             }]
         });
         
         if (!tecnica) {
             return res.status(404).json({ message: 'Técnica no encontrada' });
+        }
+        const estadoCot = tecnica.detalleCotizacion?.cotizacion?.EstadoID;
+        if (estadoCot !== undefined && !ESTADOS_EDITABLES.includes(estadoCot)) {
+            return res.status(400).json({ message: MSG_CONGELADA });
         }
 
         const cotizacionID = tecnica.detalleCotizacion?.CotizacionID;

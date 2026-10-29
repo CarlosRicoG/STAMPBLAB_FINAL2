@@ -9,7 +9,7 @@
     "db:setup": "sequelize-cli db:migrate && node scripts/seed-base.js",
     "respaldo": "node scripts/respaldo.js",
     "db:demo": "node scripts/seed-demo.js",
-    "db:reset": "node sync.js && node scripts/seed-base.js && node scripts/seed-demo.js",
+    "db:reset": "node sync.js --confirmar && node scripts/seed-base.js && node scripts/seed-demo.js",
     "db:migrate": "sequelize-cli db:migrate",
     "test:integracion": "node tests-integracion/run-all.js"
   },

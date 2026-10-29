@@ -4,13 +4,14 @@
  *  - ocultarSecretos: ninguna respuesta puede incluir hashes de contraseña ni datos internos de sesión,
  *    aunque un controlador olvide excluirlos.
  */
-const ETIQUETA = /<\s*\/?\s*[a-zA-Z!?]/;
+// Una sola clase repetida (sin cuantificadores anidados): evita el retroceso exponencial con cadenas enormes
+const ETIQUETA = /<[\s/]*[a-zA-Z!?]/;
 const CLAVES_LIBRES = new Set(['Contraseña', 'password', 'nuevaContraseña']); // las contraseñas pueden llevar cualquier símbolo
 const SECRETOS = new Set(['Contraseña', 'SesionesVersion']);
 
 function contieneHtml(valor, profundidad = 0) {
     if (profundidad > 12) return false;
-    if (typeof valor === 'string') return valor.length < 20000 && ETIQUETA.test(valor);
+    if (typeof valor === 'string') return ETIQUETA.test(valor); // se revisa el texto completo, sea cual sea su longitud
     if (Array.isArray(valor)) return valor.some((v) => contieneHtml(v, profundidad + 1));
     if (valor && typeof valor === 'object') return Object.entries(valor).some(([k, v]) => !CLAVES_LIBRES.has(k) && contieneHtml(v, profundidad + 1));
     return false;

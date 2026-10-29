@@ -538,7 +538,7 @@ const UsuariosForm = ({ onClose, onSave, usuario = null }) => {
                     </button>
                   </div>
                   {Err("Contraseña")}
-                  <p className="cf-p-hint"><span>Mínimo 4 caracteres</span></p>
+                  <p className="cf-p-hint"><span>8 a 100 caracteres, con letras y números</span></p>
                 </div>
 
                 <div className="cf-p-field">

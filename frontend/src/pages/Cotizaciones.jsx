@@ -479,7 +479,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
     } catch (error) {
       let msg = 'Error desconocido';
       if (error.response?.data instanceof Blob) {
-        try { const texto = await error.response.data.text(); msg = JSON.parse(texto).message || msg; } catch (_) { }
+        try { const texto = await error.response.data.text(); msg = JSON.parse(texto).message || msg; } catch { /* la respuesta no es JSON: se usa el mensaje de texto */ }
       } else { msg = error.response?.data?.message || error.message || msg; }
       swalTop({ icon: 'error', title: 'Error al generar el PDF', text: msg, confirmButtonColor: C.danger });
     } finally { setDescargando(false); }

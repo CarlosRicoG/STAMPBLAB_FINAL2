@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- módulo de utilidades y componentes compartidos; solo afecta al recargado en caliente en desarrollo */
 import React, { useEffect, useState } from "react";
 import { FaWhatsapp, FaHistory } from "react-icons/fa";
 import { urlWhatsApp, formatoFechaHoraCO, resumenAtencion } from "../../utils/clienteUtils";

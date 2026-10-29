@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
+import ErrorBoundary from "../components/ErrorBoundary";
 import DashboardLayout from "../components/layouts/DashboardLayout";
 const MiCuenta = lazy(() => import("../components/landing/MiCuenta"));
 const Hoy = lazy(() => import("../pages/Hoy"));
@@ -57,10 +58,12 @@ const useRecargarSinSesion = () => {
 
 const AppRoutes = () => {
     useRecargarSinSesion();
+    const location = useLocation();
 
 
     return (
 
+        <ErrorBoundary key={location.pathname}>
         <Suspense fallback={<Cargando />}>
 
         <Routes>
@@ -81,7 +84,7 @@ const AppRoutes = () => {
             <Route path="/micuenta" element={<ProtectedRoute><MiCuenta /></ProtectedRoute>} />
             <Route path="/miscompras" element={<ProtectedRoute><MisCompras /></ProtectedRoute>} />
             <Route path="/miscotizaciones" element={<ProtectedRoute><MisCotizaciones /></ProtectedRoute>} />
-            <Route path="/formularioCompra" element={<FormularioCompra />} />
+            <Route path="/formularioCompra" element={<ProtectedRoute><FormularioCompra /></ProtectedRoute>} />
 
 
             <Route
@@ -122,6 +125,7 @@ const AppRoutes = () => {
         </Routes>
 
         </Suspense>
+        </ErrorBoundary>
 
     );
 };

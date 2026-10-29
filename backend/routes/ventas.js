@@ -48,6 +48,11 @@ const preciosDelCliente = async (req, res, next) => {
         if (esAdmin(req)) return next();
         let suma = 0;
         for (const d of req.body.detalles || []) {
+            // Todo producto del cliente sale de una variante (color y talla): así siempre se valida y descuenta stock
+            if (!d.ColorID || !d.TallaID) {
+                return res.status(400).json({ message: 'Cada producto del pedido debe indicar color y talla' });
+            }
+            delete d.TraePrenda; // el cliente no puede marcar líneas como "prenda propia" para saltarse el inventario
             const producto = await Producto.findByPk(d.ProductoID, { attributes: ['ProductoID', 'PrecioBase'] });
             if (!producto) return res.status(404).json({ message: `Producto ${d.ProductoID} no encontrado` });
             const talla = d.TallaID ? await Talla.findByPk(d.TallaID, { attributes: ['Precio'] }) : null;

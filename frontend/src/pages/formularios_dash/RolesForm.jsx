@@ -264,6 +264,7 @@ const RolesForm = ({ onClose, onSave, rolEdit = null, rolesExistentes = [] }) =>
 
   const validarDescripcion = (descripcion) => {
     if (!descripcion || descripcion.trim().length === 0) return "La descripción es obligatoria";
+    if (descripcion.trim().length < 10) return "La descripción debe tener al menos 10 caracteres";
     if (descripcion.trim().length > 100) return "La descripción no puede tener más de 100 caracteres";
     return "";
   };
@@ -286,7 +287,7 @@ const RolesForm = ({ onClose, onSave, rolEdit = null, rolesExistentes = [] }) =>
       descripcion: validarDescripcion(formData.descripcion),
     };
     const erroresActivos = Object.entries(erroresValidacion)
-      .filter(([_, valor]) => valor !== "")
+      .filter(([, valor]) => valor !== "")
       .reduce((acc, [clave, valor]) => ({ ...acc, [clave]: valor }), {});
 
     if (Object.keys(erroresActivos).length > 0) {

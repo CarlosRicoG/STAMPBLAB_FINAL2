@@ -36,12 +36,6 @@ export function getToken() {
     return localStorage.getItem("token");
 }
 
-// Obtener datos del usuario
-export function getUser() {
-    const user = localStorage.getItem("user");
-    return user ? JSON.parse(user) : null;
-}
-
 // Cerrar sesión: avisa al servidor (para que el token deje de valer de verdad) y limpia el navegador
 export async function cerrarSesion() {
     try {
@@ -50,6 +44,7 @@ export async function cerrarSesion() {
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     localStorage.removeItem("user");
+    localStorage.removeItem("cart_productos_landing"); // el carrito no debe pasar a otra sesión
 }
 
 // Compatibilidad con el nombre anterior

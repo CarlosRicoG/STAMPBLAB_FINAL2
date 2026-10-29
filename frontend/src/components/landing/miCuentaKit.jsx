@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components -- módulo de utilidades y componentes compartidos; solo afecta al recargado en caliente en desarrollo */
 import React, { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { FaTimes, FaCheck, FaTimesCircle } from "react-icons/fa";
 
@@ -48,8 +49,7 @@ export const Avatar = ({ nombre, size = 64 }) => (
 );
 
 /* ── Cabecera hero ── */
-export const MiCuentaHero = ({ eyebrow = "Mi cuenta", title, accent, sub, nombre, children }) => {
-    const primer = String(nombre || "").trim().split(/\s+/)[0];
+export const MiCuentaHero = ({ eyebrow = "Mi cuenta", title, accent, sub, children }) => {
     return (
         <section className="sx-hero-bg mc-hero">
             <span className="sx-blob b1" /><span className="sx-blob b2" /><span className="sx-blob b3" />

@@ -4,6 +4,7 @@
  */
 const PDFDocument = require('pdfkit');
 const { Venta, Usuario, Estado, DetalleVenta, Producto, Color, Talla } = require('../models');
+const { ESTADO_VENTA } = require('../config/estados');
 const E = require('../utils/pdfEstilo');
 const { P, cop } = E;
 
@@ -46,7 +47,7 @@ exports.descargarComprobante = async (req, res) => {
         const filasCliente = [['Nombre', venta.ContactoNombre || u.Nombre], ['Documento', venta.DocumentoID], ['Correo', u.Correo], ['Teléfono', venta.ContactoTelefono || u.Telefono]];
         const filasPedido = [['Pago', METODOS[venta.MetodoPago] || 'Por confirmar'], ['Entrega', venta.TipoEntrega === 'envio' ? 'Envío a domicilio' : 'Retiro en tienda']];
         if (venta.MetodoPago === 'contraentrega' || venta.TipoEntrega === 'envio') filasPedido.push(['Recibe', venta.NombreReceptor], ['Teléfono', venta.TelefonoEntrega], ['Dirección', venta.DireccionEntrega]);
-        if (venta.FechaEstimadaEntrega && venta.EstadoID !== 11 && venta.EstadoID !== 12) filasPedido.push(['Entrega estimada', new Date(venta.FechaEstimadaEntrega).toLocaleDateString('es-CO', { dateStyle: 'long' })]);
+        if (venta.FechaEstimadaEntrega && ![ESTADO_VENTA.ENTREGADA, ESTADO_VENTA.CANCELADA].includes(venta.EstadoID)) filasPedido.push(['Entrega estimada', new Date(venta.FechaEstimadaEntrega).toLocaleDateString('es-CO', { dateStyle: 'long' })]);
         if (venta.MetodoPago === 'transferencia' && venta.FechaTransferencia) filasPedido.push(['Transferencia', fecha(venta.FechaTransferencia)]);
 
         const wCaja = ancho / 2 - 8;

@@ -227,11 +227,6 @@ const InsumoForm = ({ onClose, onSave, insumoEdit = null }) => {
                                 <option value="true">Activo</option>
                                 <option value="false">Inactivo</option>
                             </select>
-                            {formData.stock === "0" && (
-                                <p style={{ margin: "6px 0 0", fontSize: 11, color: C.muted }}>
-                                    * Si el stock es 0, el estado será inactivo automáticamente
-                                </p>
-                            )}
                         </div>
 
                         {/* Botones */}

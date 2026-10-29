@@ -186,7 +186,12 @@ const AgregarProducto = () => {
                 Swal.fire({ title: "¡Actualizado!", icon: "success", timer: 1500, showConfirmButton: false });
                 setProdOrig(JSON.parse(JSON.stringify(producto))); setProdCreado(np); setEditandoProd(false);
             } else {
-                const r = await createProducto(producto); np = r.datos || r.producto;
+                if (productoCreado?.ProductoID) {
+                    // Ya se creó en un intento anterior (volvió al paso 1): se actualiza, no se duplica
+                    const r = await updateProducto(productoCreado.ProductoID, producto); np = r.datos || r.producto || productoCreado;
+                } else {
+                    const r = await createProducto(producto); np = r.datos || r.producto;
+                }
                 Swal.fire({ title: "¡Producto creado!", text: "Ahora agrega las variantes", icon: "success", timer: 2000, showConfirmButton: false });
             }
             setProdCreado(np); setPaso(2);
@@ -266,15 +271,38 @@ const AgregarProducto = () => {
         }
         setCargando(true);
         try {
-            await Promise.all(variantes.map(v => {
+            const tareas = variantes.map((v, idx) => {
                 if (v.esExistente) {
                     const orig = variantesOrig.find(o => o.InventarioID === v.InventarioID);
-                    if (!orig || orig.Stock !== v.Stock || orig.Estado !== v.Estado || orig.TelaID !== v.TelaID)
-                        return updateVariante(v.InventarioID, { Stock: v.Stock, Estado: v.Estado, TelaID: v.TelaID });
-                } else {
-                    return createVariante({ ProductoID: productoCreado.ProductoID, ColorID: v.ColorID, TallaID: v.TallaID, TelaID: v.TelaID, Stock: v.Stock, Estado: v.Estado });
+                    if (v.InventarioID && (!orig || orig.Stock !== v.Stock || orig.Estado !== v.Estado || orig.TelaID !== v.TelaID))
+                        return { idx, v, promesa: updateVariante(v.InventarioID, { Stock: v.Stock, Estado: v.Estado, TelaID: v.TelaID }) };
+                    return null;
                 }
-            }).filter(Boolean));
+                return { idx, v, promesa: createVariante({ ProductoID: productoCreado.ProductoID, ColorID: v.ColorID, TallaID: v.TallaID, TelaID: v.TelaID, Stock: v.Stock, Estado: v.Estado }) };
+            }).filter(Boolean);
+            const resultados = await Promise.allSettled(tareas.map(t => t.promesa));
+
+            // Las que sí se guardaron quedan marcadas como existentes para que un reintento no las vuelva a crear
+            const creadas = {};
+            const fallos = [];
+            resultados.forEach((r, k) => {
+                const t = tareas[k];
+                if (r.status === "fulfilled") {
+                    if (!t.v.esExistente) creadas[t.idx] = r.value?.datos?.InventarioID ?? r.value?.InventarioID ?? r.value?.datos?.id ?? null;
+                } else {
+                    const msg = r.reason?.response?.data?.mensaje || r.reason?.response?.data?.message || r.reason?.message || "Error desconocido";
+                    fallos.push(`${t.v.nombreColor} — ${t.v.nombreTalla}: ${msg}`);
+                }
+            });
+            if (Object.keys(creadas).length > 0 || fallos.length > 0) {
+                const nuevas = variantes.map((v, i) => i in creadas ? { ...v, esExistente: true, InventarioID: creadas[i] } : v);
+                setVariantes(nuevas);
+                setVarOrig(JSON.parse(JSON.stringify(nuevas.filter(v => v.esExistente))));
+            }
+            if (fallos.length > 0) {
+                Swal.fire({ icon: "error", title: "No se pudieron guardar todas las variantes", html: fallos.map(f => `<div style="text-align:left;font-size:13px">• ${escapeHtml(f)}</div>`).join(""), confirmButtonColor: C.navy });
+                return;
+            }
             Swal.fire({ title: modoEdicion ? "¡Actualizado!" : "¡Éxito!", text: modoEdicion ? "Producto actualizado" : `Creado con ${variantes.length} variante(s)`, icon: "success", timer: 2000, showConfirmButton: false });
             setTimeout(() => navigate("/dashboard/productos"), 2000);
         } catch { Swal.fire("Error", "Problema al guardar variantes", "error"); }

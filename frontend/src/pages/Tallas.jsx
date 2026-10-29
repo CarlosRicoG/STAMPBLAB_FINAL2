@@ -272,7 +272,7 @@ const Tallas = () => {
                     Swal.fire({ toast: true, icon: "success", title: "Talla eliminada", position: "top-end", showConfirmButton: false, timer: 2000 });
                 } else throw new Error(response.mensaje);
             } catch (err) {
-                Swal.fire({ icon: "error", title: "Error", text: err.message || "No se pudo eliminar la talla", confirmButtonColor: C.danger });
+                Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.mensaje || err.response?.data?.message || err.message || "No se pudo eliminar la talla", confirmButtonColor: C.danger });
             } finally { setLoading(false); }
         }
     };

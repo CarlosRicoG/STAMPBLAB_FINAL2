@@ -250,6 +250,7 @@ exports.createCompra = async (req, res) => {
 
     const fecha = parsearFecha(req.body.FechaCompra);
     if (fecha === undefined) throw new ErrorCompra('La fecha de compra no es válida');
+    if (fecha && fecha.getTime() > Date.now() + 864e5) throw new ErrorCompra('La fecha de compra no puede ser futura');
 
     // ── Resolver proveedor ──
     let proveedor = null;
@@ -308,6 +309,7 @@ exports.updateCompra = async (req, res) => {
 
     const fecha = parsearFecha(FechaCompra);
     if (fecha === undefined) throw new ErrorCompra('La fecha de compra no es válida');
+    if (fecha && fecha.getTime() > Date.now() + 864e5) throw new ErrorCompra('La fecha de compra no puede ser futura');
 
     // ── Resolver nuevo proveedor si viene ──
     let proveedorNit = compra.ProveedorID;

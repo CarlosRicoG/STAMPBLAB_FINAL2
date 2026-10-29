@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Swal from "sweetalert2";
 import { errorContrasena } from "../../utils/validarContrasena";
 import { getUsuarioById, updateUsuario } from "../../Services/api-usuarios/usuarios";
+import { cerrarSesion } from "../../Services/api-auth/auth";
 import fondoPerfil from "../../assets/images/estampadoslies.webp";
 import { FaUserEdit, FaLock, FaIdCard, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaUser, FaCheckCircle, FaExclamationCircle, FaSave } from "react-icons/fa";
 import usePlus from "../../hooks/usePlus";
@@ -87,7 +88,7 @@ const EditarPerfil = () => {
             if (formData.Contraseña?.trim()) dataToSend.Contraseña = formData.Contraseña.trim();
             const response = await updateUsuario(formData.DocumentoID, dataToSend);
             if (response.estado) {
-                Swal.fire({ icon: "success", title: "¡Perfil actualizado!", text: "Por seguridad, debes iniciar sesión nuevamente.", confirmButtonColor: "#1a2540" }).then(() => { localStorage.removeItem("token"); localStorage.removeItem("user"); navigate("/login"); });
+                Swal.fire({ icon: "success", title: "¡Perfil actualizado!", text: "Por seguridad, debes iniciar sesión nuevamente.", confirmButtonColor: "#1a2540" }).then(async () => { await cerrarSesion(); navigate("/login"); });
             } else throw new Error(response.mensaje || "Error al actualizar perfil");
         } catch (error) {
             Swal.fire({ icon: "error", title: "Error", text: error.response?.data?.mensaje || error.message || "Error al actualizar el perfil.", confirmButtonColor: "#dc2626" });

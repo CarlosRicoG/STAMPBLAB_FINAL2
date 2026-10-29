@@ -1,11 +1,9 @@
 const { validarContrasena } = require('../utils/contrasenas');
-const { ESTADO_VENTA } = require('../config/estados');
+const { ESTADO_VENTA, ESTADO_COTIZACION } = require('../config/estados');
 const log = require('../utils/log');
 const sesion = require('../services/sesion');
 const { Usuario, Rol } = require('../models');
-const JWT_SECRET = require('../config/jwt');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const db = require('../models');
 const { Op } = require('sequelize');
 
@@ -14,7 +12,7 @@ const { Op } = require('sequelize');
 exports.getAllUsuarios = async (req, res) => {
     try {
         const page   = Math.max(1, parseInt(req.query.page)  || 1);
-        const limit  = Math.max(1, parseInt(req.query.limit) || (req.query.page ? 10 : 100000)); // sin page/limit: devuelve todo
+        const limit  = Math.min(100000, Math.max(1, parseInt(req.query.limit) || (req.query.page ? 10 : 100000))); // sin page/limit: devuelve todo
         const search = (req.query.search || "").trim();
         const offset = (page - 1) * limit;
 
@@ -329,7 +327,7 @@ exports.deleteUsuario = async (req, res) => {
         const docID = usuario.DocumentoID ?? req.params.id;
         if (db.Venta?.count) {
             const ventasActivas = await db.Venta.count({
-                where: { DocumentoID: docID, EstadoID: { [Op.notIn]: [11, 12] } }
+                where: { DocumentoID: docID, EstadoID: { [Op.notIn]: [ESTADO_VENTA.ENTREGADA, ESTADO_VENTA.CANCELADA] } }
             });
             if (ventasActivas > 0) {
                 return res.status(400).json({
@@ -347,7 +345,7 @@ exports.deleteUsuario = async (req, res) => {
         }
         if (db.Cotizacion?.count) {
             const cotizacionesActivas = await db.Cotizacion.count({
-                where: { DocumentoID: docID, EstadoID: { [Op.in]: [1, 2, 6] } }
+                where: { DocumentoID: docID, EstadoID: { [Op.in]: [ESTADO_COTIZACION.PENDIENTE, ESTADO_COTIZACION.APROBADA, ESTADO_COTIZACION.EN_REVISION] } }
             });
             if (cotizacionesActivas > 0) {
                 return res.status(400).json({
@@ -357,6 +355,8 @@ exports.deleteUsuario = async (req, res) => {
             }
         }
 
+        // Se invalidan sus sesiones ANTES de borrar (después ya no existe la fila donde se guarda la versión de sesión)
+        await sesion.revocarTodas(docID).catch(() => {});
         await usuario.destroy();
 
         res.json({
@@ -377,63 +377,6 @@ exports.deleteUsuario = async (req, res) => {
             estado: false,
             mensaje: 'Error al eliminar usuario',
             error: error.message
-        });
-    }
-};
-
-// ==================== LOGIN ====================
-exports.login = async (req, res) => {
-    try {
-        log('🔑 Login:', { Correo: req.body.Correo || req.body.correo });
-
-        const Correo = req.body.Correo || req.body.correo;
-        const Contraseña = req.body.Contraseña || req.body.contraseña;
-
-        if (!Correo || !Contraseña) {
-            return res.status(400).json({
-                estado: false,
-                mensaje: 'Correo y contraseña son obligatorios'
-            });
-        }
-
-        const usuario = await db.Usuario.findOne({ where: { Correo } });
-
-        // Misma respuesta (401) exista o no el correo: no se puede averiguar quién está registrado
-        if (!usuario) {
-            return res.status(401).json({
-                estado: false,
-                mensaje: 'Correo o contraseña incorrectos'
-            });
-        }
-
-        const passwordValida = await bcrypt.compare(Contraseña, usuario.Contraseña);
-        if (!passwordValida) {
-            return res.status(401).json({
-                estado: false,
-                mensaje: 'Correo o contraseña incorrectos'
-            });
-        }
-
-        const token = sesion.emitir(usuario);
-
-
-        res.json({
-            estado: true,
-            mensaje: 'Inicio de sesión exitoso',
-            token,
-            rol: usuario.RolID,
-            nombre: usuario.Nombre,
-            documentoID: usuario.DocumentoID, 
-            correo: usuario.Correo               
-        });
-
-
-    } catch (error) {
-        console.error('Error en el login:', error);
-        res.status(500).json({
-            estado: false,
-            mensaje: 'Error interno del servidor',
-            error: error.message || error
         });
     }
 };

@@ -23,8 +23,16 @@ const lineaUsaInventario = (l) => !l.TraePrenda && l.ProductoID && (l.Inventario
 /** Devuelve el InventarioID de la variante exacta de una línea (o null si no existe). Sin bloquear. */
 async function resolverId(linea, t) {
     if (linea.InventarioID) {
-        const v = await InventarioProducto.findByPk(linea.InventarioID, { attributes: ['InventarioID'], transaction: t });
-        if (v) return v.InventarioID;
+        const v = await InventarioProducto.findByPk(linea.InventarioID, {
+            attributes: ['InventarioID', 'ProductoID', 'ColorID', 'TallaID'], transaction: t,
+        });
+        if (!v) throw new ErrorNegocio(`La variante ${linea.InventarioID} no existe`);
+        // La variante enviada debe ser la del producto (y color/talla) de la línea: evita descontar stock de otro producto
+        const coincide = Number(v.ProductoID) === Number(linea.ProductoID)
+            && (!linea.ColorID || Number(v.ColorID) === Number(linea.ColorID))
+            && (!linea.TallaID || Number(v.TallaID) === Number(linea.TallaID));
+        if (!coincide) throw new ErrorNegocio('La variante indicada no corresponde al producto, color o talla del pedido');
+        return v.InventarioID;
     }
     const where = { ProductoID: linea.ProductoID, ColorID: linea.ColorID, TallaID: linea.TallaID };
     if (linea.TelaID) where.TelaID = linea.TelaID;
@@ -38,7 +46,10 @@ async function resolverId(linea, t) {
 async function agrupar(lineas, t) {
     const demanda = new Map();
     for (const l of lineas) {
-        if (!lineaUsaInventario(l)) continue;
+        if (!lineaUsaInventario(l)) {
+            l.InventarioID = null; // una línea que no mueve stock nunca debe quedar ligada a una variante (evita reponer stock que no se descontó)
+            continue;
+        }
         const id = await resolverId(l, t);
         if (!id) {
             throw new ErrorNegocio(`No existe variante para Producto ${l.ProductoID}, Color ${l.ColorID}, Talla ${l.TallaID}`);
@@ -71,6 +82,9 @@ async function reservar(lineas, t) {
     for (const [id, { cantidad, nombre }] of demanda) {
         const v = variantes.get(id);
         if (!v) throw new ErrorNegocio(`La variante ${id} ya no existe`);
+        if (v.Estado === 0 || v.Estado === false) {
+            throw new ErrorNegocio(`La variante${nombre ? ' de ' + nombre : ''} no está disponible`);
+        }
         if (v.Stock < cantidad) {
             throw new ErrorNegocio(`Stock insuficiente${nombre ? ' para ' + nombre : ''}. Disponible: ${v.Stock}, Solicitado: ${cantidad}`);
         }
@@ -86,9 +100,13 @@ async function devolver(detalles, t) {
     const lineas = detalles.map((d) => (typeof d.get === 'function' ? d.get({ plain: true }) : { ...d }));
     const demanda = new Map();
     for (const l of lineas) {
+        // Solo se repone lo que se descontó: las líneas ligadas a una variante (InventarioID guardado por `reservar`).
+        // Pedidos anteriores a esa columna no la tienen: se resuelven por producto, color y talla (siempre que estén los tres).
+        // Los pedidos de cliente nuevos nunca llegan aquí sin variante: la ruta exige color y talla y `reservar` la asigna.
         if (!l.ProductoID) continue;
-        const id = (await resolverId(l, t));
-        if (!id) continue; // la variante se eliminó: no hay a dónde devolver
+        let id = l.InventarioID;
+        if (!id && l.ColorID && l.TallaID) id = await resolverId({ ...l, InventarioID: null }, t);
+        if (!id) continue;
         demanda.set(id, (demanda.get(id) || 0) + (parseInt(l.Cantidad, 10) || 0));
     }
     const variantes = await bloquear(demanda.keys(), t);

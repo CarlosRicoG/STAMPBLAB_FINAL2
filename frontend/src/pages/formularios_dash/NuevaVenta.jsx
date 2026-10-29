@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
 import axios from "axios";
-import { crearVenta, updateVenta, getVentaById } from "../../Services/api-ventas/ventas";
+import { getVentaById } from "../../Services/api-ventas/ventas";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { ESTADO_VENTA } from "../../config/estados";
@@ -56,7 +56,7 @@ const Badge = ({ type, children }) => {
 };
 
 /* ── Modal de selección de producto (custom, sin Bootstrap Modal) ── */
-const ProductoModal = ({ show, onClose, children }) => {
+const ProductoModal = ({ show, children }) => {
     if (!show) return null;
     return (
         <div style={{
@@ -336,7 +336,11 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         setProductosAgregados(nuevos);
     };
 
+    const enviandoRef = useRef(false);
+    const [enviando, setEnviando] = useState(false);
+
     const generarVenta = async () => {
+        if (enviandoRef.current) return; // evita doble clic
         if (!clienteSeleccionado) {
             return Swal.fire({ icon: "warning", title: "Cliente requerido", text: "Por favor selecciona un cliente", confirmButtonColor: C.navy });
         }
@@ -362,6 +366,8 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
             detalles,
         };
 
+        enviandoRef.current = true;
+        setEnviando(true);
         try {
             const token = localStorage.getItem("token");
             if (modoEdicion) {
@@ -395,8 +401,12 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
             if (onClose) onClose(); else navigate("/dashboard/ventas");
         } catch (err) {
             console.error("Error:", err.response?.data || err);
-            const msg = err.response?.data?.error || err.message || "Error inesperado";
+            const d = err.response?.data;
+            const msg = d?.message || d?.mensaje || d?.error || err.message || "Error inesperado";
             Swal.fire({ icon: "error", title: "Error al procesar la venta", text: msg, confirmButtonColor: C.danger });
+        } finally {
+            enviandoRef.current = false;
+            setEnviando(false);
         }
     };
 
@@ -438,8 +448,8 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                         {modoEdicion ? "Editar Venta" : "Nueva Venta"}
                     </h4>
                     <div style={{ display: "flex", gap: 10 }}>
-                        <button onClick={generarVenta}
-                            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}
+                        <button onClick={generarVenta} disabled={enviando}
+                            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: enviando ? "not-allowed" : "pointer", opacity: enviando ? 0.6 : 1, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}
                             onMouseEnter={e => e.currentTarget.style.background = "#2d3f6e"}
                             onMouseLeave={e => e.currentTarget.style.background = C.navy}>
                             {modoEdicion ? "Actualizar Venta" : "Generar Venta"}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaPalette, FaExclamationCircle } from "react-icons/fa";
 import Swal from "sweetalert2";
-import { createColor, updateColor, getColores } from "../../Services/api-colores/colores.js";
+import { createColor, updateColor } from "../../Services/api-colores/colores.js";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -271,7 +271,7 @@ const ColoresForm = ({ onClose, onSave, colorEdit, coloresExistentes = [] }) => 
                 throw new Error(result.mensaje);
             }
         } catch (err) {
-            Swal.fire({ icon: "error", title: "Error", text: err.message || "Error al guardar el color", confirmButtonColor: C.danger });
+            Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.mensaje || err.response?.data?.message || err.message || "Error al guardar el color", confirmButtonColor: C.danger });
         }
     };
 

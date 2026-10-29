@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { FaEye, FaSyncAlt, FaChevronLeft, FaChevronRight, FaReceipt } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { getVentas, getVentaById, updateEstadoVenta } from "../Services/api-ventas/ventas";
@@ -143,7 +143,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
 };
 
 /* ── Modal Cambiar Estado ── */
-const EstadoModal = ({ show, onClose, onConfirm, estados, estadoSeleccionado, setEstadoSeleccionado, nota, setNota }) => {
+const EstadoModal = ({ show, onClose, onConfirm, enviando, estados, estadoSeleccionado, setEstadoSeleccionado, nota, setNota }) => {
     if (!show) return null;
     // Un pedido Pendiente solo puede pasar a Pagada o Cancelada (máquina de estados)
     const validos = siguientesEstados(ESTADO_VENTA.PENDIENTE);
@@ -173,7 +173,7 @@ const EstadoModal = ({ show, onClose, onConfirm, estados, estadoSeleccionado, se
                     )}
                 </div>
                 <div style={{ padding: "0 24px 20px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                    <button onClick={onConfirm} style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Confirmar</button>
+                    <button onClick={onConfirm} disabled={enviando} style={{ opacity: enviando ? 0.6 : 1, background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: enviando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif" }}>{enviando ? "Enviando..." : "Confirmar"}</button>
                     <button onClick={onClose} style={{ background: "#f1f5f9", color: C.muted, border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Cancelar</button>
                 </div>
             </div>
@@ -195,6 +195,8 @@ const VentasPendientes = () => {
     const [estadoSeleccionado, setEstadoSeleccionado] = useState("");
     const [nota, setNota] = useState("");
     const [filtro, setFiltro] = useState("");
+    const [enviandoEstado, setEnviandoEstado] = useState(false);
+    const enviandoEstadoRef = useRef(false);
 
     /* ── Paginación ── */
     const [paginaActual, setPaginaActual] = useState(1);
@@ -248,11 +250,15 @@ const VentasPendientes = () => {
     const confirmarCambioEstado = async () => {
         if (!estadoSeleccionado) { Toast.fire({ icon: "warning", title: "Seleccione un estado" }); return; }
         if (nota.length > 300) { Toast.fire({ icon: "warning", title: "La nota no puede superar 300 caracteres" }); return; }
+        if (enviandoEstadoRef.current) return;
+        enviandoEstadoRef.current = true; setEnviandoEstado(true);
         try {
             await updateEstadoVenta(selectedVenta.VentaID, parseInt(estadoSeleccionado), { nota: nota.trim() || undefined });
             Toast.fire({ icon: "success", title: "Venta procesada correctamente" });
             setShowEstadoModal(false); loadVentasPendientes(paginaActual, itemsPorPagina, filtro);
-        } catch { Toast.fire({ icon: "error", title: "Error al actualizar el estado" }); }
+        } catch (err) {
+            Toast.fire({ icon: "error", title: err.response?.data?.mensaje || err.response?.data?.message || "Error al actualizar el estado" });
+        } finally { enviandoEstadoRef.current = false; setEnviandoEstado(false); }
     };
 
     const formatearFecha = (fecha) => {
@@ -406,7 +412,7 @@ const VentasPendientes = () => {
                     onActualizado={() => loadVentasPendientes(paginaActual, itemsPorPagina, filtro)} />
             )}
             <EstadoModal show={showEstadoModal} onClose={() => setShowEstadoModal(false)} onConfirm={confirmarCambioEstado}
-                estados={estadosVenta} estadoSeleccionado={estadoSeleccionado} setEstadoSeleccionado={setEstadoSeleccionado}
+                enviando={enviandoEstado} estados={estadosVenta} estadoSeleccionado={estadoSeleccionado} setEstadoSeleccionado={setEstadoSeleccionado}
                 nota={nota} setNota={setNota} />
         </>
     );

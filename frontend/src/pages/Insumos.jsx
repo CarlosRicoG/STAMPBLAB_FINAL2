@@ -127,7 +127,7 @@ const Insumos = () => {
             setShowForm(false);
             await loadInsumos();
         } catch (err) {
-            Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.mensaje || "Error al procesar el insumo", confirmButtonColor: C.danger });
+            Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.mensaje || err.message || "Error al procesar el insumo", confirmButtonColor: C.danger });
         } finally { setLoading(false); }
     };
 
@@ -144,7 +144,7 @@ const Insumos = () => {
                 await loadInsumos();
                 Swal.fire({ toast: true, icon: "success", title: "Insumo eliminado correctamente", position: "top-end", showConfirmButton: false, timer: 2000 });
             } catch (err) {
-                Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.mensaje || "Error al eliminar el insumo", confirmButtonColor: C.danger });
+                Swal.fire({ icon: "error", title: "Error", text: err.response?.data?.mensaje || err.message || "Error al eliminar el insumo", confirmButtonColor: C.danger });
             } finally { setLoading(false); }
         }
     };
@@ -164,7 +164,7 @@ const Insumos = () => {
             await loadInsumos();
             Swal.fire({ toast: true, icon: "success", title: `Estado cambiado a ${nuevoEstado ? "Activo" : "Inactivo"}`, position: "top-end", showConfirmButton: false, timer: 2500, timerProgressBar: true });
         } catch (err) {
-            Swal.fire({ icon: "error", title: "Error al cambiar estado", text: err.response?.data?.message || err.message || "Error", confirmButtonColor: C.danger });
+            Swal.fire({ icon: "error", title: "Error al cambiar estado", text: err.response?.data?.mensaje || err.response?.data?.message || err.message || "Error", confirmButtonColor: C.danger });
         } finally { setLoading(false); }
     };
 

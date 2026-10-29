@@ -33,7 +33,7 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
     console.log('--- ANONIMO');
     for (const p of ['/productos', '/colores', '/tallas', '/insumos', '/tecnicas', '/partes', '/estados', '/inventarioproducto/producto/1'])
         exp('GET ' + p + ' (catalogo publico)', await call('GET', p), 200);
-    for (const p of ['/ventas', '/ventas/1', '/cotizaciones', '/cotizaciones/1', '/compras', '/proveedores', '/usuarios', '/roles', '/permisos', '/detalleventas', '/ventas/dashboard'])
+    for (const p of ['/ventas', '/ventas/1', '/cotizaciones', '/cotizaciones/1', '/compras', '/proveedores', '/usuarios', '/roles', '/permisos', '/ventas/dashboard'])
         exp('GET ' + p + ' (privado)', await call('GET', p), 401, 403);
     for (const [m, p, b] of [['POST', '/productos', { Nombre: 'x', PrecioBase: 1 }], ['PUT', '/productos/1', { Nombre: 'x' }], ['DELETE', '/productos/1'], ['POST', '/colores', { Nombre: 'ZZ' }], ['POST', '/compras', {}], ['POST', '/ventas', { DocumentoID: '1', detalles: [] }], ['POST', '/cotizaciones/inteligente', {}], ['POST', '/usuarios', {}], ['PATCH', '/ventas/1/estado', { EstadoID: 12 }], ['DELETE', '/ventas/1']])
         exp(m + ' ' + p + ' (escritura)', await call(m, p, b), 401, 403);

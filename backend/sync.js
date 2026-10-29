@@ -1,5 +1,15 @@
 const db = require('./models');
 
+// Este script BORRA todas las tablas: nunca en producción, y fuera de ella solo con confirmación explícita
+if (process.env.NODE_ENV === 'production') {
+    console.error('sync.js borra toda la base de datos y no se puede ejecutar con NODE_ENV=production.');
+    process.exit(1);
+}
+if (!process.argv.includes('--confirmar')) {
+    console.error(`Esto borrará TODAS las tablas de "${db.sequelize.config.database}". Para continuar ejecuta con: node sync.js --confirmar`);
+    process.exit(1);
+}
+
 // Las FK se crean en orden arbitrario: se desactivan solo durante el sync
 db.sequelize.addHook('afterConnect', conn => conn.promise().query('SET FOREIGN_KEY_CHECKS=0'));
 

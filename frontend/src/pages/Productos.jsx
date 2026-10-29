@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState } from "react";
 import Swal from "sweetalert2";
 import { FaPlusCircle, FaSearch, FaEye, FaEdit, FaTrash, FaBoxOpen, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import { getProductos, deleteProducto } from "../Services/api-productos/productos";
+import { getProductos } from "../Services/api-productos/productos";
 import { getVariantesByProducto } from "../Services/api-productos/variantes";
 import { getTallas, getColores, getTelas } from "../Services/api-productos/atributos";
 import { getConfigPublica } from "../Services/api-resumen/resumen";

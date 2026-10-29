@@ -34,13 +34,16 @@ const estadoConfig = {
     'Aprobada': { color: C.success, bg: "#f0fdf4", border: "#bbf7d0", icon: <FaCheckCircle size={11} /> },
     'Rechazada': { color: C.danger, bg: "#fef2f2", border: "#fecaca", icon: <FaTimesCircle size={11} /> },
     'Cancelada': { color: C.danger, bg: "#fef2f2", border: "#fecaca", icon: <FaTimesCircle size={11} /> },
+    'En revisión': { color: C.info, bg: "#e0f2fe", border: "#bae6fd", icon: <FaClock size={11} /> },
+    'Vencida': { color: C.muted, bg: "#f1f5f9", border: "#e2e8f0", icon: <FaTimesCircle size={11} /> },
     'Procesada': { color: C.info, bg: "#e0f2fe", border: "#bae6fd", icon: <FaExchangeAlt size={11} /> },
 };
 const getEstado = (nombre) => estadoConfig[nombre] || { color: C.muted, bg: "#f1f5f9", border: "#e2e8f0", icon: <FaClock size={11} /> };
 
 const FLUJO = ['Pendiente', 'Aprobada', 'Procesada'];
+const FALLIDOS = ['Rechazada', 'Cancelada', 'Vencida'];
 const pasosDe = (nombre) => {
-    if (nombre === 'Rechazada' || nombre === 'Cancelada') return { steps: ['Pendiente', nombre], current: 1, failed: true };
+    if (FALLIDOS.includes(nombre)) return { steps: ['Pendiente', nombre], current: 1, failed: true };
     const i = FLUJO.indexOf(nombre);
     return { steps: FLUJO, current: i < 0 ? 0 : i, failed: false };
 };
@@ -280,6 +283,7 @@ const MisCotizaciones = () => {
     const verDetalle = async (id) => {
         try {
             const res = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/${id}`);
+            if (!res.ok) throw new Error("detalle");
             const data = await res.json();
             setCotizacionSeleccionada(data);
             setMostrarDetalle(true);

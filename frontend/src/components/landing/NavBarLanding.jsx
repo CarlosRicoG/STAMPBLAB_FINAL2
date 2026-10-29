@@ -83,6 +83,14 @@ const NavbarComponent = () => {
     const [userData, setUserData] = useState(null);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    // La campana (con su polling) se monta una sola vez: en móvil (< md) o en escritorio
+    const [esMovil, setEsMovil] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 767.98px)").matches);
+    useEffect(() => {
+        const mq = window.matchMedia("(max-width: 767.98px)");
+        const al = (e) => setEsMovil(e.matches);
+        mq.addEventListener("change", al);
+        return () => mq.removeEventListener("change", al);
+    }, []);
     const navigate = useNavigate();
     const location = useLocation();
     const [scrolled, setScrolled] = useState(false);
@@ -166,7 +174,7 @@ const NavbarComponent = () => {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }} className="d-none d-md-flex">
                         {isAuthenticated ? (
                             <>
-                                <CampanaNotificaciones />
+                                {!esMovil && <CampanaNotificaciones />}
                                 <button onClick={() => setShowPerfil(true)}
                                     style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: "#f8fafc", color: C.navy, cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600, fontSize: 13, transition: "all 0.15s" }}
                                     onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accentBorder; }}
@@ -201,7 +209,7 @@ const NavbarComponent = () => {
                     </div>
 
                     {/* Campana - Mobile */}
-                    {isAuthenticated && <div className="d-flex d-md-none" style={{ marginLeft: "auto", marginRight: 8 }}><CampanaNotificaciones /></div>}
+                    {isAuthenticated && esMovil && <div className="d-flex d-md-none" style={{ marginLeft: "auto", marginRight: 8 }}><CampanaNotificaciones /></div>}
 
                     {/* Hamburger - Mobile */}
                     <button onClick={() => setMobileOpen(!mobileOpen)}

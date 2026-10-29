@@ -240,6 +240,7 @@ const MisCompras = () => {
     const nombreUsuario = leerUsuario().Nombre || "";
     const [ventas, setVentas] = useState([]);
     const [cargando, setCargando] = useState(true);
+    const [errorCarga, setErrorCarga] = useState(false);
     const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
     const [documentoID, setDocumentoID] = useState(null);
     const [reordenando, setReordenando] = useState(false);
@@ -262,7 +263,9 @@ const MisCompras = () => {
 
     const cargarVentas = async () => {
         try {
+            setErrorCarga(false);
             const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas?documentoID=${encodeURIComponent(documentoID)}&limit=1000&page=1`);
+            if (!response.ok) throw new Error("ventas");
             const data = await response.json();
 
             // Mostrar TODAS las ventas del usuario (con y sin MetodoPago)
@@ -275,7 +278,9 @@ const MisCompras = () => {
             setVentas(ventasUsuario);
         } catch (error) {
             console.error("Error al cargar compras:", error);
-            setVentas([]);
+            // No se vacía la lista ya cargada: se conservan las compras previas y solo se avisa
+            setErrorCarga(true);
+            Swal.fire({ icon: "error", title: "No pudimos cargar tus compras", text: "Revisa tu conexión e intenta de nuevo.", confirmButtonColor: "#1a2540" });
         } finally {
             setCargando(false);
         }
@@ -327,7 +332,7 @@ const MisCompras = () => {
                 showCancelButton: true, confirmButtonText: "Ir al carrito", cancelButtonText: "Seguir aquí", confirmButtonColor: "#4f8ef7", cancelButtonColor: "#1a2540",
             });
             if (r.isConfirmed) navigate("/productosLanding", { state: { abrirCarrito: true } });
-        } catch (error) {
+        } catch {
             Swal.fire({ icon: "error", title: "No se pudo volver a pedir", text: "No pudimos consultar el catálogo. Intenta de nuevo en unos minutos.", confirmButtonColor: "#dc2626" });
         } finally { setReordenando(false); }
     };
@@ -386,7 +391,8 @@ const MisCompras = () => {
                 <div className="mc-wrap">
 
                     {cargando ? <Skeletons n={3} /> : ventas.length === 0 ? (
-                        <EmptyState icon={<FaShoppingBag />} title="No tienes compras aún" text="Cuando realices un pedido, aparecerá aquí con su seguimiento. Explora nuestros estampados y encuentra el tuyo.">
+                        <EmptyState icon={<FaShoppingBag />} title={errorCarga ? "No pudimos cargar tus compras" : "No tienes compras aún"} text={errorCarga ? "Revisa tu conexión e intenta de nuevo más tarde." : "Cuando realices un pedido, aparecerá aquí con su seguimiento. Explora nuestros estampados y encuentra el tuyo."}>
+                            {errorCarga && <button type="button" className="mc-cta" onClick={() => { setCargando(true); cargarVentas(); }}>Reintentar</button>}
                             <Link to="/productosLanding" className="mc-cta">Explorar productos <FaArrowRight size={12} /></Link>
                             <Link to="/cotizacionesLanding" className="mc-cta alt">Cotizar un diseño</Link>
                         </EmptyState>

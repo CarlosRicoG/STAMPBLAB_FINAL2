@@ -67,7 +67,7 @@ const ProveedoresForm = ({ onClose, onSave, proveedor = null, proveedores = [] }
         if (n.length > 45) return "El nombre no puede exceder 45 caracteres.";
         if (/^\d/.test(n)) return "El nombre no puede comenzar con números.";
         if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(n)) return "El nombre debe comenzar con una letra.";
-        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ][a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s&.\-]*$/.test(n)) return "Solo se permiten letras, números, espacios y (&.-)";
+        if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ][a-zA-ZáéíóúÁÉÍÓÚñÑ0-9\s&.-]*$/.test(n)) return "Solo se permiten letras, números, espacios y (&.-)";
         return "";
     };
     const validateCorreo = (v) => {
@@ -97,7 +97,7 @@ const ProveedoresForm = ({ onClose, onSave, proveedor = null, proveedores = [] }
     };
 
     const verificarCorreoUnico = (correo) =>
-        proveedores.some(p => p.Correo.toLowerCase() === correo.toLowerCase() && p.Nit !== formData.nit);
+        proveedores.some(p => (p.Correo || "").toLowerCase() === correo.toLowerCase() && p.Nit !== proveedor?.Nit);
 
     const validate = (name, value) => {
         if (name === "nit") return validateNit(value);

@@ -85,7 +85,6 @@ router.get('/', admin, cotizacionController.getAllCotizaciones);
 router.get('/usuario/:documentoID', verificarToken, propioOAdmin('documentoID'), cotizacionController.getCotizacionesByUsuario);
 router.get('/:id/historial', verificarToken, cotizacionPropiaOAdmin, cotizacionController.historialCotizacion);
 router.get('/:id', verificarToken, cotizacionPropiaOAdmin, cotizacionController.getCotizacionById);
-router.put('/detalle/:id', admin, require('../controllers/detallecotizacionController').updateDetalleCotizacion);
 router.put('/:id', admin, cotizacionController.updateCotizacion);
 router.delete('/:id', admin, cotizacionController.deleteCotizacion);
 router.post('/inteligente', verificarToken, cotizacionDelCliente, validar(esquemas.cotizacion), cotizacionController.createCotizacionInteligente);

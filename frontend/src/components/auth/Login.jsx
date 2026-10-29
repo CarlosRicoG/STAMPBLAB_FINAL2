@@ -439,14 +439,21 @@ const LoginLanding = () => {
         try {
             const res = await loginUsuario({ Correo: correo, Contraseña: contraseña });
             localStorage.setItem("token", res.data.token);
-            localStorage.setItem("usuario", JSON.stringify({ Nombre: res.data.nombre, Correo: res.data.correo || res.data.Correo, DocumentoID: res.data.DocumentoID || res.data.documentoID, rol: res.data.rol }));
+            localStorage.setItem("usuario", JSON.stringify({ Nombre: res.data.nombre, Correo: res.data.correo || res.data.Correo, DocumentoID: res.data.DocumentoID || res.data.documentoID, rol: res.data.rol, Telefono: res.data.telefono || "", Direccion: res.data.direccion || "" }));
 
             if (res.data.rol === 1 || res.data.rol === "1") {
                 Swal.fire({ icon: "success", title: "¡Bienvenido Administrador!", text: res.data.nombre, timer: 1500, showConfirmButton: false, toast: true, position: "top-end" });
                 navigate("/dashboard");
             } else {
                 Swal.fire({ icon: "success", title: "¡Bienvenido!", text: res.data.nombre, timer: 1500, showConfirmButton: false, toast: true, position: "top-end" });
-                navigate("/landing");
+                // Cliente: vuelve a la ruta que pedía antes de iniciar sesión (solo rutas internas)
+                let destino = "/landing";
+                try {
+                    const r = sessionStorage.getItem("redirectAfterLogin");
+                    sessionStorage.removeItem("redirectAfterLogin");
+                    if (r && r.startsWith("/") && !r.startsWith("//")) destino = r;
+                } catch { /* sin storage */ }
+                navigate(destino);
             }
         } catch (err) {
             if (err.response?.status === 401 || err.response?.status === 400) {
