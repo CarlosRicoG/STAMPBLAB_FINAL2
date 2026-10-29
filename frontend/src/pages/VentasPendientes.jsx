@@ -208,6 +208,7 @@ const VentasPendientes = () => {
     const Toast = Swal.mixin({ toast: true, position: "top-end", showConfirmButton: false, timer: 3000, timerProgressBar: true });
 
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     useEffect(() => { loadVentasPendientes(1, itemsPorPagina, ""); loadEstadosVenta(); }, []);
 
     useEffect(() => {
@@ -216,6 +217,7 @@ const VentasPendientes = () => {
             loadVentasPendientes(1, itemsPorPagina, filtro);
         }, 350);
         return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [filtro]);
 
 

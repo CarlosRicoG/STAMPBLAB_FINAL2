@@ -329,6 +329,7 @@ const ProductModal = ({ product, open, onClose, tallas, onAddToCart, initColor =
     const [talla, setTalla] = useState(initTalla);
     const [qty, setQty] = useState(initQty);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     useEffect(() => { if (open) { setColor(initColor); setTalla(initTalla); setQty(initQty); } }, [open, product]);
     if (!open || !product) return null;
 
@@ -902,6 +903,7 @@ const ProductosLanding = () => {
             setCartOpen(true);
             navigate(location.pathname, { replace: true, state: null });
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [location.state]);
 
     // Al entrar con sesión: fusionar el carrito local con el del servidor (si el servidor falla, sigue el local)

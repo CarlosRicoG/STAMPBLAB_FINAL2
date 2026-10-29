@@ -140,6 +140,7 @@ const AgregarProducto = () => {
             } catch { Swal.fire("Error", "No se pudieron cargar atributos", "error"); }
         })();
         if (modoEdicion) cargarProductoExistente();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [id]);
 
     const cargarProductoExistente = async () => {

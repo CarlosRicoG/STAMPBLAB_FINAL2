@@ -259,6 +259,7 @@ const MisCompras = () => {
 
     useEffect(() => {
         if (documentoID) cargarVentas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [documentoID]);
 
     const cargarVentas = async () => {

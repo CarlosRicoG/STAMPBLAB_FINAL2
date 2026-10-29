@@ -400,6 +400,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
 
     useEffect(() => {
         if (!modoPersonalizado) validarStockTiempoReal();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [colorID, tallaID, telaID, cantidad, traePrenda, variantesDisponibles, modoPersonalizado]);
 
     const validarStockTiempoReal = () => {

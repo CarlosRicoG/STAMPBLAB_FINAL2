@@ -282,6 +282,7 @@ const CotizacionLanding = () => {
         if (formProducto.ColorID && !coloresDisp.some(c => c.ColorID === parseInt(formProducto.ColorID))) { setFormProducto(prev => ({ ...prev, ColorID: "", TallaID: "", TipoTela: "" })); return; }
         if (formProducto.TallaID && !tallasDisp.some(t => t.TallaID === parseInt(formProducto.TallaID))) { setFormProducto(prev => ({ ...prev, TallaID: "", TipoTela: "" })); return; }
         if (formProducto.TipoTela && !telasDisp.some(t => t.InsumoID === parseInt(formProducto.TipoTela))) setFormProducto(prev => ({ ...prev, TipoTela: "" }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [productoSeleccionado, traePrenda, formProducto.ColorID, formProducto.TallaID, variantesProducto]);
 
     // ── Auth ──

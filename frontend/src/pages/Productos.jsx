@@ -191,6 +191,7 @@ const Productos = () => {
   // DESPUÉS:
   useEffect(() => {
     cargarDatos(1, itemsPorPagina, "");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
   }, []);  // Solo en montaje
 
   useEffect(() => {
@@ -201,6 +202,7 @@ const Productos = () => {
       cargarDatos(1, itemsPorPagina, busqueda);
     }, 350);  // debounce: espera 350ms después de que el usuario deja de escribir
     return () => clearTimeout(timeout);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
   }, [busqueda]);
 
 

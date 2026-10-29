@@ -49,7 +49,7 @@ const CustomTooltip = ({ active, payload, label, unit = "unidades" }) => {
 };
 
 /* ── Tarjeta KPI ── */
-const KpiCard = ({ label, value, color, bg, border }) => (
+const KpiCard = ({ label, value, icon: Icon, color, bg, border }) => (
     <div style={{
         background: bg, borderRadius: 16, padding: "20px 24px",
         border: `1.5px solid ${border}`, display: "flex", alignItems: "center", gap: 16,

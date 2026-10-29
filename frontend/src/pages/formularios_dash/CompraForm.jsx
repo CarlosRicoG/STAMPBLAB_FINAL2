@@ -300,6 +300,7 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
     useEffect(() => {
         cargarDatos();
         if (compra) cargarCompraExistente(compra);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [compra]);
 
     const cargarDatos = async () => {

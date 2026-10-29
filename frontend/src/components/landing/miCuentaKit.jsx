@@ -82,6 +82,7 @@ export const PillTabs = ({ items, value, onChange }) => {
         const el = wrap.current?.querySelector(".mc-tab.on");
         if (el) setInd({ left: el.offsetLeft, width: el.offsetWidth, ready: true });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     useLayoutEffect(medir, [value, items.length, items.map((x) => x.count).join(",")]);
     useEffect(() => {
         window.addEventListener("resize", medir);

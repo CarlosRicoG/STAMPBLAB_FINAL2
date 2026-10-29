@@ -49,6 +49,7 @@ const Ventas = () => {
             loadVentas(1, itemsPorPagina, filtro);
         }, delay);
         return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [filtro]);
 
     const loadVentas = async (page, limit, search) => {

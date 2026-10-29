@@ -105,6 +105,7 @@ const FormularioCompra = () => {
         verificarAutenticacion();
         if (!producto) { navigate("/productosLanding"); return; }
         cargarCatalogos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [producto, navigate]);
 
     useEffect(() => {
@@ -116,6 +117,7 @@ const FormularioCompra = () => {
             setTallaID(""); setTelaID(""); return;
         }
         if (telaID && !obtenerTelasDisponibles().some(t => t.InsumoID === parseInt(telaID))) setTelaID("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [colorID, tallaID, variantesProducto]);
 
     const verificarAutenticacion = () => {

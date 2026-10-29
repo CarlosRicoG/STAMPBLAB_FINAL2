@@ -203,6 +203,7 @@ const Clientes = () => {
             loadClientes(1, itemsPorPagina, search);
         }, 350);
         return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [search]);
 
     /* ── Función principal de carga ── */

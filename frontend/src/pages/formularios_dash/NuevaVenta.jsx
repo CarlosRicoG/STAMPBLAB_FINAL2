@@ -129,6 +129,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         fetchProductos();
 
         if (ventaEdit) cargarDatosVenta();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- se ejecuta solo cuando cambia esta dependencia; usa la versión actual de las funciones
     }, [ventaEdit]);
 
     const cargarDatosVenta = async () => {
