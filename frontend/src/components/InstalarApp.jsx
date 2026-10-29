@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { C } from "../config/tokens";
 
 const esStandalone = () =>
   window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -42,7 +43,7 @@ export default function InstalarApp() {
         aria-label="Cómo instalar la aplicación"
         style={{
           position: "fixed", left: 16, bottom: 16, zIndex: 1050, display: "flex", alignItems: "center", gap: 8,
-          padding: "10px 16px", border: 0, borderRadius: 999, color: "#fff", fontWeight: 700, fontSize: 13,
+          padding: "10px 16px", border: 0, borderRadius: 999, color: C.white, fontWeight: 700, fontSize: 13,
           background: "linear-gradient(135deg, #4f8ef7, #7c3aed)", boxShadow: "0 8px 20px rgba(124,58,237,.35)", cursor: "pointer",
         }}
       >
@@ -54,7 +55,7 @@ export default function InstalarApp() {
           onClick={() => setAyuda(false)}
           style={{ position: "fixed", inset: 0, zIndex: 1100, background: "rgba(15,23,42,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
         >
-          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 24, maxWidth: 420, width: "100%" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.white, borderRadius: 16, padding: 24, maxWidth: 420, width: "100%" }}>
             <h5 style={{ marginBottom: 12 }}>Instalar StampLab</h5>
             <ol style={{ paddingLeft: 20, marginBottom: 16 }}>
               {pasos.map((p) => <li key={p} style={{ marginBottom: 8 }}>{p}</li>)}

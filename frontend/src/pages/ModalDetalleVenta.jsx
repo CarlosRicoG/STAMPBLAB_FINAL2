@@ -6,38 +6,39 @@ import React, { useEffect, useState } from 'react';
 import Swal from "sweetalert2";
 import { FaCreditCard, FaTruck, FaInfoCircle, FaTimes, FaUser, FaReceipt, FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaIdCard, FaCheck, FaBan, FaSearchPlus, FaDownload, FaBoxOpen, FaStore, FaWhatsapp, FaHistory, FaCalendarAlt, FaClock } from 'react-icons/fa';
 import { ESTADO_VENTA } from "../config/estados";
+import { C } from "../config/tokens";
 
 /* ══════════════════════════════════════════════════════════
    Utilidades compartidas del módulo de Ventas (Pedidos / Pendientes)
    ══════════════════════════════════════════════════════════ */
 export const VT = {
-    navy: "#1a2540",
+    navy: C.navy,
     navy2: "#2d3f6e",
     navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    violet: "#7c3aed",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    successBorder: "#bbf7d0",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    warningBorder: "#fde68a",
-    danger: "#dc2626",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
+    accent: C.accent,
+    accentSoft: C.accentSoft,
+    accentBorder: C.accentBorder,
+    violet: C.violet,
+    success: C.success,
+    successSoft: C.successSoft,
+    successBorder: C.successBorder,
+    warning: C.warning,
+    warningSoft: C.warningSoft,
+    warningBorder: C.warningBorder,
+    danger: C.danger,
+    muted: C.muted,
+    border: C.border,
+    bg: C.bg,
 };
 
 /* Estados de venta (tabla estados, tipo 'venta') */
 export const ESTADOS_VENTA = {
-    8: { nombre: "Pendiente", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
-    9: { nombre: "Pagada", color: "#16a34a", bg: "#f0fdf4", border: "#bbf7d0" },
+    8: { nombre: "Pendiente", color: C.warning, bg: C.warningSoft, border: C.warningBorder },
+    9: { nombre: "Pagada", color: C.success, bg: C.successSoft, border: C.successBorder },
     10: { nombre: "En Producción", color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
-    13: { nombre: "Lista para Entrega", color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
+    13: { nombre: "Lista para Entrega", color: C.violet, bg: C.purpleSoft, border: C.purpleBorder },
     11: { nombre: "Entregada", color: "#0f766e", bg: "#f0fdfa", border: "#99f6e4" },
-    12: { nombre: "Cancelada", color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+    12: { nombre: "Cancelada", color: C.danger, bg: C.dangerSoft, border: C.dangerBorder },
 };
 const ESTILO_POR_NOMBRE = Object.fromEntries(Object.values(ESTADOS_VENTA).map(e => [e.nombre, e]));
 export const estiloEstado = (idOrNombre) =>
@@ -79,9 +80,9 @@ export const iniciales = (nombre = "") =>
     (nombre.trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]).join("") || "?").toUpperCase();
 
 const COLORES_HEX = {
-    blanco: "#ffffff", negro: "#111827", rojo: "#dc2626", azul: "#2563eb", gris: "#9ca3af",
-    verde: "#16a34a", amarillo: "#facc15", naranja: "#f97316", rosado: "#f472b6", rosa: "#f472b6",
-    morado: "#7c3aed", violeta: "#7c3aed", beige: "#e7d8b9", cafe: "#7c4a21", "café": "#7c4a21",
+    blanco: C.white, negro: "#111827", rojo: C.danger, azul: "#2563eb", gris: "#9ca3af",
+    verde: C.success, amarillo: "#facc15", naranja: "#f97316", rosado: "#f472b6", rosa: "#f472b6",
+    morado: C.violet, violeta: C.violet, beige: "#e7d8b9", cafe: "#7c4a21", "café": "#7c4a21",
     marron: "#7c4a21", "marrón": "#7c4a21", vinotinto: "#7f1d1d", celeste: "#7dd3fc", turquesa: "#14b8a6",
     "azul marino": "#1e3a8a", "verde militar": "#4d5d2b", crema: "#fef3c7", fucsia: "#d946ef", dorado: "#d4a017", plateado: "#c0c0c0",
 };
@@ -215,7 +216,7 @@ export const VT_CSS = `
 export const TimelineEstado = ({ estadoID }) => {
     if (estadoID === 12) {
         return (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "10px 14px", color: "#b91c1c", fontSize: 13, fontWeight: 600 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: C.dangerSoft, border: "1px solid #fecaca", borderRadius: 12, padding: "10px 14px", color: "#b91c1c", fontSize: 13, fontWeight: 600 }}>
                 <FaBan /> Esta venta fue cancelada. El flujo del pedido se detuvo.
             </div>
         );
@@ -396,7 +397,7 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                         <button className="vt-mclose" onClick={onClose} disabled={saving} aria-label="Cerrar"><FaTimes size={13} /></button>
                     </div>
                 </div>
-                <div className="vt-mbody" style={{ background: "#fff", padding: "18px 22px" }}>
+                <div className="vt-mbody" style={{ background: C.white, padding: "18px 22px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14, fontSize: 12, color: VT.muted, fontWeight: 600, flexWrap: "wrap" }}>
                         Estado actual <EstadoBadge id={venta.EstadoID} nombre={venta.estado?.Nombre} />
                         {sel && <><span style={{ fontSize: 16, color: "#94a3b8" }}>→</span><EstadoBadge id={selID} /></>}
@@ -433,7 +434,7 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                             pideFecha={pideFecha} errorFecha={errorFecha} errorNota={errorNota} />
                     )}
                     {selID === 12 && (
-                        <div style={{ marginTop: 12, background: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successSoft : "#fef2f2", border: `1px solid ${venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successBorder : "#fecaca"}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? "#166534" : "#991b1b", fontWeight: 600 }}>
+                        <div style={{ marginTop: 12, background: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successSoft : C.dangerSoft, border: `1px solid ${venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successBorder : C.dangerBorder}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? "#166534" : "#991b1b", fontWeight: 600 }}>
                             {venta.EstadoID === ESTADO_VENTA.PENDIENTE
                                 ? `Se devolverán ${unidades} unidad(es) al inventario. `
                                 : "La venta ya no está pendiente: el stock NO se devuelve al inventario. "}
@@ -450,7 +451,7 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                     <button className="vt-btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
                     <button className="vt-btn-primary vt-confirm-estado" onClick={confirmar} disabled={!sel || saving || !!errorFecha || !!errorNota}
                         style={selID === 12 ? { background: VT.danger, boxShadow: "0 4px 14px rgba(220,38,38,.3)" } : undefined}>
-                        {saving && <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "vtSpin .7s linear infinite" }} />}
+                        {saving && <span style={{ width: 14, height: 14, border: "2px solid rgba(255,255,255,.4)", borderTopColor: C.white, borderRadius: "50%", animation: "vtSpin .7s linear infinite" }} />}
                         {selID === 12 ? "Cancelar venta" : "Confirmar"}
                     </button>
                 </div>
@@ -596,7 +597,7 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
                 <div className="vt-mbody">
                     {/* Timeline */}
                     <div className="vt-sec" style={{ marginBottom: 14 }}>
-                        <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: "#f5f3ff", color: VT.violet }}><FaCheck /></span>Seguimiento del pedido</p>
+                        <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: C.purpleSoft, color: VT.violet }}><FaCheck /></span>Seguimiento del pedido</p>
                         <TimelineEstado estadoID={venta.EstadoID} />
                         {fechaEstimada && venta.EstadoID !== 12 && venta.EstadoID !== 11 && (
                             <div className="vt-kv" style={{ marginTop: 14, color: VT.violet, fontWeight: 700 }}>
@@ -665,7 +666,7 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
 
                         {/* Totales */}
                         <div className="vt-sec" style={{ animationDelay: ".12s", display: "flex", flexDirection: "column" }}>
-                            <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: "#f5f3ff", color: VT.violet }}><FaReceipt /></span>Resumen</p>
+                            <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: C.purpleSoft, color: VT.violet }}><FaReceipt /></span>Resumen</p>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: VT.muted, marginBottom: 6 }}>
                                 <span>Productos</span><strong style={{ color: VT.navy }}>{detalles.length} ítem(s) · {unidades} und.</strong>
                             </div>
@@ -737,14 +738,14 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
                                             <a className="vt-btn-ghost" href={venta.ComprobanteTransferencia} download={`comprobante-venta-${venta.VentaID}`} style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}><FaDownload /> Descargar</a>
                                             {pendiente && metodo === "transferencia" && (
                                                 <button className="vt-btn-ghost" onClick={handleRechazar} disabled={rechazando}
-                                                    style={{ display: "inline-flex", alignItems: "center", gap: 7, color: VT.danger, background: "#fef2f2" }}>
+                                                    style={{ display: "inline-flex", alignItems: "center", gap: 7, color: VT.danger, background: C.dangerSoft }}>
                                                     <FaBan /> {rechazando ? "Rechazando..." : "Rechazar comprobante"}
                                                 </button>
                                             )}
                                         </div>
                                     </div>
                                     {motivoRechazo && (
-                                        <div role="status" style={{ marginTop: 12, background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#991b1b", fontWeight: 600 }}>
+                                        <div role="status" style={{ marginTop: 12, background: C.dangerSoft, border: "1px solid #fecaca", borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: "#991b1b", fontWeight: 600 }}>
                                             Comprobante rechazado. Motivo: <span style={{ fontWeight: 500 }}>{motivoRechazo}</span>
                                         </div>
                                     )}
@@ -755,7 +756,7 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
 
                     {/* Historial */}
                     <div className="vt-sec" style={{ marginBottom: 14 }}>
-                        <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: "#f5f3ff", color: VT.violet }}><FaHistory /></span>Historial del pedido</p>
+                        <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: C.purpleSoft, color: VT.violet }}><FaHistory /></span>Historial del pedido</p>
                         {historial === null ? (
                             <div><div className="vt-skel" style={{ width: "60%", marginBottom: 8 }} /><div className="vt-skel" style={{ width: "40%" }} /></div>
                         ) : historial.length === 0 ? (

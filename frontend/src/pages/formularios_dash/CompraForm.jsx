@@ -69,7 +69,7 @@ const CSS = `
    SUB-COMPONENTES
 ───────────────────────────────────────────────────────── */
 const TH = {
-    color: "#fff", fontSize: 12, fontWeight: 700,
+    color: C.white, fontSize: 12, fontWeight: 700,
     padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em", textAlign: "left",
 };
 
@@ -82,13 +82,13 @@ const Label = ({ children, required }) => (
 const inputStyle = {
     width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 9,
     padding: "8px 12px", fontSize: 13, fontFamily: "'Outfit',sans-serif",
-    color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow .2s", background: "#fff",
+    color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow .2s", background: C.white,
 };
 const invalidStyle = { borderColor: C.danger, background: C.dangerSoft };
 
 const Input = ({ readOnly, invalid, style: sx, ...props }) => (
     <input {...props} readOnly={readOnly}
-        style={{ ...inputStyle, ...(readOnly ? { background: "#f8fafc", color: C.muted, cursor: "default" } : {}), ...(invalid ? invalidStyle : {}), ...sx }}
+        style={{ ...inputStyle, ...(readOnly ? { background: C.bg, color: C.muted, cursor: "default" } : {}), ...(invalid ? invalidStyle : {}), ...sx }}
         onFocus={e => { if (!readOnly) { e.target.style.borderColor = C.accent; e.target.style.boxShadow = "0 0 0 4px rgba(79,142,247,.12)"; } }}
         onBlur={e => { e.target.style.borderColor = invalid ? C.danger : C.border; e.target.style.boxShadow = "none"; }}
     />
@@ -105,12 +105,12 @@ const FieldError = ({ msg }) => msg ? <p className="cp-err"><FaExclamationTriang
 const Badge = ({ type, children }) => {
     const map = {
         success: { bg: C.successSoft, color: C.success, border: C.successBorder },
-        warning: { bg: C.warningSoft, color: C.warning, border: "#fde68a" },
-        danger: { bg: C.dangerSoft, color: C.danger, border: "#fecaca" },
+        warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
+        danger: { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
         accent: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-        violet: { bg: "#f5f3ff", color: C.violet, border: "#ddd6fe" },
-        navy: { bg: C.navy, color: "#fff", border: C.navy },
-        info: { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd" },
+        violet: { bg: C.purpleSoft, color: C.violet, border: C.purpleBorder },
+        navy: { bg: C.navy, color: C.white, border: C.navy },
+        info: { bg: C.infoSoft, color: C.info, border: "#bae6fd" },
         muted: { bg: "#f1f5f9", color: C.muted, border: C.border },
     };
     const s = map[type] || map.muted;
@@ -132,17 +132,17 @@ const SectionTitle = ({ children, sub }) => (
 );
 
 const Card = ({ children, style }) => (
-    <div style={{ background: "#fff", borderRadius: 16, padding: "22px 26px", boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px #f1f5f9", marginBottom: 20, ...style }}>
+    <div style={{ background: C.white, borderRadius: 16, padding: "22px 26px", boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px #f1f5f9", marginBottom: 20, ...style }}>
         {children}
     </div>
 );
 
 const Btn = ({ variant = "primary", children, style: sx, ...props }) => {
     const variants = {
-        primary: { background: C.navy, color: "#fff", border: "none" },
+        primary: { background: C.navy, color: C.white, border: "none" },
         secondary: { background: "#f1f5f9", color: C.muted, border: "none" },
-        success: { background: C.success, color: "#fff", border: "none" },
-        danger: { background: C.danger, color: "#fff", border: "none" },
+        success: { background: C.success, color: C.white, border: "none" },
+        danger: { background: C.danger, color: C.white, border: "none" },
         outline: { background: "transparent", color: C.navy, border: `1.5px solid ${C.navy}` },
         "outline-danger": { background: "transparent", color: C.danger, border: `1.5px solid ${C.danger}` },
         "outline-accent": { background: "transparent", color: C.accent, border: `1.5px solid ${C.accent}` },
@@ -180,11 +180,11 @@ const Modal = ({ show, onHide, title, children, footer, size = "lg" }) => {
     const maxW = { sm: 480, md: 640, lg: 820, xl: 1020 }[size] || 820;
     return (
         <div className="cp-overlay" onClick={onHide}>
-            <div className="cp-modal" role="dialog" aria-modal="true" style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: maxW, maxHeight: "88vh", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "'Outfit',sans-serif" }}
+            <div className="cp-modal" role="dialog" aria-modal="true" style={{ background: C.white, borderRadius: 18, width: "100%", maxWidth: maxW, maxHeight: "88vh", overflow: "hidden", display: "flex", flexDirection: "column", fontFamily: "'Outfit',sans-serif" }}
                 onClick={e => e.stopPropagation()}>
                 <div style={{ background: "radial-gradient(120% 160% at 100% 0%, rgba(124,58,237,.4) 0%, rgba(124,58,237,0) 55%), linear-gradient(120deg,#1a2540 0%,#2d3f6e 100%)", padding: "16px 22px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ color: "#fff", fontWeight: 700, fontSize: 15, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}>{title}</span>
-                    <button type="button" onClick={onHide} aria-label="Cerrar" style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 7, width: 28, height: 28, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
+                    <span style={{ color: C.white, fontWeight: 700, fontSize: 15, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}>{title}</span>
+                    <button type="button" onClick={onHide} aria-label="Cerrar" style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 7, width: 28, height: 28, color: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
                 </div>
                 <div style={{ overflowY: "auto", padding: "22px 24px", flex: 1 }}>{children}</div>
                 {footer && <div style={{ padding: "14px 24px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "flex-end", gap: 10 }}>{footer}</div>}
@@ -222,7 +222,7 @@ const SearchModal = ({ show, onHide, title, icon, searchValue, onSearch, placeho
 );
 
 const TR = ({ children, idx }) => (
-    <tr className="det-row" style={{ background: idx % 2 === 0 ? "#fff" : "#fafbff" }}>
+    <tr className="det-row" style={{ background: idx % 2 === 0 ? C.white : "#fafbff" }}>
         {children}
     </tr>
 );
@@ -520,9 +520,9 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
                 {/* ── HEADER ── */}
                 <div className="cp-form-head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 28 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                        <button type="button" onClick={onClose} aria-label="Volver" style={{ width: 38, height: 38, borderRadius: 10, border: `1.5px solid ${C.border}`, background: "#fff", color: C.navy, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}
+                        <button type="button" onClick={onClose} aria-label="Volver" style={{ width: 38, height: 38, borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.white, color: C.navy, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}
                             onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; }}>
+                            onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; }}>
                             <FaArrowLeft size={14} />
                         </button>
                         <div>
@@ -572,7 +572,7 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
                             <button type="button" className="cp-pick" onClick={() => { setBusqInsumo(""); setModalInsumo(true); }}
                                 style={{
                                     border: `2px solid ${tipoSeleccion === "insumo" ? C.accent : C.border}`,
-                                    background: tipoSeleccion === "insumo" ? C.accentSoft : "#fff",
+                                    background: tipoSeleccion === "insumo" ? C.accentSoft : C.white,
                                     color: tipoSeleccion === "insumo" ? C.accent : C.muted,
                                 }}>
                                 <FaBoxOpen size={18} /> Elegir Insumo
@@ -580,7 +580,7 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
                             <button type="button" className="cp-pick" onClick={() => { setBusqProd(""); setModalProducto(true); }}
                                 style={{
                                     border: `2px solid ${tipoSeleccion === "producto" ? C.success : C.border}`,
-                                    background: tipoSeleccion === "producto" ? C.successSoft : "#fff",
+                                    background: tipoSeleccion === "producto" ? C.successSoft : C.white,
                                     color: tipoSeleccion === "producto" ? C.success : C.muted,
                                 }}>
                                 <FaTshirt size={18} /> Elegir Producto
@@ -673,7 +673,7 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
                                     <div>
                                         <Label>Precio Venta</Label>
                                         <Input readOnly value={money(calcPrecioVenta(prodSel, varConfig.TallaID, varConfig.TelaID))}
-                                            style={{ fontWeight: 700, color: C.success, background: "#fff" }} />
+                                            style={{ fontWeight: 700, color: C.success, background: C.white }} />
                                     </div>
                                     <Btn variant="success" onClick={handleAgregarProducto} title="Agregar al detalle" style={{ height: 38, marginTop: 22, flexShrink: 0 }}>
                                         <FaPlus size={13} />
@@ -724,7 +724,7 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
                                             const cantMal = !(Number.isInteger(Number(d.Cantidad)) && Number(d.Cantidad) > 0);
                                             const esProd = d.TipoSeleccion === "producto";
                                             return (
-                                            <tr key={i} className="det-row" style={{ background: i % 2 === 0 ? "#fff" : "#fafbff", borderBottom: `1px solid #eef2f7` }}>
+                                            <tr key={i} className="det-row" style={{ background: i % 2 === 0 ? C.white : "#fafbff", borderBottom: `1px solid #eef2f7` }}>
                                                 <td style={{ padding: "11px 14px", color: C.muted, fontSize: 12, fontWeight: 600 }}>{i + 1}</td>
                                                 <td style={{ padding: "11px 14px" }}>
                                                     {!esProd
@@ -842,7 +842,7 @@ const NuevaCompra = ({ onClose, onSave, compra = null }) => {
                                 <div className="cp-tline" style={{ marginTop: 6 }}><span>Ítems</span><strong style={{ color: C.navy }}>{detalles.length}</strong></div>
                                 <div className="cp-tline"><span>Unidades</span><strong style={{ color: C.navy }}>{totalUnidades}</strong></div>
                             </div>
-                            <div style={{ margin: "8px 16px 0", background: C.navyGrad, borderRadius: 14, padding: "14px 16px", color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ margin: "8px 16px 0", background: C.navyGrad, borderRadius: 14, padding: "14px 16px", color: C.white, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <span style={{ fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", opacity: .8, fontWeight: 700 }}>Total</span>
                                 <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-.02em" }}>{money(totalCompra)}</span>
                             </div>

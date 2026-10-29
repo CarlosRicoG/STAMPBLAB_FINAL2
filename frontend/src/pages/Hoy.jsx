@@ -237,10 +237,10 @@ const Hoy = () => {
                 )}
 
                 <div className="cf-p-kpis">
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-cotizaciones")}><span className="cf-p-kpi-ic" style={{ background: "#f0f4ff", color: C.accent }}><FaFileInvoiceDollar /></span><div><b>{k(cots.length)}</b><span>Cotizaciones por atender</span></div></button>
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-comprobantes")}><span className="cf-p-kpi-ic" style={{ background: "#fffbeb", color: C.warning }}><FaReceipt /></span><div><b>{k(comps.length)}</b><span>Comprobantes por revisar</span></div></button>
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-pedidos")}><span className="cf-p-kpi-ic" style={{ background: "#f5f3ff", color: C.violet }}><FaTruck /></span><div><b>{k(peds.length)}</b><span>Pedidos por avanzar</span></div></button>
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-stock")}><span className="cf-p-kpi-ic" style={{ background: "#fef2f2", color: C.danger }}><FaBoxes /></span><div><b>{k(stock.length)}</b><span>Variantes con stock bajo</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-cotizaciones")}><span className="cf-p-kpi-ic" style={{ background: C.accentSoft, color: C.accent }}><FaFileInvoiceDollar /></span><div><b>{k(cots.length)}</b><span>Cotizaciones por atender</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-comprobantes")}><span className="cf-p-kpi-ic" style={{ background: C.warningSoft, color: C.warning }}><FaReceipt /></span><div><b>{k(comps.length)}</b><span>Comprobantes por revisar</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-pedidos")}><span className="cf-p-kpi-ic" style={{ background: C.purpleSoft, color: C.violet }}><FaTruck /></span><div><b>{k(peds.length)}</b><span>Pedidos por avanzar</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-stock")}><span className="cf-p-kpi-ic" style={{ background: C.dangerSoft, color: C.danger }}><FaBoxes /></span><div><b>{k(stock.length)}</b><span>Variantes con stock bajo</span></div></button>
                 </div>
 
                 {!error && (
@@ -280,7 +280,7 @@ const Hoy = () => {
                                                 <button className="cf-p-thumb" onClick={() => src && setZoom(src)} disabled={!src}
                                                     aria-label={`Ampliar comprobante del pedido ${v.VentaID}`} title="Ampliar comprobante">
                                                     {src ? <img src={src} alt={`Comprobante del pedido ${v.VentaID}`} loading="lazy" /> : <FaReceipt aria-hidden="true" />}
-                                                    {src && <FaSearchPlus size={11} aria-hidden="true" style={{ position: "absolute", right: 4, bottom: 4, color: "#fff", filter: "drop-shadow(0 0 2px #000)" }} />}
+                                                    {src && <FaSearchPlus size={11} aria-hidden="true" style={{ position: "absolute", right: 4, bottom: 4, color: C.white, filter: "drop-shadow(0 0 2px #000)" }} />}
                                                 </button>
                                                 <div className="cf-p-main">
                                                     <div className="cf-p-name">Pedido #{v.VentaID} · {v.cliente || "Cliente sin nombre"}</div>

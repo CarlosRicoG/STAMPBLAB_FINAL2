@@ -64,14 +64,14 @@ const CP_CSS = `
 
 const Badge = ({ type, children }) => {
     const map = {
-        success: { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
-        warning: { bg: "#fffbeb", color: C.warning, border: "#fde68a" },
-        danger:  { bg: "#fef2f2", color: C.danger,  border: "#fecaca" },
-        accent:  { bg: "#f0f4ff", color: C.accent,  border: "#c7d9ff" },
-        violet:  { bg: "#f5f3ff", color: C.violet,  border: "#ddd6fe" },
-        navy:    { bg: C.navy,    color: "#fff",     border: C.navy },
-        info:    { bg: "#e0f2fe", color: "#0369a1",  border: "#bae6fd" },
-        muted:   { bg: "#f1f5f9", color: C.muted,   border: "#e2e8f0" },
+        success: { bg: C.successSoft, color: C.success, border: C.successBorder },
+        warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
+        danger:  { bg: C.dangerSoft, color: C.danger,  border: C.dangerBorder },
+        accent:  { bg: C.accentSoft, color: C.accent,  border: C.accentBorder },
+        violet:  { bg: C.purpleSoft, color: C.violet,  border: C.purpleBorder },
+        navy:    { bg: C.navy,    color: C.white,     border: C.navy },
+        info:    { bg: C.infoSoft, color: C.info,  border: "#bae6fd" },
+        muted:   { bg: "#f1f5f9", color: C.muted,   border: C.border },
     };
     const s = map[type] || map.muted;
     return (
@@ -123,13 +123,13 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
 
     const btnBase = {
         minWidth: 34, height: 34, borderRadius: 9, border: `1.5px solid ${C.border}`,
-        background: "#fff", color: C.muted, fontSize: 13, fontWeight: 600,
+        background: C.white, color: C.muted, fontSize: 13, fontWeight: 600,
         cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontFamily: "'Outfit',sans-serif", transition: "all 0.18s", padding: "0 8px",
     };
 
     return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderTop: `1px solid ${C.border}`, background: "#fff", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", borderTop: `1px solid ${C.border}`, background: C.white, flexWrap: "wrap", gap: 12 }}>
 
             {/* Info items */}
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
@@ -139,7 +139,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Por página:</span>
                     <select value={itemsPorPagina} onChange={e => onCambiarItemsPorPagina(Number(e.target.value))}
-                        style={{ border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontFamily: "'Outfit',sans-serif", outline: "none", color: C.navy, cursor: "pointer", background: "#fff" }}
+                        style={{ border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontFamily: "'Outfit',sans-serif", outline: "none", color: C.navy, cursor: "pointer", background: C.white }}
                         onFocus={e => e.target.style.borderColor = C.accent}
                         onBlur={e => e.target.style.borderColor = C.border}>
                         {ITEMS_POR_PAGINA_OPCIONES.map(n => <option key={n} value={n}>{n}</option>)}
@@ -154,7 +154,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                     disabled={paginaActual === 1} aria-label="Página anterior"
                     style={{ ...btnBase, opacity: paginaActual === 1 ? 0.4 : 1, cursor: paginaActual === 1 ? "not-allowed" : "pointer" }}
                     onMouseEnter={e => { if (paginaActual !== 1) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                    onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
                     <FaChevronLeft size={11} />
                 </button>
 
@@ -165,15 +165,15 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                         <button key={p} onClick={() => onCambiarPagina(p)}
                             style={{
                                 ...btnBase,
-                                background: p === paginaActual ? C.navy : "#fff",
-                                color: p === paginaActual ? "#fff" : C.muted,
+                                background: p === paginaActual ? C.navy : C.white,
+                                color: p === paginaActual ? C.white : C.muted,
                                 borderColor: p === paginaActual ? C.navy : C.border,
                                 fontWeight: p === paginaActual ? 700 : 600,
                                 cursor: p === paginaActual ? "default" : "pointer",
                                 boxShadow: p === paginaActual ? "0 4px 12px rgba(26,37,64,.25)" : "none",
                             }}
                             onMouseEnter={e => { if (p !== paginaActual) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-                            onMouseLeave={e => { if (p !== paginaActual) { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}>
+                            onMouseLeave={e => { if (p !== paginaActual) { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}>
                             {p}
                         </button>
                     )
@@ -184,7 +184,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                     disabled={paginaActual === totalPaginas} aria-label="Página siguiente"
                     style={{ ...btnBase, opacity: paginaActual === totalPaginas ? 0.4 : 1, cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer" }}
                     onMouseEnter={e => { if (paginaActual !== totalPaginas) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                    onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
                     <FaChevronRight size={11} />
                 </button>
             </div>
@@ -229,16 +229,16 @@ const ModalDetalle = ({ compra, onClose, formatearFecha }) => {
                         </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-                        <span className="cp-chip" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }}><FaCalendarAlt size={10} /> {formatearFecha(compra.FechaCompra)}</span>
-                        <span className="cp-chip" style={{ background: "rgba(255,255,255,.14)", color: "#fff" }}><FaLayerGroup size={10} /> {detalles.length} ítem{detalles.length !== 1 ? "s" : ""} · {unidades} unidad{unidades !== 1 ? "es" : ""}</span>
+                        <span className="cp-chip" style={{ background: "rgba(255,255,255,.14)", color: C.white }}><FaCalendarAlt size={10} /> {formatearFecha(compra.FechaCompra)}</span>
+                        <span className="cp-chip" style={{ background: "rgba(255,255,255,.14)", color: C.white }}><FaLayerGroup size={10} /> {detalles.length} ítem{detalles.length !== 1 ? "s" : ""} · {unidades} unidad{unidades !== 1 ? "es" : ""}</span>
                     </div>
                 </div>
 
                 <div style={{ overflowY: "auto", padding: 24, background: C.bg }}>
                     <div className="cp-mgrid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1.3fr) minmax(0,1fr)", gap: 16, marginBottom: 20 }}>
                         {/* Proveedor */}
-                        <div style={{ background: "#fff", borderRadius: 16, padding: 18, border: `1px solid ${C.border}`, display: "flex", gap: 14, alignItems: "flex-start" }}>
-                            <div style={{ width: 50, height: 50, borderRadius: 14, background: "linear-gradient(135deg,#4f8ef7,#7c3aed)", color: "#fff", fontWeight: 800, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{iniciales}</div>
+                        <div style={{ background: C.white, borderRadius: 16, padding: 18, border: `1px solid ${C.border}`, display: "flex", gap: 14, alignItems: "flex-start" }}>
+                            <div style={{ width: 50, height: 50, borderRadius: 14, background: "linear-gradient(135deg,#4f8ef7,#7c3aed)", color: C.white, fontWeight: 800, fontSize: 17, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{iniciales}</div>
                             <div style={{ minWidth: 0 }}>
                                 <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: ".08em" }}>Proveedor</p>
                                 <p style={{ margin: "2px 0 6px", fontWeight: 800, color: C.navy, fontSize: 16 }}>{prov.Nombre || "Proveedor no disponible"}</p>
@@ -258,10 +258,10 @@ const ModalDetalle = ({ compra, onClose, formatearFecha }) => {
                         {/* Resumen numérico */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                             {[
-                                { label: "Insumos", value: detIns.length, icon: <FaBoxOpen />, color: "#0369a1" },
+                                { label: "Insumos", value: detIns.length, icon: <FaBoxOpen />, color: C.info },
                                 { label: "Productos", value: detProd.length, icon: <FaTshirt />, color: C.success },
                             ].map(k => (
-                                <div key={k.label} style={{ background: "#fff", borderRadius: 16, padding: 14, border: `1px solid ${C.border}` }}>
+                                <div key={k.label} style={{ background: C.white, borderRadius: 16, padding: 14, border: `1px solid ${C.border}` }}>
                                     <div style={{ color: k.color, fontSize: 16 }}>{k.icon}</div>
                                     <p style={{ margin: "6px 0 0", fontSize: 11, fontWeight: 700, color: C.muted, textTransform: "uppercase", letterSpacing: ".08em" }}>{k.label}</p>
                                     <p style={{ margin: 0, fontWeight: 800, fontSize: 24, color: C.navy }}>{k.value}</p>
@@ -276,12 +276,12 @@ const ModalDetalle = ({ compra, onClose, formatearFecha }) => {
                     </h6>
 
                     {detalles.length === 0 ? (
-                        <div className="cp-empty" style={{ background: "#fff", borderRadius: 14, border: `1px dashed ${C.accentBorder}` }}>Esta compra no tiene ítems.</div>
+                        <div className="cp-empty" style={{ background: C.white, borderRadius: 14, border: `1px dashed ${C.accentBorder}` }}>Esta compra no tiene ítems.</div>
                     ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                             {detalles.map((d, i) => {
                                 const ins = esInsumo(d);
-                                const color = ins ? "#0369a1" : C.success;
+                                const color = ins ? C.info : C.success;
                                 const v = d.variante;
                                 return (
                                     <div key={d.DetalleCompraID || i} className="cp-item" style={{ animationDelay: `${i * 40}ms` }}>
@@ -298,10 +298,10 @@ const ModalDetalle = ({ compra, onClose, formatearFecha }) => {
                                                     <>
                                                         <span className="cp-chip" style={{ background: "#f1f5f9", color: C.navy }}>Color: {v?.color?.Nombre || "—"}</span>
                                                         <span className="cp-chip" style={{ background: "#f1f5f9", color: C.navy }}>Talla: {v?.talla?.Nombre || "—"}</span>
-                                                        <span className="cp-chip" style={{ background: "#f5f3ff", color: C.violet }}>Tela: {v?.tela?.Nombre || "Sin tela"}</span>
+                                                        <span className="cp-chip" style={{ background: C.purpleSoft, color: C.violet }}>Tela: {v?.tela?.Nombre || "Sin tela"}</span>
                                                     </>
                                                 )}
-                                                {!ins && d.PrecioVenta ? <span className="cp-chip" style={{ background: "#f0fdf4", color: C.success }}>P. venta {money(d.PrecioVenta)}</span> : null}
+                                                {!ins && d.PrecioVenta ? <span className="cp-chip" style={{ background: C.successSoft, color: C.success }}>P. venta {money(d.PrecioVenta)}</span> : null}
                                             </div>
                                         </div>
                                         <div className="cp-item-amt" style={{ textAlign: "right" }}>
@@ -316,14 +316,14 @@ const ModalDetalle = ({ compra, onClose, formatearFecha }) => {
 
                     {/* Totales */}
                     <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end" }}>
-                        <div style={{ width: "100%", maxWidth: 360, background: "#fff", borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
+                        <div style={{ width: "100%", maxWidth: 360, background: C.white, borderRadius: 16, border: `1px solid ${C.border}`, overflow: "hidden" }}>
                             <div style={{ padding: "12px 18px", display: "flex", justifyContent: "space-between", fontSize: 13, color: C.muted }}>
                                 <span>Subtotal insumos</span><strong style={{ color: C.navy }}>{money(totalIns)}</strong>
                             </div>
                             <div style={{ padding: "0 18px 12px", display: "flex", justifyContent: "space-between", fontSize: 13, color: C.muted }}>
                                 <span>Subtotal productos</span><strong style={{ color: C.navy }}>{money(totalProd)}</strong>
                             </div>
-                            <div style={{ background: C.navyGrad, color: "#fff", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div style={{ background: C.navyGrad, color: C.white, padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", opacity: .8 }}>Total compra</span>
                                 <span style={{ fontWeight: 800, fontSize: 22, letterSpacing: "-.02em" }}>{money(total)}</span>
                             </div>
@@ -331,7 +331,7 @@ const ModalDetalle = ({ compra, onClose, formatearFecha }) => {
                     </div>
                 </div>
 
-                <div style={{ padding: "14px 24px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "flex-end", background: "#fff" }}>
+                <div style={{ padding: "14px 24px", borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "flex-end", background: C.white }}>
                     <button className="cp-primary" onClick={onClose}>Cerrar</button>
                 </div>
             </div>
@@ -479,14 +479,14 @@ const Compras = () => {
                 )}
 
                 {error && (
-                    <div style={{ background: "#fef2f2", border: `1.5px solid #fecaca`, borderRadius: 12, padding: "12px 18px", marginBottom: 20, color: C.danger, fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ background: C.dangerSoft, border: `1.5px solid #fecaca`, borderRadius: 12, padding: "12px 18px", marginBottom: 20, color: C.danger, fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 12 }}>
                         {error}
-                        <button onClick={cargarCompras} style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Reintentar</button>
+                        <button onClick={cargarCompras} style={{ background: C.danger, color: C.white, border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Reintentar</button>
                     </div>
                 )}
 
                 {/* TABLA */}
-                <div style={{ background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
+                <div style={{ background: C.white, borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
                     <div style={{ overflowX: "auto" }}>
                         <table className="cp-table">
                             <thead>

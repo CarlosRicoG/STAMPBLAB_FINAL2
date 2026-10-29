@@ -10,6 +10,7 @@ import "./landing.css";
 import imgBlanca from "../../assets/images/camisablanca.webp";
 import imgNegra from "../../assets/images/camisanegra.webp";
 import imgBuzo from "../../assets/images/buzo.webp";
+import { C } from "../../config/tokens";
 
 const coloresHex = {
     "Rojo":"#ef4444","Azul":"#3b82f6","Verde":"#22c55e","Amarillo":"#eab308",
@@ -132,7 +133,7 @@ const Home = () => {
                         </h1>
                         <p className="hm-lead">Serigrafía, sublimación, vinil textil y bordado. Cuéntanos tu idea y la hacemos realidad.</p>
                         <div className="hm-cta">
-                            <button className="sx-btn" onClick={() => navigate("/productosLanding")}>Ver productos <ArrowR color="#fff"/></button>
+                            <button className="sx-btn" onClick={() => navigate("/productosLanding")}>Ver productos <ArrowR color={C.white}/></button>
                             <button className="sx-btn sx-btn-ghost" onClick={() => navigate("/cotizacionesLanding")}>Cotizar diseño</button>
                         </div>
                         <div className="hm-hero-stats">
@@ -152,7 +153,7 @@ const Home = () => {
                     </div>
                 </div>
                 <div className="hm-scroll" />
-                <Wave fill="#ffffff" className="sx-wave hm-wave-hero" />
+                <Wave fill={C.white} className="sx-wave hm-wave-hero" />
             </section>
 
             {/* ══════════ CINTA ══════════ */}
@@ -167,7 +168,7 @@ const Home = () => {
             </div>
 
             {/* ══════════ QUIÉNES SOMOS ══════════ */}
-            <section className="sx-section" style={{ background:"#fff" }}>
+            <section className="sx-section" style={{ background:C.white }}>
                 <div className="sx-wrap hm-about">
                     <div className="sx-reveal sx-reveal-left">
                         <span className="sx-eyebrow">Quiénes somos</span>
@@ -181,7 +182,7 @@ const Home = () => {
                                 ["Tiempos cumplidos",      "Acordamos fecha de entrega y la respetamos."],
                             ].map(([t, d], i) => (
                                 <div key={i} className="hm-feat">
-                                    <div className="sx-icon"><Check color="#fff"/></div>
+                                    <div className="sx-icon"><Check color={C.white}/></div>
                                     <div><b>{t}</b><span>{d}</span></div>
                                 </div>
                             ))}
@@ -222,7 +223,7 @@ const Home = () => {
                 <div className="sx-wrap">
                     <div className="sx-reveal" style={{ textAlign:"center", marginBottom:50 }}>
                         <span className="sx-eyebrow">Lo que hacemos</span>
-                        <h2 className="sx-title" style={{ color:"#fff" }}>Nuestras <span className="sx-gradient-text">técnicas</span></h2>
+                        <h2 className="sx-title" style={{ color:C.white }}>Nuestras <span className="sx-gradient-text">técnicas</span></h2>
                         <p className="sx-sub" style={{ margin:"0 auto", color:"rgba(255,255,255,.65)" }}>La técnica correcta depende del diseño, la prenda y el volumen del pedido.</p>
                     </div>
                     <div className="sx-grid sx-grid-4">
@@ -251,11 +252,11 @@ const Home = () => {
                             {totalS > 1 && (
                                 <>
                                     <button className="hm-arrow" aria-label="Anterior" onClick={() => setSlide(p => Math.max(0,p-1))} disabled={slide===0}><ChevLeft/></button>
-                                    <span style={{ fontSize:13, color:"#64748b", fontWeight:700, minWidth:44, textAlign:"center" }}>{slide+1} / {totalS}</span>
+                                    <span style={{ fontSize:13, color:C.muted, fontWeight:700, minWidth:44, textAlign:"center" }}>{slide+1} / {totalS}</span>
                                     <button className="hm-arrow" aria-label="Siguiente" onClick={() => setSlide(p => Math.min(totalS-1,p+1))} disabled={slide===totalS-1}><ChevRight/></button>
                                 </>
                             )}
-                            <button className="sx-btn sx-btn-dark sx-btn-sm" onClick={() => navigate("/productosLanding")}>Ver todos <ArrowR color="#fff"/></button>
+                            <button className="sx-btn sx-btn-dark sx-btn-sm" onClick={() => navigate("/productosLanding")}>Ver todos <ArrowR color={C.white}/></button>
                         </div>
                     </div>
 
@@ -263,8 +264,8 @@ const Home = () => {
                         <div className="sx-grid">{[1,2,3].map(i => <div key={i} className="hm-skel" />)}</div>
                     ) : productos.length === 0 ? (
                         <div className="hm-empty">
-                            <p style={{ fontWeight:800, color:"#1a2540", marginBottom:4 }}>No hay productos disponibles por ahora.</p>
-                            <p style={{ color:"#64748b", fontSize:14 }}>Vuelve pronto.</p>
+                            <p style={{ fontWeight:800, color:C.navy, marginBottom:4 }}>No hay productos disponibles por ahora.</p>
+                            <p style={{ color:C.muted, fontSize:14 }}>Vuelve pronto.</p>
                         </div>
                     ) : (
                         <div className="sx-grid" key={slide}>
@@ -276,7 +277,7 @@ const Home = () => {
                                         <div className="hm-pimg sx-zoom">
                                             {p.ImagenProducto
                                                 ? <img src={p.ImagenProducto} alt={p.Nombre} onError={e=>e.target.style.display="none"}/>
-                                                : <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ fontSize:13, color:"#64748b" }}>Sin imagen</p></div>
+                                                : <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ fontSize:13, color:C.muted }}>Sin imagen</p></div>
                                             }
                                             <span className="hm-avail">● Disponible</span>
                                         </div>
@@ -285,13 +286,13 @@ const Home = () => {
                                             {p.Descripcion && <p className="hm-pdesc">{p.Descripcion}</p>}
                                             {cols.length > 0 && (
                                                 <div style={{ display:"flex", gap:7, alignItems:"center", flexWrap:"wrap" }}>
-                                                    <span style={{ fontSize:11, color:"#64748b", fontWeight:700 }}>Colores</span>
+                                                    <span style={{ fontSize:11, color:C.muted, fontWeight:700 }}>Colores</span>
                                                     {cols.map(c => <span key={c} title={c} className="hm-swatch" style={{ background:coloresHex[c]||"#ccc" }}/>)}
                                                 </div>
                                             )}
                                             <div className="hm-pfoot">
                                                 <div className="hm-price"><small>Desde</small><b>${precio.toLocaleString("es-CO")}</b></div>
-                                                <button className="sx-btn sx-btn-sm" onClick={() => navigate("/productosLanding")}>Ver <ArrowR color="#fff"/></button>
+                                                <button className="sx-btn sx-btn-sm" onClick={() => navigate("/productosLanding")}>Ver <ArrowR color={C.white}/></button>
                                             </div>
                                         </div>
                                     </div>
@@ -303,7 +304,7 @@ const Home = () => {
             </section>
 
             {/* ══════════ PROCESO ══════════ */}
-            <section className="sx-section" style={{ background:"#fff" }}>
+            <section className="sx-section" style={{ background:C.white }}>
                 <div className="sx-wrap">
                     <div className="sx-reveal" style={{ textAlign:"center", marginBottom:54 }}>
                         <span className="sx-eyebrow">Proceso</span>
@@ -332,7 +333,7 @@ const Home = () => {
                     <h2 className="hm-cta-title">Tu idea merece <span className="sx-gradient-text">ser real.</span></h2>
                     <p className="hm-cta-p">Cotiza sin compromiso. Revisamos juntos el diseño, la técnica y el presupuesto. Sin costos ocultos.</p>
                     <div className="hm-cta" style={{ justifyContent:"center" }}>
-                        <button className="sx-btn sx-btn-light" onClick={() => navigate("/cotizacionesLanding")}>Cotizar gratis <ArrowR color="#1a2540"/></button>
+                        <button className="sx-btn sx-btn-light" onClick={() => navigate("/cotizacionesLanding")}>Cotizar gratis <ArrowR color={C.navy}/></button>
                         <button className="sx-btn sx-btn-ghost" onClick={() => navigate("/productosLanding")}>Ver catálogo</button>
                     </div>
                 </div>

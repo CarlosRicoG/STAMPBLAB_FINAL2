@@ -73,7 +73,7 @@ const Confetti = () => (
         {Array.from({ length: 30 }).map((_, i) => (
             <i key={i} style={{
                 left: `${(i * 29) % 100}%`, animationDelay: `${(i % 9) * 0.08}s`, animationDuration: `${1.6 + (i % 5) * 0.28}s`,
-                background: ["#4f8ef7", "#7c3aed", "#16a34a", "#facc15", "#f472b6", "#22d3ee"][i % 6],
+                background: [C.accent, C.violet, C.success, "#facc15", "#f472b6", "#22d3ee"][i % 6],
                 width: 6 + (i % 4) * 2, height: 9 + (i % 3) * 3, "--r": `${(i * 47) % 360}deg`, "--dx": `${((i % 7) - 3) * 24}px`
             }} />
         ))}
@@ -142,11 +142,11 @@ const SectionCard = ({ title, subtitle, icon, accentColor = C.accent, children, 
 
 const Btn = ({ children, onClick, variant = "primary", size = "md", disabled, style, className = "", ...rest }) => {
     const variants = {
-        primary: { bg: C.navyGrad, color: "#fff", border: "none" },
-        success: { bg: `linear-gradient(90deg, #16a34a, #15803d)`, color: "#fff", border: "none" },
+        primary: { bg: C.navyGrad, color: C.white, border: "none" },
+        success: { bg: `linear-gradient(90deg, #16a34a, #15803d)`, color: C.white, border: "none" },
         danger: { bg: C.dangerSoft, color: C.danger, border: `1.5px solid ${C.dangerBorder}` },
         ghost: { bg: "transparent", color: C.muted, border: `1.5px solid ${C.border}` },
-        accent: { bg: `linear-gradient(90deg, #4f8ef7, #7c3aed)`, color: "#fff", border: "none" },
+        accent: { bg: `linear-gradient(90deg, #4f8ef7, #7c3aed)`, color: C.white, border: "none" },
         warning: { bg: C.warningSoft, color: C.warning, border: `1.5px solid ${C.warningBorder}` },
     };
     const sizes = { sm: { padding: "6px 14px", fontSize: 12 }, md: { padding: "10px 20px", fontSize: 13 }, lg: { padding: "13px 28px", fontSize: 14 } };
@@ -169,7 +169,7 @@ const InfoBadge = ({ type, children }) => {
         warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
         danger: { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
         info: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-        purple: { bg: C.purpleSoft, color: C.purple, border: "#ddd6fe" },
+        purple: { bg: C.purpleSoft, color: C.purple, border: C.purpleBorder },
     };
     const s = map[type] || map.info;
     return (
@@ -189,7 +189,7 @@ const Modal = ({ open, onClose, title, subtitle, accentColor = C.navy, maxWidth 
                 onClick={e => e.stopPropagation()}>
                 <div style={{ background: accentColor, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                        <p style={{ margin: 0, fontWeight: 800, fontSize: 17, color: "#fff", fontFamily: "'Outfit',sans-serif" }}>{title}</p>
+                        <p style={{ margin: 0, fontWeight: 800, fontSize: 17, color: C.white, fontFamily: "'Outfit',sans-serif" }}>{title}</p>
                         {subtitle && <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Outfit',sans-serif" }}>{subtitle}</p>}
                     </div>
                 </div>
@@ -644,7 +644,7 @@ const CotizacionLanding = () => {
                     <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(79,142,247,0.12)", border: "1px solid rgba(79,142,247,0.3)", color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", padding: "5px 14px", borderRadius: 20, marginBottom: 16, fontFamily: "'Outfit',sans-serif" }}>
                         <FaStar size={9} /> Cotización personalizada
                     </div>
-                    <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", fontWeight: 900, color: "#fff", letterSpacing: "-0.03em", margin: "0 0 10px", fontFamily: "'Outfit',sans-serif" }}>
+                    <h1 style={{ fontSize: "clamp(1.8rem,4vw,2.6rem)", fontWeight: 900, color: C.white, letterSpacing: "-0.03em", margin: "0 0 10px", fontFamily: "'Outfit',sans-serif" }}>
                         Crea tu <span className="sx-gradient-text">cotización</span>
                     </h1>
                     <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 15, maxWidth: 480, margin: "0 auto", fontFamily: "'Outfit',sans-serif" }}>
@@ -663,7 +663,7 @@ const CotizacionLanding = () => {
             {/* ── MODALES ── */}
             {/* Login */}
             <Modal open={mostrarLoginModal} onClose={() => { }} title="Autenticación requerida" subtitle="Debes iniciar sesión para continuar" accentColor={C.navyGrad} maxWidth={420}
-                footer={<Btn onClick={handleIniciarSesion} style={{background: C.navyGrad, color: "#fff"}}><FaArrowRight size={12} /> Iniciar Sesión</Btn>}>
+                footer={<Btn onClick={handleIniciarSesion} style={{background: C.navyGrad, color: C.white}}><FaArrowRight size={12} /> Iniciar Sesión</Btn>}>
                 <div style={{ textAlign: "center", padding: "12px 0" }}>
                     <div style={{ width: 64, height: 64, borderRadius: 18, background: C.accentSoft, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 28, color: C.accent }}>
                         <FaUser />
@@ -692,13 +692,13 @@ const CotizacionLanding = () => {
                         <div data-testid="resumen-cotizacion" style={{ textAlign: "left", marginTop: 18, fontFamily: "'Outfit',sans-serif" }}>
                             <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", color: C.muted, margin: "0 0 8px", textTransform: "uppercase" }}>Esto fue lo que pediste</p>
                             {resumenExito.map((p, i) => (
-                                <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10, background: "#f8fafc" }}>
+                                <div key={i} style={{ border: "1px solid #e2e8f0", borderRadius: 12, padding: 12, marginBottom: 10, background: C.bg }}>
                                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontWeight: 700, color: C.navy, fontSize: 14 }}>
                                         <span>{p.nombre}</span><span style={{ color: C.muted, fontWeight: 600 }}>{p.cantidad} {p.cantidad === 1 ? "unidad" : "unidades"}</span>
                                     </div>
                                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
                                         {[p.prenda && `Prenda: ${p.prenda}`, p.color && `Color: ${p.color}`, p.talla && `Talla: ${p.talla}`, p.tela && `Tela: ${p.tela}`].filter(Boolean).map((t) => (
-                                            <span key={t} style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 99, padding: "2px 10px", fontSize: 12, color: C.navy }}>{t}</span>
+                                            <span key={t} style={{ background: C.white, border: "1px solid #e2e8f0", borderRadius: 99, padding: "2px 10px", fontSize: 12, color: C.navy }}>{t}</span>
                                         ))}
                                     </div>
                                     {p.disenos.map((d, j) => (
@@ -718,7 +718,7 @@ const CotizacionLanding = () => {
             {/* Visualización de diseño */}
             <Modal open={mostrarModalVisualizacion && !!disenoVisualizando} onClose={() => setMostrarModalVisualizacion(false)}
                 title="Detalle del Diseño" accentColor="linear-gradient(90deg,#7c3aed,#4f8ef7)" maxWidth={600}
-                footer={<Btn variant="ghost" style={{ background: C.danger, color: "#ffffff"}} onClick={() => setMostrarModalVisualizacion(false)}>Cerrar</Btn>}>
+                footer={<Btn variant="ghost" style={{ background: C.danger, color: C.white}} onClick={() => setMostrarModalVisualizacion(false)}>Cerrar</Btn>}>
                 {disenoVisualizando && (
                     <div>
                         <div className="cot-grid2" style={{ display: "grid", gap: 14, marginBottom: 16 }}>
@@ -787,7 +787,7 @@ const CotizacionLanding = () => {
                                     <p style={{ margin: 0, fontSize: 11, color: C.muted }}>Activa esta opción si no necesitas comprar la prenda</p>
                                 </div>
                                 <div style={{ width: 44, height: 24, borderRadius: 12, background: traePrenda ? C.warning : C.border, position: "relative", transition: "background 0.2s", flexShrink: 0 }}>
-                                    <div style={{ position: "absolute", top: 3, left: traePrenda ? 22 : 3, width: 18, height: 18, borderRadius: "50%", background: "#fff", transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
+                                    <div style={{ position: "absolute", top: 3, left: traePrenda ? 22 : 3, width: 18, height: 18, borderRadius: "50%", background: C.white, transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
                                 </div>
                             </div>
 
@@ -967,17 +967,17 @@ const CotizacionLanding = () => {
                             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
                                 {disenoEditando ? (
                                     <>
-                                        <Btn variant="success" onClick={handleGuardarEdicion} style={{ background: C.warningBorder, color: "#0f172a", flex: 1 }}><FaCheck size={12} /> Guardar cambios</Btn>
-                                        <Btn variant="ghost" onClick={handleCancelarEdicion} style={{ background: C.danger, color: "#ffffff"}}><FaTimes size={12} /> Cancelar</Btn>
+                                        <Btn variant="success" onClick={handleGuardarEdicion} style={{ background: C.warningBorder, color: C.text, flex: 1 }}><FaCheck size={12} /> Guardar cambios</Btn>
+                                        <Btn variant="ghost" onClick={handleCancelarEdicion} style={{ background: C.danger, color: C.white}}><FaTimes size={12} /> Cancelar</Btn>
                                     </>
                                 ) : (
-                                    <Btn variant="accent" onClick={handleAgregarDiseno} style={{ background: C.navyGrad, color: "#fff", flex: 1 }}><FaPlus size={12} /> Agregar diseño</Btn>
+                                    <Btn variant="accent" onClick={handleAgregarDiseno} style={{ background: C.navyGrad, color: C.white, flex: 1 }}><FaPlus size={12} /> Agregar diseño</Btn>
                                 )} 
                             </div>
 
                             {disenosAgregados.length === 0 && (
                                 <div className="cot-empty">
-                                    <svg viewBox="0 0 120 80" width="110" height="74" fill="none"><rect x="14" y="10" width="92" height="60" rx="12" fill="#f5f3ff" stroke="#ddd6fe" strokeWidth="2" strokeDasharray="5 5" /><circle cx="40" cy="32" r="7" fill="#c4b5fd" /><path d="M20 62l26-22 16 14 14-10 24 18z" fill="#a78bfa" opacity=".65" /></svg>
+                                    <svg viewBox="0 0 120 80" width="110" height="74" fill="none"><rect x="14" y="10" width="92" height="60" rx="12" fill={C.purpleSoft} stroke={C.purpleBorder} strokeWidth="2" strokeDasharray="5 5" /><circle cx="40" cy="32" r="7" fill="#c4b5fd" /><path d="M20 62l26-22 16 14 14-10 24 18z" fill="#a78bfa" opacity=".65" /></svg>
                                     <p>Aún no hay diseños agregados</p>
                                 </div>
                             )}
@@ -993,13 +993,13 @@ const CotizacionLanding = () => {
                                             <thead>
                                                 <tr style={{ background: C.navyGrad }}>
                                                     {["#", "Previa", "Técnica", "Parte", "Subparte", "Acciones"].map((h, i) => (
-                                                        <th key={i} style={{ padding: "10px 12px", color: "#fff", fontWeight: 700, fontSize: 11, textAlign: "left", letterSpacing: "0.05em" }}>{h}</th>
+                                                        <th key={i} style={{ padding: "10px 12px", color: C.white, fontWeight: 700, fontSize: 11, textAlign: "left", letterSpacing: "0.05em" }}>{h}</th>
                                                     ))}
                                                 </tr>
                                             </thead>
                                             <tbody>
                                                 {disenosAgregados.map((dis, idx) => (
-                                                    <tr key={dis.id} className="dis-row cot-row" style={{ background: idx % 2 === 0 ? "#fff" : C.bg, transition: "background 0.15s" }}>
+                                                    <tr key={dis.id} className="dis-row cot-row" style={{ background: idx % 2 === 0 ? C.white : C.bg, transition: "background 0.15s" }}>
                                                         <td style={{ padding: "10px 12px", fontWeight: 700, color: C.muted }}>#{idx + 1}</td>
                                                         <td style={{ padding: "8px 12px" }}>
                                                             {dis.ImagenPreviewUrl
@@ -1042,7 +1042,7 @@ const CotizacionLanding = () => {
                                     {disenosAgregados.length === 0 ? "Agrega al menos un diseño antes de continuar." : `${disenosAgregados.length} diseño(s) configurado(s) → se agregarán con el producto.`}
                                 </p>
                             </div>
-                            <Btn variant="primary" style={{ background: C.navyGrad, color: "#fff", width: "320px", maxWidth: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px"  }} size="lg" onClick={handleAgregarACotizacion}
+                            <Btn variant="primary" style={{ background: C.navyGrad, color: C.white, width: "320px", maxWidth: "100%", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px"  }} size="lg" onClick={handleAgregarACotizacion}
                                 disabled={disenosAgregados.length === 0 || (!traePrenda && !validacionStock.valido)}>
                                 <FaShoppingCart size={14} /> Agregar al carrito
                             </Btn>
@@ -1073,7 +1073,7 @@ const CotizacionLanding = () => {
                                     <div key={dis.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
                                         {dis.ImagenPreviewUrl
                                             ? <img src={dis.ImagenPreviewUrl} alt="" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
-                                            : <div style={{ width: 28, height: 28, borderRadius: 6, background: "#ddd6fe", flexShrink: 0 }} />
+                                            : <div style={{ width: 28, height: 28, borderRadius: 6, background: C.purpleBorder, flexShrink: 0 }} />
                                         }
                                         <p style={{ margin: 0, fontSize: 12, color: C.navy, fontFamily: "'Outfit',sans-serif" }}>
                                             <strong>#{i + 1}</strong> {dis.tecnica?.Nombre} · {dis.parte?.Nombre}
@@ -1165,7 +1165,7 @@ const CotizacionLanding = () => {
                                         : <><FaCheckCircle size={14} /> Generar cotización</>
                                     }
                                 </Btn>
-                                <Btn variant="ghost" size="md" style={{ width: "100%", background: C.danger, color: "#ffffff", justifyContent: "center" }}
+                                <Btn variant="ghost" size="md" style={{ width: "100%", background: C.danger, color: C.white, justifyContent: "center" }}
                                     onClick={() => Swal.fire({ title: "¿Limpiar todo?", text: "Se eliminarán todos los productos.", icon: "warning", showCancelButton: true, confirmButtonText: "Sí, limpiar", cancelButtonText: "Cancelar", confirmButtonColor: C.danger })
                                         .then(r => { if (r.isConfirmed) { setProductosEnCotizacion([]); setDisenosAgregados([]); setProductoSeleccionado(null); setTraePrenda(false); setDisenoEditando(null); setFormProducto({ ColorID: "", TallaID: "", TipoTela: "", Cantidad: 1, PrendaDescripcion: "" }); } })}>
                                     <FaTrash size={12} /> Limpiar todo

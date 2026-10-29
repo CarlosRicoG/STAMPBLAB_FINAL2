@@ -8,6 +8,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { FaInbox, FaTags, FaExclamationCircle } from "react-icons/fa";
 import { getResumenPendientes } from "../../../Services/api-resumen/resumen";
+import { C } from "../../../config/tokens";
 
 /*
  * `badge`: función que calcula el número de la insignia a partir de /api/resumen/pendientes.
@@ -122,8 +123,8 @@ const grupoDeRuta = (ruta) => menuItems.find(g => g.items.some(i => i.to === rut
 const COLLAPSE_KEY = "cf_sidebar_collapsed";
 
 /* ── Colores ── */
-const BG         = "#1a2540";
-const ACCENT     = "#4f8ef7";
+const BG         = C.navy;
+const ACCENT     = C.accent;
 const TEXT_MAIN  = "rgba(255,255,255,0.92)";
 const TEXT_MUTED = "rgba(255,255,255,0.45)";
 const DIVIDER    = "rgba(255,255,255,0.08)";
@@ -426,7 +427,7 @@ const Sidebar = () => {
                         display: "flex", alignItems: "center", justifyContent: "center",
                         flexShrink: 0, boxShadow: `0 6px 16px ${ACCENT}55`
                     }}>
-                        <FaChartBar size={16} color="#fff" />
+                        <FaChartBar size={16} color={C.white} />
                     </div>
                     {!collapsed && <span className="sb-brand">Admin</span>}
                 </div>

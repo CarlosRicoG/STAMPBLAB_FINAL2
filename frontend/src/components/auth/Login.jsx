@@ -374,11 +374,11 @@ export function AuthField({ id, label, icon, type = "text", placeholder, value, 
 
 /* ── Indicador de fuerza de contraseña (solo visual) ── */
 const NIVELES = [
-    { t: "Muy débil", c: "#dc2626" },
+    { t: "Muy débil", c: C.danger },
     { t: "Débil", c: "#ea580c" },
-    { t: "Media", c: "#d97706" },
-    { t: "Buena", c: "#4f8ef7" },
-    { t: "Fuerte", c: "#16a34a" },
+    { t: "Media", c: C.warning },
+    { t: "Buena", c: C.accent },
+    { t: "Fuerte", c: C.success },
 ];
 export function StrengthMeter({ value, detail = false }) {
     if (!value) return null;

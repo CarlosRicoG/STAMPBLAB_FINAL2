@@ -12,7 +12,7 @@ import { C } from "../../config/tokens";
 
 const TH = {
     background: C.navyGrad,
-    color: "#fff",
+    color: C.white,
     fontSize: 11,
     fontWeight: 700,
     padding: "11px 14px",
@@ -27,7 +27,7 @@ const Badge = ({ type, children }) => {
         success: { bg: C.successSoft, color: C.success, border: C.successBorder },
         accent:  { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
         muted:   { bg: "#f1f5f9", color: C.muted, border: C.border },
-        navy:    { bg: C.navy, color: "#fff", border: C.navy },
+        navy:    { bg: C.navy, color: C.white, border: C.navy },
     };
     const s = map[type] || map.muted;
     return (
@@ -50,7 +50,7 @@ const ProductoModal = ({ show, children }) => {
             zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
         }}>
             <div style={{
-                background: "#fff", borderRadius: 18, width: "100%", maxWidth: 860,
+                background: C.white, borderRadius: 18, width: "100%", maxWidth: 860,
                 maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column",
                 boxShadow: "0 8px 40px rgba(0,0,0,0.22)", fontFamily: "'Outfit',sans-serif",
             }}>
@@ -436,20 +436,20 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                     </h4>
                     <div style={{ display: "flex", gap: 10 }}>
                         <button onClick={generarVenta} disabled={enviando}
-                            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: enviando ? "not-allowed" : "pointer", opacity: enviando ? 0.6 : 1, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}
+                            style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: enviando ? "not-allowed" : "pointer", opacity: enviando ? 0.6 : 1, fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8 }}
                             onMouseEnter={e => e.currentTarget.style.background = "#2d3f6e"}
                             onMouseLeave={e => e.currentTarget.style.background = C.navy}>
                             {modoEdicion ? "Actualizar Venta" : "Generar Venta"}
                         </button>
                         <button onClick={onClose || (() => navigate("/dashboard/ventas"))}
-                            style={{ background: "#fef2f2", color: C.danger, border: `1.5px solid #fecaca`, borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+                            style={{ background: C.dangerSoft, color: C.danger, border: `1.5px solid #fecaca`, borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
                             Cancelar
                         </button>
                     </div>
                 </div>
 
                 {/* ── CARD PRINCIPAL ── */}
-                <div style={{ background: "#fff", borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07)", padding: "24px 28px", marginBottom: 24 }}>
+                <div style={{ background: C.white, borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07)", padding: "24px 28px", marginBottom: 24 }}>
 
                     {/* Fila cliente + totales */}
                     <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr", gap: 20, marginBottom: 24, alignItems: "end" }}>
@@ -524,14 +524,14 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                                         <td colSpan={9} style={{ textAlign: "center", padding: "40px 0", color: C.muted, fontSize: 13 }}>
                                             <p style={{ margin: "0 0 10px" }}>No hay productos agregados</p>
                                             <button onClick={() => setShowModalProducto(true)}
-                                                style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+                                                style={{ background: C.navy, color: C.white, border: "none", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
                                                 + Agregar primer producto
                                             </button>
                                         </td>
                                     </tr>
                                 ) : (
                                     productosAgregados.map((p, i) => (
-                                        <tr key={i} className="venta-row" style={{ background: i % 2 === 0 ? "#fff" : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
+                                        <tr key={i} className="venta-row" style={{ background: i % 2 === 0 ? C.white : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
                                             <td style={{ padding: "10px 14px" }}>
                                                 <Badge type="muted">{i + 1}</Badge>
                                             </td>
@@ -567,7 +567,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                                             </td>
                                             <td style={{ padding: "10px 14px", textAlign: "center" }}>
                                                 <button className="icon-btn" onClick={() => eliminarProducto(i)} title="Eliminar"
-                                                    style={{ width: 28, height: 28, borderRadius: 7, border: `1.5px solid #fecaca`, background: "#fef2f2", color: C.danger, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}>
+                                                    style={{ width: 28, height: 28, borderRadius: 7, border: `1.5px solid #fecaca`, background: C.dangerSoft, color: C.danger, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}>
                                                     <X size={13} />
                                                 </button>
                                             </td>
@@ -598,9 +598,9 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
             <ProductoModal show={showModalProducto} onClose={() => setShowModalProducto(false)}>
                 {/* Header */}
                 <div style={{ background: C.navyGrad, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-                    <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#fff" }}>Seleccionar Producto</p>
+                    <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: C.white }}>Seleccionar Producto</p>
                     <button onClick={() => setShowModalProducto(false)}
-                        style={{ width: 30, height: 30, borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        style={{ width: 30, height: 30, borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                         ✕
                     </button>
                 </div>
@@ -628,7 +628,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                                 style={{
                                     border: `1.5px solid ${productoSeleccionado?.ProductoID === producto.ProductoID ? C.accent : C.border}`,
                                     borderRadius: 14, overflow: "hidden", cursor: "pointer",
-                                    background: productoSeleccionado?.ProductoID === producto.ProductoID ? C.accentSoft : "#fff",
+                                    background: productoSeleccionado?.ProductoID === producto.ProductoID ? C.accentSoft : C.white,
                                     transition: "all 0.18s", boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                                 }}>
                                 <div style={{ height: 150, background: C.bg, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -696,7 +696,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                             {colorSeleccionado && tallaSeleccionada && varianteActual && (
                                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
                                     {/* Tela de la variante */}
-                                    <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}` }}>
+                                    <div style={{ background: C.white, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}` }}>
                                         <p style={{ margin: "0 0 5px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Tela de la variante</p>
                                         {telaVarianteActual ? (
                                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -711,7 +711,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                                     </div>
 
                                     {/* Stock disponible */}
-                                    <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}` }}>
+                                    <div style={{ background: C.white, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}` }}>
                                         <p style={{ margin: "0 0 5px", fontSize: 11, color: C.muted, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Stock disponible</p>
                                         <span style={{ fontSize: 18, fontWeight: 800, color: stockActual > 0 ? C.success : C.danger }}>
                                             {stockActual}
@@ -723,7 +723,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
 
                             {/* Desglose de precio */}
                             {colorSeleccionado && tallaSeleccionada && varianteActual && (
-                                <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}`, marginBottom: 16, fontSize: 12 }}>
+                                <div style={{ background: C.white, borderRadius: 10, padding: "12px 14px", border: `1px solid ${C.border}`, marginBottom: 16, fontSize: 12 }}>
                                     <p style={{ margin: "0 0 8px", fontWeight: 700, fontSize: 11, color: C.muted, textTransform: "uppercase", letterSpacing: "0.06em" }}>Desglose de precio unitario</p>
                                     <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
                                         <span style={{ color: C.muted }}>Base: <strong style={{ color: C.navy }}>${parseFloat(productoSeleccionado.PrecioBase || 0).toLocaleString()}</strong></span>
@@ -744,8 +744,8 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                                     onClick={agregarProducto}
                                     disabled={!modoEdicion && stockActual <= 0}
                                     style={{
-                                        background: (!modoEdicion && stockActual <= 0) ? "#e2e8f0" : C.navy,
-                                        color: (!modoEdicion && stockActual <= 0) ? C.muted : "#fff",
+                                        background: (!modoEdicion && stockActual <= 0) ? C.border : C.navy,
+                                        color: (!modoEdicion && stockActual <= 0) ? C.muted : C.white,
                                         border: "none", borderRadius: 10, padding: "10px 22px",
                                         fontSize: 13, fontWeight: 700, cursor: (!modoEdicion && stockActual <= 0) ? "not-allowed" : "pointer",
                                         fontFamily: "'Outfit',sans-serif",

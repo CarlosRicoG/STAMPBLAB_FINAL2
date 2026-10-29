@@ -6,8 +6,9 @@ import axios from "axios";
 import fondo from "../../assets/images/imagenfondo.webp";
 import { FaArrowLeft, FaEnvelope, FaEnvelopeOpenText, FaCheck, FaExclamation } from "react-icons/fa";
 import { AuthShell, AuthField, AuthButton } from "./Login";
+import { C } from "../../config/tokens";
 
-const SPARKS = ["#4f8ef7", "#7c3aed", "#16a34a", "#f59e0b", "#4f8ef7", "#7c3aed", "#16a34a", "#22d3ee"];
+const SPARKS = [C.accent, C.violet, C.success, "#f59e0b", C.accent, C.violet, C.success, "#22d3ee"];
 
 const RecuperarContraseña = () => {
     const [correo, setCorreo] = useState("");

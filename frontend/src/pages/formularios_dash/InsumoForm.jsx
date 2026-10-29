@@ -6,8 +6,8 @@ import { C } from "../../config/tokens";
 const inputStyle = (hasError, isTouched) => ({
     width: "100%", padding: "10px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif",
     border: `1.5px solid ${isTouched && hasError ? C.danger : C.border}`,
-    borderRadius: 10, outline: "none", color: "#0f172a",
-    background: isTouched && hasError ? "#fef2f2" : "#fff",
+    borderRadius: 10, outline: "none", color: C.text,
+    background: isTouched && hasError ? C.dangerSoft : C.white,
     transition: "border-color 0.15s",
 });
 
@@ -142,14 +142,14 @@ const InsumoForm = ({ onClose, onSave, insumoEdit = null }) => {
                         {insumoEdit ? "Editar Insumo" : "Crear Insumo"}
                     </h4>
                     <button onClick={onClose}
-                        style={{ width: 34, height: 34, borderRadius: 9, border: `1.5px solid ${C.border}`, background: "#fff", color: C.muted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
+                        style={{ width: 34, height: 34, borderRadius: 9, border: `1.5px solid ${C.border}`, background: C.white, color: C.muted, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>
                         ✕
                     </button>
                 </div>
 
-                <div style={{ background: "#fff", borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", overflow: "hidden" }}>
+                <div style={{ background: C.white, borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", overflow: "hidden" }}>
                     <div style={{ background: C.navyGrad, padding: "16px 24px" }}>
-                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: "#fff" }}>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: C.white }}>
                             {insumoEdit ? `Editando: ${insumoEdit.Nombre}` : "Nuevo Insumo"}
                         </p>
                         <p style={{ margin: 0, color: "rgba(255,255,255,0.6)", fontSize: 12 }}>
@@ -220,7 +220,7 @@ const InsumoForm = ({ onClose, onSave, insumoEdit = null }) => {
                         {/* Botones */}
                         <div style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 10 }}>
                             <button onClick={handleSubmit}
-                                style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 28px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}
+                                style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "10px 28px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}
                                 onMouseEnter={e => e.currentTarget.style.background = "#2d3f6e"}
                                 onMouseLeave={e => e.currentTarget.style.background = C.navy}>
                                 {insumoEdit ? "Actualizar Insumo" : "Crear Insumo"}

@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { getResumenPendientes } from "../Services/api-resumen/resumen";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
+import { C } from "../config/tokens";
 
 const API_BASE = `${import.meta.env.VITE_API_URL}/api`;
 
@@ -33,16 +34,16 @@ const CustomTooltip = ({ active, payload, label, unit = "unidades" }) => {
     if (!active || !payload?.length) return null;
     return (
         <div style={{
-            background: "#0f172a", border: "1px solid #1e293b", borderRadius: 10,
+            background: C.text, border: "1px solid #1e293b", borderRadius: 10,
             padding: "10px 16px", color: "#f1f5f9", fontSize: 13,
             boxShadow: "0 8px 32px rgba(0,0,0,0.4)", minWidth: 120,
         }}>
             <p style={{ margin: 0, fontWeight: 700, color: "#94a3b8", fontSize: 10, textTransform: "uppercase", letterSpacing: 1.5 }}>
                 {label}
             </p>
-            <p style={{ margin: "6px 0 0", fontWeight: 800, fontSize: 20, color: "#fff", lineHeight: 1 }}>
+            <p style={{ margin: "6px 0 0", fontWeight: 800, fontSize: 20, color: C.white, lineHeight: 1 }}>
                 {payload[0].value}
-                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 500, marginLeft: 4 }}>{unit}</span>
+                <span style={{ fontSize: 11, color: C.muted, fontWeight: 500, marginLeft: 4 }}>{unit}</span>
             </p>
         </div>
     );
@@ -59,13 +60,13 @@ const KpiCard = ({ label, value, icon: Icon, color, bg, border }) => (
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0, boxShadow: `0 4px 12px ${color}55`
         }}>
-            <Icon size={20} color="#fff" />
+            <Icon size={20} color={C.white} />
         </div>
         <div>
             <p style={{ margin: 0, fontSize: 11, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: 1 }}>
                 {label}
             </p>
-            <p style={{ margin: "4px 0 0", fontSize: 30, fontWeight: 800, color: "#0f172a", lineHeight: 1 }}>
+            <p style={{ margin: "4px 0 0", fontSize: 30, fontWeight: 800, color: C.text, lineHeight: 1 }}>
                 {value}
             </p>
         </div>
@@ -75,14 +76,14 @@ const KpiCard = ({ label, value, icon: Icon, color, bg, border }) => (
 /* ── Tarjeta de gráfica ── */
 const ChartCard = ({ title, subtitle, children, isEmpty, accentColor }) => (
     <div style={{
-        background: "#fff", borderRadius: 20, padding: "24px 24px 16px",
+        background: C.white, borderRadius: 20, padding: "24px 24px 16px",
         boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px #f1f5f9",
         display: "flex", flexDirection: "column", height: "100%",
     }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 20 }}>
             <div style={{ width: 4, height: 36, borderRadius: 4, background: accentColor, flexShrink: 0, marginTop: 2 }} />
             <div>
-                <h6 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: "#0f172a", fontFamily: "'Outfit',sans-serif" }}>
+                <h6 style={{ margin: 0, fontWeight: 700, fontSize: 15, color: C.text, fontFamily: "'Outfit',sans-serif" }}>
                     {title}
                 </h6>
                 {subtitle && <p style={{ margin: "2px 0 0", fontSize: 12, color: "#94a3b8", fontWeight: 500 }}>{subtitle}</p>}
@@ -174,7 +175,7 @@ const DashboardMedicionDesempeño = () => {
         try {
             await new Promise(r => setTimeout(r, 400));
             const canvas = await html2canvas(dashRef.current, {
-                scale: 2, useCORS: true, logging: false, backgroundColor: "#f8fafc",
+                scale: 2, useCORS: true, logging: false, backgroundColor: C.bg,
             });
             const imgData = canvas.toDataURL("image/jpeg", 0.82); // JPEG comprimido: el PNG a 2x pesaba ~10 MB
             const pdf     = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -212,8 +213,8 @@ const DashboardMedicionDesempeño = () => {
         return data.map(d => (d[key] || 0) === max ? strong : soft);
     };
 
-    const ventasColors  = colorBars(ventasPorMes,         "ventas",   "#16a34a", "#bbf7d0");
-    const productColors = colorBars(productosMasVendidos,  "cantidad", "#7c3aed", "#ddd6fe");
+    const ventasColors  = colorBars(ventasPorMes,         "ventas",   C.success, C.successBorder);
+    const productColors = colorBars(productosMasVendidos,  "cantidad", C.violet, C.purpleBorder);
     const insumosColors = colorBars(insumosUtilizados,     "cantidad", "#2563eb", "#bfdbfe");
 
     /* ══════════════════════════════════════════════ RENDER ══ */
@@ -228,15 +229,15 @@ const DashboardMedicionDesempeño = () => {
                 @keyframes spin { to { transform: rotate(360deg); } }
             `}</style>
 
-            <div style={{ minHeight: "100dvh", background: "#f8fafc", padding: "28px 32px", fontFamily: "'Outfit',sans-serif" }}>
+            <div style={{ minHeight: "100dvh", background: C.bg, padding: "28px 32px", fontFamily: "'Outfit',sans-serif" }}>
 
                 {/* HEADER */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
                     <div>
-                        <h4 style={{ margin: 0, fontWeight: 800, fontSize: 24, color: "#0f172a", letterSpacing: "-0.03em" }}>
+                        <h4 style={{ margin: 0, fontWeight: 800, fontSize: 24, color: C.text, letterSpacing: "-0.03em" }}>
                             Medición y Desempeño
                         </h4>
-                        <p style={{ margin: "4px 0 0", color: "#64748b", fontSize: 13, fontWeight: 500 }}>
+                        <p style={{ margin: "4px 0 0", color: C.muted, fontSize: 13, fontWeight: 500 }}>
                             {mesLabel} · Análisis de ventas, productos e insumos
                         </p>
                     </div>
@@ -245,8 +246,8 @@ const DashboardMedicionDesempeño = () => {
                         <Link to="/dashboard/hoy" title="Ver variantes con stock bajo en la bandeja Hoy"
                             style={{
                                 display: "flex", alignItems: "center", gap: 8, textDecoration: "none",
-                                background: stockBajo > 0 ? "#fef2f2" : "#f0fdf4", color: stockBajo > 0 ? "#b91c1c" : "#15803d",
-                                border: `1.5px solid ${stockBajo > 0 ? "#fecaca" : "#bbf7d0"}`, borderRadius: 10,
+                                background: stockBajo > 0 ? C.dangerSoft : C.successSoft, color: stockBajo > 0 ? "#b91c1c" : "#15803d",
+                                border: `1.5px solid ${stockBajo > 0 ? C.dangerBorder : C.successBorder}`, borderRadius: 10,
                                 padding: "9px 16px", fontSize: 13, fontWeight: 700, fontFamily: "'Outfit',sans-serif",
                             }}>
                             <FaExclamationTriangle size={13} aria-hidden="true" /> Stock bajo: {stockBajo}
@@ -255,8 +256,8 @@ const DashboardMedicionDesempeño = () => {
                     <button className="btn-pdf" onClick={exportarPDF} disabled={exportingPDF || loading}
                         style={{
                             display: "flex", alignItems: "center", gap: 8,
-                            background: exportingPDF ? "#9ca3af" : "#dc2626",
-                            color: "#fff", border: "none", borderRadius: 10,
+                            background: exportingPDF ? "#9ca3af" : C.danger,
+                            color: C.white, border: "none", borderRadius: 10,
                             padding: "10px 20px", fontSize: 13, fontWeight: 700,
                             cursor: exportingPDF ? "not-allowed" : "pointer",
                             fontFamily: "'Outfit',sans-serif",
@@ -272,7 +273,7 @@ const DashboardMedicionDesempeño = () => {
                 {/* FILTROS */}
                 <div style={{
                     display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 28,
-                    background: "#fff", borderRadius: 16, padding: "14px 20px",
+                    background: C.white, borderRadius: 16, padding: "14px 20px",
                     boxShadow: "0 1px 4px rgba(0,0,0,0.06)", border: "1px solid #f1f5f9", alignItems: "center"
                 }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1", textTransform: "uppercase", letterSpacing: 1.5, marginRight: 4 }}>
@@ -284,11 +285,11 @@ const DashboardMedicionDesempeño = () => {
                     ].map((sel, i) => (
                         <select key={i} className="fsel" value={sel.value} onChange={e => sel.onChange(e.target.value)}
                             style={{
-                                border: `1.5px solid ${sel.value ? "#2563eb" : "#e2e8f0"}`,
+                                border: `1.5px solid ${sel.value ? "#2563eb" : C.border}`,
                                 borderRadius: 8, padding: "7px 12px", fontSize: 13,
                                 color: sel.value ? "#1e293b" : "#94a3b8",
                                 fontFamily: "'Outfit',sans-serif", fontWeight: sel.value ? 600 : 400,
-                                background: sel.value ? "#eff6ff" : "#fff",
+                                background: sel.value ? "#eff6ff" : C.white,
                                 cursor: "pointer", minWidth: 170, transition: "all 0.2s",
                             }}>
                             <option value="">{sel.placeholder}</option>
@@ -299,8 +300,8 @@ const DashboardMedicionDesempeño = () => {
                         style={{
                             display: "flex", alignItems: "center", gap: 6,
                             border: "1.5px solid #e2e8f0", borderRadius: 8, padding: "7px 14px",
-                            fontSize: 13, color: "#64748b", fontFamily: "'Outfit',sans-serif",
-                            fontWeight: 600, background: "#fff", cursor: "pointer", transition: "all 0.2s",
+                            fontSize: 13, color: C.muted, fontFamily: "'Outfit',sans-serif",
+                            fontWeight: 600, background: C.white, cursor: "pointer", transition: "all 0.2s",
                         }}>
                         <FaSyncAlt size={11} /> Limpiar
                     </button>
@@ -308,7 +309,7 @@ const DashboardMedicionDesempeño = () => {
 
                 {/* ERROR */}
                 {error && (
-                    <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: "12px 16px", color: "#dc2626", fontSize: 13, fontWeight: 500, marginBottom: 24 }}>
+                    <div style={{ background: C.dangerSoft, border: "1px solid #fecaca", borderRadius: 10, padding: "12px 16px", color: C.danger, fontSize: 13, fontWeight: 500, marginBottom: 24 }}>
                         ⚠️ {error}
                     </div>
                 )}
@@ -317,7 +318,7 @@ const DashboardMedicionDesempeño = () => {
                 {loading ? (
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 400, gap: 16 }}>
                         <div style={{ width: 44, height: 44, border: "3px solid #e2e8f0", borderTop: "3px solid #2563eb", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                        <p style={{ color: "#64748b", fontSize: 14, margin: 0, fontWeight: 500 }}>Cargando indicadores...</p>
+                        <p style={{ color: C.muted, fontSize: 14, margin: 0, fontWeight: 500 }}>Cargando indicadores...</p>
                     </div>
                 ) : (
                     /* CONTENIDO CAPTURADO EN PDF */
@@ -325,14 +326,14 @@ const DashboardMedicionDesempeño = () => {
 
                         {/* KPIs */}
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
-                            <KpiCard label="Ventas registradas"  value={totalVentas}    icon={FaChartBar} color="#16a34a" bg="#f0fdf4" border="#bbf7d0" />
-                            <KpiCard label="Productos vendidos"  value={totalProductos} icon={FaBoxOpen}  color="#7c3aed" bg="#f5f3ff" border="#ddd6fe" />
+                            <KpiCard label="Ventas registradas"  value={totalVentas}    icon={FaChartBar} color={C.success} bg={C.successSoft} border={C.successBorder} />
+                            <KpiCard label="Productos vendidos"  value={totalProductos} icon={FaBoxOpen}  color={C.violet} bg={C.purpleSoft} border={C.purpleBorder} />
                             <KpiCard label="Insumos utilizados"  value={totalInsumos}   icon={FaCubes}    color="#2563eb" bg="#eff6ff" border="#bfdbfe" />
                         </div>
 
                         {/* FILA 1 */}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
-                            <ChartCard title="Ventas por mes" subtitle="Número de transacciones registradas" isEmpty={ventasPorMes.length === 0} accentColor="#16a34a">
+                            <ChartCard title="Ventas por mes" subtitle="Número de transacciones registradas" isEmpty={ventasPorMes.length === 0} accentColor={C.success}>
                                 <ResponsiveContainer width="100%" height={260}>
                                     <BarChart data={ventasPorMes} barSize={32} margin={{ top: 20, right: 10, left: -10, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -341,13 +342,13 @@ const DashboardMedicionDesempeño = () => {
                                         <Tooltip content={<CustomTooltip unit="ventas" />} cursor={{ fill: "rgba(22,163,74,0.06)", radius: 8 }} />
                                         <Bar dataKey="ventas" radius={[8, 8, 0, 0]}>
                                             {ventasPorMes.map((_, i) => <Cell key={i} fill={ventasColors[i]} />)}
-                                            <LabelList dataKey="ventas" position="top" style={{ fontSize: 11, fill: "#64748b", fontWeight: 700, fontFamily: "Outfit" }} />
+                                            <LabelList dataKey="ventas" position="top" style={{ fontSize: 11, fill: C.muted, fontWeight: 700, fontFamily: "Outfit" }} />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </ChartCard>
 
-                            <ChartCard title="Productos más vendidos" subtitle="Unidades vendidas por producto" isEmpty={productosMasVendidos.length === 0} accentColor="#7c3aed">
+                            <ChartCard title="Productos más vendidos" subtitle="Unidades vendidas por producto" isEmpty={productosMasVendidos.length === 0} accentColor={C.violet}>
                                 <ResponsiveContainer width="100%" height={260}>
                                     <BarChart data={productosMasVendidos} barSize={32} margin={{ top: 20, right: 10, left: -10, bottom: 0 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -356,7 +357,7 @@ const DashboardMedicionDesempeño = () => {
                                         <Tooltip content={<CustomTooltip unit="unidades" />} cursor={{ fill: "rgba(124,58,237,0.06)", radius: 8 }} />
                                         <Bar dataKey="cantidad" radius={[8, 8, 0, 0]}>
                                             {productosMasVendidos.map((_, i) => <Cell key={i} fill={productColors[i]} />)}
-                                            <LabelList dataKey="cantidad" position="top" style={{ fontSize: 11, fill: "#64748b", fontWeight: 700, fontFamily: "Outfit" }} />
+                                            <LabelList dataKey="cantidad" position="top" style={{ fontSize: 11, fill: C.muted, fontWeight: 700, fontFamily: "Outfit" }} />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -374,7 +375,7 @@ const DashboardMedicionDesempeño = () => {
                                         <Tooltip content={<CustomTooltip unit="unidades" />} cursor={{ fill: "rgba(37,99,235,0.06)", radius: 8 }} />
                                         <Bar dataKey="cantidad" radius={[8, 8, 0, 0]}>
                                             {insumosUtilizados.map((_, i) => <Cell key={i} fill={insumosColors[i]} />)}
-                                            <LabelList dataKey="cantidad" position="top" style={{ fontSize: 11, fill: "#64748b", fontWeight: 700, fontFamily: "Outfit" }} />
+                                            <LabelList dataKey="cantidad" position="top" style={{ fontSize: 11, fill: C.muted, fontWeight: 700, fontFamily: "Outfit" }} />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -394,8 +395,8 @@ const DashboardMedicionDesempeño = () => {
                                         <YAxis tick={{ fontSize: 11, fill: "#94a3b8", fontFamily: "Outfit" }} axisLine={false} tickLine={false} allowDecimals={false} />
                                         <Tooltip content={<CustomTooltip unit="" />} cursor={{ fill: "rgba(0,0,0,0.03)", radius: 8 }} />
                                         <Bar dataKey="total" radius={[10, 10, 0, 0]}>
-                                            {["#16a34a", "#7c3aed", "#2563eb"].map((fill, i) => <Cell key={i} fill={fill} />)}
-                                            <LabelList dataKey="total" position="top" style={{ fontSize: 14, fill: "#0f172a", fontWeight: 800, fontFamily: "Outfit" }} />
+                                            {[C.success, C.violet, "#2563eb"].map((fill, i) => <Cell key={i} fill={fill} />)}
+                                            <LabelList dataKey="total" position="top" style={{ fontSize: 14, fill: C.text, fontWeight: 800, fontFamily: "Outfit" }} />
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>

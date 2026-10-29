@@ -1,6 +1,7 @@
 import { FaWhatsapp, FaFacebook, FaInstagram, FaMapMarkerAlt, FaPhone, FaEnvelope, FaHeart } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import logoImg from "../../assets/images/nuevo_logo_stamplab.png";
+import { C } from "../../config/tokens";
 
 const FooterComponent = () => {
     const year = new Date().getFullYear();
@@ -260,7 +261,7 @@ const FooterComponent = () => {
                                         margin: "0 0 8px",
                                         fontSize: 11,
                                         fontWeight: 700,
-                                        color: "#4f8ef7",
+                                        color: C.accent,
                                         textTransform: "uppercase",
                                         letterSpacing: "0.08em"
                                     }}
@@ -297,7 +298,7 @@ const FooterComponent = () => {
                             © {year} StampLab. Todos los derechos reservados.
                         </p>
                         <p style={{ margin: 0, fontSize: 12, color: "#ffff", fontFamily: "'Outfit', sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
-                            Hecho con <FaHeart size={10} style={{ color: "#dc2626" }} /> en Colombia
+                            Hecho con <FaHeart size={10} style={{ color: C.danger }} /> en Colombia
                         </p>
                     </div>
                 </div>

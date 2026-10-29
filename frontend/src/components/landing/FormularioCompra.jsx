@@ -447,7 +447,7 @@ const FormularioCompra = () => {
                                             {mostrarQR && (
                                                 <div style={{ marginTop: 14, textAlign: "center" }} className="mc-reveal">
                                                     <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALoAAAC6CAMAAAAu0KfDAAAABlBMVEX///8AAABVwtN+AAABxklEQVR4nO3QUZKDQAwD0eT+l94DgJQeCAXOtr4oGKzneb2MMebivHHSX31mbzljkC5d+hT6tj6dIcuQ+vRMDNKlS59I5zX9ZKKQ98QgXbr0X6X3f9P5NEG6dOnSSTGnk6/SpUv/PXrHEXpHHLsa6dKlT6cfq/nuMzdIly59Cv18SMGF9Wci/Y5IvyM301N9quxEshJZAy0sXbr0x9NJWRqXWH2NnnQR0qVLn0XvUL79KqVfFmmULl36FHpC9xBoByFi+ipduvQh9D4ivUllqwvwq5EuXfpEOjoK6NsJxy6iLyxduvRZ9M4lX8mSx7rieenSpQ+hry6z/TdVrl5E/1e6dOmz6H2B/kyI6TmtmhaLy0iXLv3B9FXWauXq5NSyE+nSpT+enupTyEoESto/oKVLl/54emKREemvPqf/tWCQLl36EHpfKYWc54vxLunSpU+hr2Zbn3Dkfb+yPkG6dOnPp79xTtWErmPXIV269Fn0nQ/hTHomK5FeflK6dOmz6O9N+Lgz6/XsoKVLl/6j9PS1V/LFert06dL/A31nUM13J0iXLn0inRfz9JnbM/3ipEuXPpF+DEGInN5bpEuXPpFujDEX5A/WVTvF1c+o+gAAAABJRU5ErkJggg=="
-                                                        alt="QR" style={{ width: 170, height: 170, borderRadius: 16, border: "2px solid #c7d9ff", padding: 8, background: "#fff" }} />
+                                                        alt="QR" style={{ width: 170, height: 170, borderRadius: 16, border: "2px solid #c7d9ff", padding: 8, background: C.white }} />
                                                     <p className="mc-hint">Escanea para realizar el pago</p>
                                                 </div>
                                             )}
@@ -474,7 +474,7 @@ const FormularioCompra = () => {
 
                                 {pideDatosEntrega && (
                                     <div className="mc-deliver mc-reveal">
-                                        <small className="mc-lbl" style={{ color: "#16a34a", margin: 0 }}>Datos de entrega</small>
+                                        <small className="mc-lbl" style={{ color: C.success, margin: 0 }}>Datos de entrega</small>
                                         <InputField label="Nombre de quien recibe" value={nombreReceptor}
                                             onChange={e => setNombreReceptor(e.target.value.replace(/[^a-záéíóúñA-ZÁÉÍÓÚÑ\s'-]/g, ''))}
                                             placeholder="Ej: Juan Pérez" required maxLength={100} />

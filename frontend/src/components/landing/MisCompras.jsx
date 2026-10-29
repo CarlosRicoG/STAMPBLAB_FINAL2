@@ -25,14 +25,14 @@ const puedeSubirComprobante = (v) => esPendiente(v) && (!!v.ComprobanteMotivoRec
 
 /* ── Estados ── */
 const estadoConfig = {
-    "Pendiente": { bg: "#fffbeb", color: C.warning, border: "#fde68a" },
-    "Pagada": { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
-    "En Producción": { bg: "#f0f4ff", color: C.accent, border: "#c7d9ff" },
-    "Lista para Entrega": { bg: "#f5f3ff", color: "#7c3aed", border: "#ddd6fe" },
-    "Entregada": { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
-    "Cancelada": { bg: "#fef2f2", color: C.danger, border: "#fecaca" },
+    "Pendiente": { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
+    "Pagada": { bg: C.successSoft, color: C.success, border: C.successBorder },
+    "En Producción": { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
+    "Lista para Entrega": { bg: C.purpleSoft, color: C.violet, border: C.purpleBorder },
+    "Entregada": { bg: C.successSoft, color: C.success, border: C.successBorder },
+    "Cancelada": { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
 };
-const getEstado = (n) => estadoConfig[n] || { bg: "#f1f5f9", color: C.muted, border: "#e2e8f0" };
+const getEstado = (n) => estadoConfig[n] || { bg: "#f1f5f9", color: C.muted, border: C.border };
 
 const FLUJO = ["Pendiente", "Pagada", "En Producción", "Lista para Entrega", "Entregada"];
 const pasosDe = (nombre) => {
@@ -49,7 +49,7 @@ const EstadoBadge = ({ nombre }) => {
 const MetodoPagoBadge = ({ metodo }) => {
     if (!metodo) return <span className="mc-pill"><FaStore size={10} /> Presencial</span>;
     if (metodo === "transferencia") return <span className="mc-pill blue"><FaCreditCard size={10} /> Transferencia</span>;
-    return <span className="mc-pill" style={{ background: "#f0fdf4", borderColor: "#bbf7d0", color: C.success }}><FaTruck size={10} /> Contraentrega</span>;
+    return <span className="mc-pill" style={{ background: C.successSoft, borderColor: C.successBorder, color: C.success }}><FaTruck size={10} /> Contraentrega</span>;
 };
 
 const formatFecha = (f) => new Date(f).toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" });
@@ -155,7 +155,7 @@ const ModalDetalle = ({ venta, onClose, config, onRecargar, onVolverAPedir }) =>
                     <div><small>Método de pago</small><MetodoPagoBadge metodo={venta.MetodoPago} /></div>
                     <div><small>Total</small><div className="big">${formatPrecio(venta.Total)}</div></div>
                 </div>
-                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 18, padding: "18px 18px 8px", marginBottom: 22 }}>
+                <div style={{ background: C.white, border: "1px solid #e2e8f0", borderRadius: 18, padding: "18px 18px 8px", marginBottom: 22 }}>
                     <small className="mc-lbl" style={{ marginBottom: 14 }}>Seguimiento del pedido</small>
                     <Stepper {...pasosDe(estadoNombre)} />
                     <div style={{ height: 10 }} />
@@ -281,7 +281,7 @@ const MisCompras = () => {
             console.error("Error al cargar compras:", error);
             // No se vacía la lista ya cargada: se conservan las compras previas y solo se avisa
             setErrorCarga(true);
-            Swal.fire({ icon: "error", title: "No pudimos cargar tus compras", text: "Revisa tu conexión e intenta de nuevo.", confirmButtonColor: "#1a2540" });
+            Swal.fire({ icon: "error", title: "No pudimos cargar tus compras", text: "Revisa tu conexión e intenta de nuevo.", confirmButtonColor: C.navy });
         } finally {
             setCargando(false);
         }
@@ -295,7 +295,7 @@ const MisCompras = () => {
             setVentaSeleccionada(data);
         } catch (error) {
             console.error("Error al cargar detalle:", error);
-            Swal.fire({ icon: "error", title: "No pudimos cargar el detalle", text: "Revisa tu conexión e intenta de nuevo.", confirmButtonColor: "#1a2540" });
+            Swal.fire({ icon: "error", title: "No pudimos cargar el detalle", text: "Revisa tu conexión e intenta de nuevo.", confirmButtonColor: C.navy });
         }
     };
 
@@ -318,7 +318,7 @@ const MisCompras = () => {
                 ? `<ul style="text-align:left;margin:8px 0 0;padding-left:20px;font-size:13px;color:#475569">${arr.map(o => `<li><b>${escapeHtml(o.nombre)}</b>: ${escapeHtml(o.motivo)}</li>`).join("")}</ul>`
                 : "";
             if (items.length === 0) {
-                Swal.fire({ icon: "info", title: "No pudimos agregar este pedido", html: `<p style="margin:0">Ninguno de los productos está disponible ahora mismo.</p>${lista(omitidos)}`, confirmButtonColor: "#1a2540" });
+                Swal.fire({ icon: "info", title: "No pudimos agregar este pedido", html: `<p style="margin:0">Ninguno de los productos está disponible ahora mismo.</p>${lista(omitidos)}`, confirmButtonColor: C.navy });
                 return;
             }
             let actual = [];
@@ -330,11 +330,11 @@ const MisCompras = () => {
                 icon: omitidos.length ? "warning" : "success",
                 title: `${items.length} ${items.length === 1 ? "producto agregado" : "productos agregados"} al carrito`,
                 html: `<p style="margin:0">Usamos los precios actuales del catálogo.</p>${omitidos.length ? `<p style="margin:10px 0 0;font-weight:700">No pudimos agregar:</p>${lista(omitidos)}` : ""}`,
-                showCancelButton: true, confirmButtonText: "Ir al carrito", cancelButtonText: "Seguir aquí", confirmButtonColor: "#4f8ef7", cancelButtonColor: "#1a2540",
+                showCancelButton: true, confirmButtonText: "Ir al carrito", cancelButtonText: "Seguir aquí", confirmButtonColor: C.accent, cancelButtonColor: C.navy,
             });
             if (r.isConfirmed) navigate("/productosLanding", { state: { abrirCarrito: true } });
         } catch {
-            Swal.fire({ icon: "error", title: "No se pudo volver a pedir", text: "No pudimos consultar el catálogo. Intenta de nuevo en unos minutos.", confirmButtonColor: "#dc2626" });
+            Swal.fire({ icon: "error", title: "No se pudo volver a pedir", text: "No pudimos consultar el catálogo. Intenta de nuevo en unos minutos.", confirmButtonColor: C.danger });
         } finally { setReordenando(false); }
     };
 
@@ -347,8 +347,8 @@ const MisCompras = () => {
             showCancelButton: true,
             confirmButtonText: "Sí, cancelar pedido",
             cancelButtonText: "No, conservarlo",
-            confirmButtonColor: "#dc2626",
-            cancelButtonColor: "#64748b",
+            confirmButtonColor: C.danger,
+            cancelButtonColor: C.muted,
         });
         if (!r.isConfirmed) return;
         try {
@@ -358,7 +358,7 @@ const MisCompras = () => {
             await Swal.fire({ icon: "success", title: "Pedido cancelado", text: "Tu pedido fue cancelado.", timer: 1800, showConfirmButton: false });
             await cargarVentas();
         } catch (err) {
-            Swal.fire({ icon: "error", title: "No se pudo cancelar", text: err.message, confirmButtonColor: "#1a2540" });
+            Swal.fire({ icon: "error", title: "No se pudo cancelar", text: err.message, confirmButtonColor: C.navy });
         }
     };
 
@@ -440,7 +440,7 @@ const MisCompras = () => {
 
                                                 <div className="mc-total ok">
                                                     <div><small>Total</small><b>${formatPrecio(venta.Total)}</b></div>
-                                                    <FaReceipt size={20} color="#16a34a" style={{ opacity: .45 }} />
+                                                    <FaReceipt size={20} color={C.success} style={{ opacity: .45 }} />
                                                 </div>
 
                                                 {estadoNombre === "Pendiente" && (() => {

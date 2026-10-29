@@ -30,6 +30,7 @@ const FormularioCompra = lazy(() => import("../components/landing/FormularioComp
 const AgregarProducto = lazy(() => import("../pages/formularios_dash/AgregarProducto"));
 const Ventas = lazy(() => import("../pages/Ventas"));
 import { ProtectedRoute } from "./ProtectedRoute";
+import { C } from "../config/tokens";
 const VentasPendientes = lazy(() => import("../pages/VentasPendientes"));
 const Compras = lazy(() => import("../pages/Compras"));
 const Clientes = lazy(() => import("../pages/Clientes"));
@@ -38,7 +39,7 @@ const MisCompras = lazy(() => import("../components/landing/MisCompras"));
 // Carga diferida: cada página se descarga al visitarla (bundle inicial mucho más liviano)
 const Cargando = () => (
     <div style={{ minHeight: "60vh", display: "grid", placeItems: "center" }}>
-        <div style={{ width: 44, height: 44, borderRadius: "50%", border: "4px solid #e2e8f0", borderTopColor: "#4f8ef7", animation: "sx-spin .8s linear infinite" }} />
+        <div style={{ width: 44, height: 44, borderRadius: "50%", border: "4px solid #e2e8f0", borderTopColor: C.accent, animation: "sx-spin .8s linear infinite" }} />
     </div>
 );
 

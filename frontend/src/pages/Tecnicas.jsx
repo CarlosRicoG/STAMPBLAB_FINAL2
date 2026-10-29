@@ -242,7 +242,7 @@ const ImageModal = ({ show, onClose, tecnica }) => {
                     <h3>{tecnica.Nombre}</h3>
                     <button className="cf-p-mclose" onClick={onClose} title="Cerrar" aria-label="Cerrar imagen"><FaTimes size={13} /></button>
                 </div>
-                <div className="cf-p-mbody" style={{ background: "#fff", textAlign: "center" }}>
+                <div className="cf-p-mbody" style={{ background: C.white, textAlign: "center" }}>
                     {tecnica.imagenTecnica
                         ? <img src={tecnica.imagenTecnica} alt={tecnica.Nombre} style={{ maxHeight: 480, maxWidth: "100%", borderRadius: 12, objectFit: "contain", margin: "0 auto" }} onError={e => { e.target.src = "https://via.placeholder.com/500x400?text=Error+al+cargar"; }} />
                         : <p style={{ color: C.muted }}>No hay imagen disponible</p>

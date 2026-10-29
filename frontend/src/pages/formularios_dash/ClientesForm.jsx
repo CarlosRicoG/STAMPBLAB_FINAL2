@@ -164,7 +164,7 @@ const ClientesForm = ({ onClose, onSave, cliente = null }) => {
                         type="button"
                         onClick={onClose}
                         className="btn btn-sm shadow-sm position-absolute top-0 end-0"
-                        style={{ background: C.danger, color: "#fff", border: "none" }}
+                        style={{ background: C.danger, color: C.white, border: "none" }}
                         disabled={loading}
                     >
                         <FaTimes />
@@ -266,7 +266,7 @@ const ClientesForm = ({ onClose, onSave, cliente = null }) => {
                             type="submit"
                             className="btn shadow-sm"
                             disabled={loading || tieneErrores}
-                            style={{ background: C.navy, color: "#fff", border: "none", fontFamily: "'Outfit', sans-serif", fontWeight: 700 }}
+                            style={{ background: C.navy, color: C.white, border: "none", fontFamily: "'Outfit', sans-serif", fontWeight: 700 }}
                         >
                             {loading ? (
                                 <><span className="spinner-border spinner-border-sm me-2" role="status"></span>{cliente ? "Actualizando..." : "Guardando..."}</>

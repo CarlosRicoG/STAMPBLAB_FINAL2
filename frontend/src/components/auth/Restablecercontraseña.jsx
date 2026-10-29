@@ -52,7 +52,7 @@ const RestablecerContraseña = () => {
         }
     };
 
-    const SPARKS = ["#16a34a", "#4f8ef7", "#7c3aed", "#22d3ee", "#16a34a", "#4f8ef7", "#7c3aed", "#f59e0b"];
+    const SPARKS = [C.success, C.accent, C.violet, "#22d3ee", C.success, C.accent, C.violet, "#f59e0b"];
     const coinciden = nuevaContraseña === confirmarContraseña;
 
     /* ── Token inválido ── */

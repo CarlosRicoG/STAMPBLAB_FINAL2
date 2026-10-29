@@ -248,13 +248,13 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
 
   const btnBase = {
     minWidth: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`,
-    background: "#fff", color: C.muted, fontSize: 13, fontWeight: 600,
+    background: C.white, color: C.muted, fontSize: 13, fontWeight: 600,
     cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center",
     transition: "all 0.18s", padding: "0 8px",
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${C.border}`, background: "#fff", flexWrap: "wrap", gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${C.border}`, background: C.white, flexWrap: "wrap", gap: 12 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, color: C.muted }}>
           Mostrando <strong style={{ color: C.navy }}>{desde}–{hasta}</strong> de <strong style={{ color: C.navy }}>{totalItems}</strong> cotizaciones
@@ -280,8 +280,8 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
             <button key={p} onClick={() => onCambiarPagina(p)}
               style={{
                 ...btnBase,
-                background: p === paginaActual ? C.navy : "#fff",
-                color: p === paginaActual ? "#fff" : C.muted,
+                background: p === paginaActual ? C.navy : C.white,
+                color: p === paginaActual ? C.white : C.muted,
                 borderColor: p === paginaActual ? C.navy : C.border,
                 fontWeight: p === paginaActual ? 700 : 600,
                 cursor: p === paginaActual ? "default" : "pointer",
@@ -306,7 +306,7 @@ const ImagenModal = ({ src, onClose }) => {
     <div className="cz-overlay" style={{ zIndex: 1070, background: "rgba(0,0,0,0.85)" }} onClick={onClose}>
       <div style={{ animation: "cz-pop .3s ease" }} onClick={e => e.stopPropagation()}>
         <img src={src} alt="Vista ampliada"
-          style={{ maxWidth: "90vw", maxHeight: "80vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", background: "#fff" }} />
+          style={{ maxWidth: "90vw", maxHeight: "80vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)", background: C.white }} />
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <button className="cz-btn red" onClick={onClose} style={{ borderRadius: 24, padding: "9px 24px" }}>Cerrar</button>
         </div>
@@ -379,7 +379,7 @@ const DisenoCard = ({ tec, editable, onGuardar, onVerImagen }) => {
                   onKeyDown={e => { if (e.key === "Enter") guardar(); }} />
               </div>
               <button className={`cz-btn sm ${cambiado ? "green" : "ghost"}`} onClick={guardar} disabled={guardando || !cambiado} title="Guardar costo">
-                {guardando ? <span style={{ width: 12, height: 12, border: "2px solid #fff6", borderTopColor: "#fff", borderRadius: "50%", animation: "cz-spin .7s linear infinite" }} /> : <FaSave size={11} />}
+                {guardando ? <span style={{ width: 12, height: 12, border: "2px solid #fff6", borderTopColor: C.white, borderRadius: "50%", animation: "cz-spin .7s linear infinite" }} /> : <FaSave size={11} />}
                 {falta ? "Asignar" : "Guardar"}
               </button>
             </>
@@ -527,7 +527,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
                   </div>
                   {waUrl && (
                     <a className="cz-btn sm ghost" href={waUrl} target="_blank" rel="noopener noreferrer"
-                      style={{ marginTop: 10, textDecoration: "none", color: "#15803d", borderColor: "#bbf7d0", background: C.successSoft }}>
+                      style={{ marginTop: 10, textDecoration: "none", color: "#15803d", borderColor: C.successBorder, background: C.successSoft }}>
                       <FaWhatsapp size={14} /> Escribir por WhatsApp
                     </a>
                   )}
@@ -567,7 +567,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
                   {info.imagen ? (
                     <img className="cz-prod-img" src={info.imagen} alt={info.nombre} onClick={() => setImagenModal(info.imagen)} />
                   ) : (
-                    <div className="cz-prod-img" style={{ cursor: "default", background: info.tipo === "personalizado" ? "#f5f3ff" : "#fffbeb" }}>
+                    <div className="cz-prod-img" style={{ cursor: "default", background: info.tipo === "personalizado" ? C.purpleSoft : C.warningSoft }}>
                       {info.tipo === "personalizado" ? <FaMagic size={24} color={C.violet} /> : <FaTshirt size={24} color={C.warning} />}
                     </div>
                   )}
@@ -575,7 +575,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
                     <p style={{ margin: 0, fontSize: 11, color: C.muted, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" }}>Producto {index + 1}</p>
                     <h6 style={{ color: C.navy, fontWeight: 800, margin: "2px 0 0", fontSize: 16 }}>{info.nombre}</h6>
                     <div className="cz-chips">
-                      <span className="cz-chip" style={{ background: C.navy, color: "#fff", borderColor: C.navy }}>{detalle.Cantidad} unidad(es)</span>
+                      <span className="cz-chip" style={{ background: C.navy, color: C.white, borderColor: C.navy }}>{detalle.Cantidad} unidad(es)</span>
                       {info.tipo === "personalizado" && <span className="cz-chip violet"><FaMagic size={9} /> Personalizado</span>}
                       {info.tipo === "prenda" && <span className="cz-chip amber"><FaTshirt size={9} /> Prenda propia</span>}
                       {detalle.colores?.map(c => <span key={`c${c.CotizacionColorID || c.ColorID}`} className="cz-chip"><FaPalette size={9} /> {c.color?.Nombre}</span>)}
@@ -883,7 +883,7 @@ const Cotizaciones = () => {
                     const { nombre: estadoNombre, type: estadoType } = estadoDe(cot);
                     return (
                       <tr key={cot.CotizacionID} className="cz-row"
-                        style={{ background: idx % 2 === 0 ? "#fff" : "#fafcff", animationDelay: `${idx * 0.03}s` }}>
+                        style={{ background: idx % 2 === 0 ? C.white : "#fafcff", animationDelay: `${idx * 0.03}s` }}>
                         <td><Badge type="navy">#{cot.CotizacionID}</Badge></td>
                         <td>
                           {producto.Imagen ? (

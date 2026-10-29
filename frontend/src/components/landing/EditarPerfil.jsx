@@ -10,6 +10,7 @@ import fondoPerfil from "../../assets/images/estampadoslies.webp";
 import { FaUserEdit, FaLock, FaIdCard, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaUser, FaCheckCircle, FaExclamationCircle, FaSave } from "react-icons/fa";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, Avatar, MiCuentaHero } from "./miCuentaKit";
+import { C } from "../../config/tokens";
 
 const InputField = ({ label, type = "text", name, value, onChange, disabled, error, placeholder, readOnly, hint, required }) => {
     const valido = error === "" && !!value && !readOnly;
@@ -28,7 +29,7 @@ const InputField = ({ label, type = "text", name, value, onChange, disabled, err
                 placeholder={placeholder}
             />
             {error && <p className="mc-err"><FaExclamationCircle size={11} /> {error}</p>}
-            {valido && <p className="mc-hint" style={{ color: "#16a34a", fontWeight: 600 }}><FaCheckCircle size={10} /> Se ve bien</p>}
+            {valido && <p className="mc-hint" style={{ color: C.success, fontWeight: 600 }}><FaCheckCircle size={10} /> Se ve bien</p>}
             {hint && !error && !valido && <p className="mc-hint">{hint}</p>}
         </div>
     );
@@ -82,17 +83,17 @@ const EditarPerfil = () => {
         e.preventDefault();
         const errs = { Nombre: validarNombre(formData.Nombre), Correo: validarCorreo(formData.Correo), Telefono: validarTelefono(formData.Telefono), Direccion: validarDireccion(formData.Direccion), Contraseña: validarContraseña(formData.Contraseña) };
         const activos = Object.fromEntries(Object.entries(errs).filter(([, v]) => v !== ""));
-        if (Object.keys(activos).length > 0) { setErrors(activos); Swal.fire({ icon: "error", title: "Errores en el formulario", text: "Por favor corrige los errores antes de continuar.", confirmButtonColor: "#dc2626" }); return; }
+        if (Object.keys(activos).length > 0) { setErrors(activos); Swal.fire({ icon: "error", title: "Errores en el formulario", text: "Por favor corrige los errores antes de continuar.", confirmButtonColor: C.danger }); return; }
         try {
             setSaving(true);
             const dataToSend = { Nombre: formData.Nombre.trim(), Correo: formData.Correo.trim(), Telefono: formData.Telefono.trim(), Direccion: formData.Direccion.trim() };
             if (formData.Contraseña?.trim()) dataToSend.Contraseña = formData.Contraseña.trim();
             const response = await updateUsuario(formData.DocumentoID, dataToSend);
             if (response.estado) {
-                Swal.fire({ icon: "success", title: "¡Perfil actualizado!", text: "Por seguridad, debes iniciar sesión nuevamente.", confirmButtonColor: "#1a2540" }).then(async () => { await cerrarSesion(); navigate("/login"); });
+                Swal.fire({ icon: "success", title: "¡Perfil actualizado!", text: "Por seguridad, debes iniciar sesión nuevamente.", confirmButtonColor: C.navy }).then(async () => { await cerrarSesion(); navigate("/login"); });
             } else throw new Error(response.mensaje || "Error al actualizar perfil");
         } catch (error) {
-            Swal.fire({ icon: "error", title: "Error", text: error.response?.data?.mensaje || error.message || "Error al actualizar el perfil.", confirmButtonColor: "#dc2626" });
+            Swal.fire({ icon: "error", title: "Error", text: error.response?.data?.mensaje || error.message || "Error al actualizar el perfil.", confirmButtonColor: C.danger });
         } finally { setSaving(false); }
     };
 
@@ -135,12 +136,12 @@ const EditarPerfil = () => {
                         <div className="mc-perfil-form">
                             <div style={{ marginBottom: 26 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-                                    <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg,#4f8ef7,#7c3aed)", color: "#fff", display: "grid", placeItems: "center", boxShadow: "0 8px 18px rgba(79,142,247,.4)" }}>
+                                    <div style={{ width: 38, height: 38, borderRadius: 11, background: "linear-gradient(135deg,#4f8ef7,#7c3aed)", color: C.white, display: "grid", placeItems: "center", boxShadow: "0 8px 18px rgba(79,142,247,.4)" }}>
                                         <FaUserEdit size={16} />
                                     </div>
-                                    <h1 style={{ margin: 0, fontWeight: 800, fontSize: 22, color: "#1a2540", letterSpacing: "-0.02em" }}>Editar Perfil</h1>
+                                    <h1 style={{ margin: 0, fontWeight: 800, fontSize: 22, color: C.navy, letterSpacing: "-0.02em" }}>Editar Perfil</h1>
                                 </div>
-                                <p style={{ margin: 0, fontSize: 13, color: "#64748b" }}>Actualiza tu información personal</p>
+                                <p style={{ margin: 0, fontSize: 13, color: C.muted }}>Actualiza tu información personal</p>
                             </div>
 
                             <form onSubmit={handleSubmit} noValidate>

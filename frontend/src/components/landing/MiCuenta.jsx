@@ -10,6 +10,7 @@ import usePlus from "../../hooks/usePlus";
 import { formatoFechaHoraCO, ultimoPedidoEnCurso } from "../../utils/clienteUtils";
 import { useResumenCliente, CLIENTE_CSS, BotonWhatsApp, useConfigPublica } from "./clienteKit";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, Stepper, EmptyState, Skeletons } from "./miCuentaKit";
+import { C } from "../../config/tokens";
 
 const FLUJO = ["Pendiente", "Pagada", "En Producción", "Lista para Entrega", "Entregada"];
 const pasosDe = (nombre) => {
@@ -95,21 +96,21 @@ const MiCuenta = () => {
 
                                     {atencion.porAceptar.map((c) => (
                                         <div key={`c${c.CotizacionID}`} className="mcu-item ok">
-                                            <div className="mcu-item-t"><FaThumbsUp color="#16a34a" /><span>Tu cotización <b>#{c.CotizacionID}</b> está lista por <b>${formatPrecio(c.ValorTotal)}</b>. Acéptala para crear tu pedido.</span></div>
+                                            <div className="mcu-item-t"><FaThumbsUp color={C.success} /><span>Tu cotización <b>#{c.CotizacionID}</b> está lista por <b>${formatPrecio(c.ValorTotal)}</b>. Acéptala para crear tu pedido.</span></div>
                                             <Link to="/miscotizaciones" className="ck-btn green">Ver y aceptar</Link>
                                         </div>
                                     ))}
 
                                     {atencion.rechazados.map((v) => (
                                         <div key={`r${v.VentaID}`} className="mcu-item bad">
-                                            <div className="mcu-item-t"><FaExclamationTriangle color="#dc2626" /><span>El comprobante del pedido <b>#{v.VentaID}</b> fue rechazado: {v.ComprobanteMotivoRechazo}</span></div>
+                                            <div className="mcu-item-t"><FaExclamationTriangle color={C.danger} /><span>El comprobante del pedido <b>#{v.VentaID}</b> fue rechazado: {v.ComprobanteMotivoRechazo}</span></div>
                                             <Link to="/miscompras" className="ck-btn">Subir uno nuevo</Link>
                                         </div>
                                     ))}
 
                                     {atencion.pendientesPago.slice(0, 5).map(({ venta, limite, restante }) => (
                                         <div key={`p${venta.VentaID}`} className={`mcu-item ${restante === "plazo vencido" ? "bad" : "warn"}`}>
-                                            <div className="mcu-item-t"><FaClock color="#d97706" /><span>Pedido <b>#{venta.VentaID}</b> pendiente de pago por <b>${formatPrecio(venta.Total)}</b>.{limite ? <> Paga antes de <b>{formatoFechaHoraCO(limite)}</b> ({restante}).</> : null}</span></div>
+                                            <div className="mcu-item-t"><FaClock color={C.warning} /><span>Pedido <b>#{venta.VentaID}</b> pendiente de pago por <b>${formatPrecio(venta.Total)}</b>.{limite ? <> Paga antes de <b>{formatoFechaHoraCO(limite)}</b> ({restante}).</> : null}</span></div>
                                             <Link to="/miscompras" className="ck-btn ghost">Ver pedido</Link>
                                         </div>
                                     ))}
@@ -131,7 +132,7 @@ const MiCuenta = () => {
                                                     {primerDetalle?.producto?.ImagenProducto ? <img src={primerDetalle.producto.ImagenProducto} alt="" /> : <FaBoxOpen size={24} />}
                                                 </div>
                                                 <div style={{ minWidth: 0 }}>
-                                                    <div style={{ fontWeight: 900, color: "#1a2540", fontSize: 16 }}>Pedido #{enCurso.VentaID}</div>
+                                                    <div style={{ fontWeight: 900, color: C.navy, fontSize: 16 }}>Pedido #{enCurso.VentaID}</div>
                                                     <div className="ck-muted">{estadoEnCurso} · ${formatPrecio(enCurso.Total)}</div>
                                                 </div>
                                             </div>

@@ -27,15 +27,15 @@ const esAprobadaConPrecio = (c) =>
 
 
 const estadoConfig = {
-    'Pendiente': { color: C.warning, bg: "#fffbeb", border: "#fde68a", icon: <FaClock size={11} /> },
-    'Aprobada': { color: C.success, bg: "#f0fdf4", border: "#bbf7d0", icon: <FaCheckCircle size={11} /> },
-    'Rechazada': { color: C.danger, bg: "#fef2f2", border: "#fecaca", icon: <FaTimesCircle size={11} /> },
-    'Cancelada': { color: C.danger, bg: "#fef2f2", border: "#fecaca", icon: <FaTimesCircle size={11} /> },
-    'En revisión': { color: C.info, bg: "#e0f2fe", border: "#bae6fd", icon: <FaClock size={11} /> },
-    'Vencida': { color: C.muted, bg: "#f1f5f9", border: "#e2e8f0", icon: <FaTimesCircle size={11} /> },
-    'Procesada': { color: C.info, bg: "#e0f2fe", border: "#bae6fd", icon: <FaExchangeAlt size={11} /> },
+    'Pendiente': { color: C.warning, bg: C.warningSoft, border: C.warningBorder, icon: <FaClock size={11} /> },
+    'Aprobada': { color: C.success, bg: C.successSoft, border: C.successBorder, icon: <FaCheckCircle size={11} /> },
+    'Rechazada': { color: C.danger, bg: C.dangerSoft, border: C.dangerBorder, icon: <FaTimesCircle size={11} /> },
+    'Cancelada': { color: C.danger, bg: C.dangerSoft, border: C.dangerBorder, icon: <FaTimesCircle size={11} /> },
+    'En revisión': { color: C.info, bg: C.infoSoft, border: "#bae6fd", icon: <FaClock size={11} /> },
+    'Vencida': { color: C.muted, bg: "#f1f5f9", border: C.border, icon: <FaTimesCircle size={11} /> },
+    'Procesada': { color: C.info, bg: C.infoSoft, border: "#bae6fd", icon: <FaExchangeAlt size={11} /> },
 };
-const getEstado = (nombre) => estadoConfig[nombre] || { color: C.muted, bg: "#f1f5f9", border: "#e2e8f0", icon: <FaClock size={11} /> };
+const getEstado = (nombre) => estadoConfig[nombre] || { color: C.muted, bg: "#f1f5f9", border: C.border, icon: <FaClock size={11} /> };
 
 const FLUJO = ['Pendiente', 'Aprobada', 'Procesada'];
 const FALLIDOS = ['Rechazada', 'Cancelada', 'Vencida'];
@@ -184,7 +184,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = 
 
                                 {detalle.tecnicas?.length > 0 && (
                                     <div className="mc-designs">
-                                        <div className="mc-lbl" style={{ color: "#7c3aed", display: "flex", alignItems: "center", gap: 7, marginBottom: 0 }}>
+                                        <div className="mc-lbl" style={{ color: C.violet, display: "flex", alignItems: "center", gap: 7, marginBottom: 0 }}>
                                             <FaPalette size={12} /> Diseños aplicados ({detalle.tecnicas.length})
                                         </div>
                                         {detalle.tecnicas.map((tec, tidx) => {

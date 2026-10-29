@@ -11,7 +11,7 @@ import { C } from "../config/tokens";
 /* Etiqueta "Stock bajo" para variantes por debajo del mínimo configurado */
 const StockBajo = ({ minimo }) => (
   <span title={`Por debajo del mínimo (${minimo})`}
-    style={{ display: "inline-block", marginLeft: 6, padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", whiteSpace: "nowrap" }}>
+    style={{ display: "inline-block", marginLeft: 6, padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: "#b91c1c", background: C.dangerSoft, border: "1px solid #fecaca", whiteSpace: "nowrap" }}>
     Stock bajo
   </span>
 );
@@ -26,16 +26,16 @@ const formatPrecio = (valor) =>
   });
 
 
-const TH = { background: C.navyGrad, color: "#fff", fontSize: 12, fontWeight: 700, padding: "13px 16px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
+const TH = { background: C.navyGrad, color: C.white, fontSize: 12, fontWeight: 700, padding: "13px 16px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
 
 const Badge = ({ type, children }) => {
   const map = {
-    success: { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
-    warning: { bg: "#fffbeb", color: C.warning, border: "#fde68a" },
-    danger: { bg: "#fef2f2", color: C.danger, border: "#fecaca" },
-    accent: { bg: "#f0f4ff", color: C.accent, border: "#c7d9ff" },
-    navy: { bg: C.navy, color: "#fff", border: C.navy },
-    muted: { bg: "#f1f5f9", color: C.muted, border: "#e2e8f0" },
+    success: { bg: C.successSoft, color: C.success, border: C.successBorder },
+    warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
+    danger: { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
+    accent: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
+    navy: { bg: C.navy, color: C.white, border: C.navy },
+    muted: { bg: "#f1f5f9", color: C.muted, border: C.border },
   };
   const s = map[type] || map.muted;
   return (
@@ -84,13 +84,13 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
 
   const btnBase = {
     minWidth: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`,
-    background: "#fff", color: C.muted, fontSize: 13, fontWeight: 600,
+    background: C.white, color: C.muted, fontSize: 13, fontWeight: 600,
     cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center",
     fontFamily: "'Outfit',sans-serif", transition: "all 0.18s", padding: "0 8px",
   };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${C.border}`, background: "#fff", flexWrap: "wrap", gap: 12 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${C.border}`, background: C.white, flexWrap: "wrap", gap: 12 }}>
 
       {/* Info items */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -100,7 +100,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Por página:</span>
           <select value={itemsPorPagina} onChange={e => onCambiarItemsPorPagina(Number(e.target.value))}
-            style={{ border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontFamily: "'Outfit',sans-serif", outline: "none", color: C.navy, cursor: "pointer", background: "#fff" }}
+            style={{ border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontFamily: "'Outfit',sans-serif", outline: "none", color: C.navy, cursor: "pointer", background: C.white }}
             onFocus={e => e.target.style.borderColor = C.accent}
             onBlur={e => e.target.style.borderColor = C.border}>
             {ITEMS_POR_PAGINA_OPCIONES.map(n => <option key={n} value={n}>{n}</option>)}
@@ -115,7 +115,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
           disabled={paginaActual === 1}
           style={{ ...btnBase, opacity: paginaActual === 1 ? 0.4 : 1, cursor: paginaActual === 1 ? "not-allowed" : "pointer" }}
           onMouseEnter={e => { if (paginaActual !== 1) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+          onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
           <FaChevronLeft size={11} />
         </button>
 
@@ -126,14 +126,14 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
             <button key={p} onClick={() => onCambiarPagina(p)}
               style={{
                 ...btnBase,
-                background: p === paginaActual ? C.navy : "#fff",
-                color: p === paginaActual ? "#fff" : C.muted,
+                background: p === paginaActual ? C.navy : C.white,
+                color: p === paginaActual ? C.white : C.muted,
                 borderColor: p === paginaActual ? C.navy : C.border,
                 fontWeight: p === paginaActual ? 700 : 600,
                 cursor: p === paginaActual ? "default" : "pointer",
               }}
               onMouseEnter={e => { if (p !== paginaActual) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-              onMouseLeave={e => { if (p !== paginaActual) { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}>
+              onMouseLeave={e => { if (p !== paginaActual) { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}>
               {p}
             </button>
           )
@@ -144,7 +144,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
           disabled={paginaActual === totalPaginas}
           style={{ ...btnBase, opacity: paginaActual === totalPaginas ? 0.4 : 1, cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer" }}
           onMouseEnter={e => { if (paginaActual !== totalPaginas) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+          onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
           <FaChevronRight size={11} />
         </button>
       </div>
@@ -329,7 +329,7 @@ const Productos = () => {
             <button
               onClick={() => navigate("/dashboard/agregar-producto")}
               disabled={cargando}
-              style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "'Outfit',sans-serif", boxShadow: `0 4px 12px ${C.navy}33`, transition: "all 0.2s" }}
+              style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontFamily: "'Outfit',sans-serif", boxShadow: `0 4px 12px ${C.navy}33`, transition: "all 0.2s" }}
               onMouseEnter={e => { e.currentTarget.style.background = "#2d3f6e"; e.currentTarget.style.transform = "translateY(-1px)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = C.navy; e.currentTarget.style.transform = "none"; }}>
               <FaPlusCircle size={15} /> Agregar Producto
@@ -338,7 +338,7 @@ const Productos = () => {
         </div>
 
         {/* TABLA */}
-        <div style={{ background: "#fff", borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
+        <div style={{ background: C.white, borderRadius: 18, overflow: "hidden", boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>
               <thead>
@@ -362,7 +362,7 @@ const Productos = () => {
                 ) : (
                   productosPagina.map((p, idx) => (
                     <tr key={p.ProductoID} className="prod-row"
-                      style={{ background: idx % 2 === 0 ? "#fff" : C.accentSoft, transition: "background 0.15s", borderBottom: `1px solid ${C.border}`, animation: "fadeIn 0.3s ease both", animationDelay: `${idx * 0.03}s` }}>
+                      style={{ background: idx % 2 === 0 ? C.white : C.accentSoft, transition: "background 0.15s", borderBottom: `1px solid ${C.border}`, animation: "fadeIn 0.3s ease both", animationDelay: `${idx * 0.03}s` }}>
                       <td style={{ padding: "12px 16px", color: C.muted, fontWeight: 600 }}>#{p.ProductoID}</td>
                       <td style={{ padding: "10px 16px" }}>
                         {p.ImagenProducto ? (
@@ -389,7 +389,7 @@ const Productos = () => {
                         </Badge>
                         {bajoPorProducto[p.ProductoID] > 0 && (
                           <span title={`${bajoPorProducto[p.ProductoID]} variante(s) por debajo del mínimo (${stockMinimo})`}
-                            style={{ display: "inline-block", marginLeft: 6, padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: "#b91c1c", background: "#fef2f2", border: "1px solid #fecaca", whiteSpace: "nowrap" }}>
+                            style={{ display: "inline-block", marginLeft: 6, padding: "2px 8px", borderRadius: 999, fontSize: 10.5, fontWeight: 700, color: "#b91c1c", background: C.dangerSoft, border: "1px solid #fecaca", whiteSpace: "nowrap" }}>
                             Stock bajo ({bajoPorProducto[p.ProductoID]})
                           </span>
                         )}
@@ -428,11 +428,11 @@ const Productos = () => {
       {showModal && productoSel && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1050, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
           onClick={() => setShowModal(false)}>
-          <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 860, maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", animation: "fadeIn 0.25s ease" }}
+          <div style={{ background: C.white, borderRadius: 20, width: "100%", maxWidth: 860, maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", animation: "fadeIn 0.25s ease" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ background: C.navyGrad, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h5 style={{ margin: 0, color: "#fff", fontWeight: 700, fontSize: 16 }}>Detalle del Producto</h5>
-              <button onClick={() => setShowModal(false)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 30, height: 30, color: "#fff", cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              <h5 style={{ margin: 0, color: C.white, fontWeight: 700, fontSize: 16 }}>Detalle del Producto</h5>
+              <button onClick={() => setShowModal(false)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 8, width: 30, height: 30, color: C.white, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
             </div>
             <div style={{ overflowY: "auto", padding: 24 }}>
               <div style={{ display: "grid", gridTemplateColumns: "160px 1fr", gap: 20, marginBottom: 24, background: C.accentSoft, borderRadius: 14, padding: 20 }}>
@@ -472,7 +472,7 @@ const Productos = () => {
                     </thead>
                     <tbody>
                       {variantes.map((v, i) => (
-                        <tr key={v.InventarioID} style={{ background: i % 2 === 0 ? "#fff" : C.accentSoft }}>
+                        <tr key={v.InventarioID} style={{ background: i % 2 === 0 ? C.white : C.accentSoft }}>
                           <td style={{ padding: "10px 12px" }}>{getNombreColor(v.ColorID)}</td>
                           <td style={{ padding: "10px 12px" }}>{getNombreTalla(v.TallaID)}</td>
                           <td style={{ padding: "10px 12px" }}><Badge type={v.TelaID ? "accent" : "muted"}>{v.tela?.Nombre || "Sin tela"}</Badge></td>
@@ -494,7 +494,7 @@ const Productos = () => {
                 Cerrar
               </button>
               <button onClick={() => { setShowModal(false); navigate(`/dashboard/editar-producto/${productoSel.ProductoID}`); }}
-                style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
+                style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "9px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 7 }}>
                 <FaEdit size={12} /> Editar Producto
               </button>
             </div>
@@ -510,7 +510,7 @@ const Productos = () => {
             <img src={imagenModal} alt="Vista ampliada" style={{ maxWidth: "90vw", maxHeight: "80vh", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }} />
             <div style={{ textAlign: "center", marginTop: 16 }}>
               <button onClick={() => setImagenModal(null)}
-                style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 24, padding: "9px 24px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                style={{ background: C.danger, color: C.white, border: "none", borderRadius: 24, padding: "9px 24px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
                 Cerrar
               </button>
             </div>

@@ -20,8 +20,8 @@ const Label = ({ children, required }) => (
 const inputBase = {
     width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 9,
     padding: "9px 13px", fontSize: 13, fontFamily: "'Outfit',sans-serif",
-    color: "#0f172a", outline: "none", transition: "border-color 0.2s",
-    background: "#fff",
+    color: C.text, outline: "none", transition: "border-color 0.2s",
+    background: C.white,
 };
 
 const InputField = ({ error, valid, ...props }) => (
@@ -46,12 +46,12 @@ const HintMsg = ({ msg }) => <p style={{ color: C.muted, fontSize: 11, marginTop
 
 const Badge = ({ type, children }) => {
     const map = {
-        success: { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
-        warning: { bg: "#fffbeb", color: C.warning, border: "#fde68a" },
-        danger: { bg: "#fef2f2", color: C.danger, border: "#fecaca" },
+        success: { bg: C.successSoft, color: C.success, border: C.successBorder },
+        warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
+        danger: { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
         accent: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-        navy: { bg: C.navy, color: "#fff", border: C.navy },
-        muted: { bg: "#f1f5f9", color: C.muted, border: "#e2e8f0" },
+        navy: { bg: C.navy, color: C.white, border: C.navy },
+        muted: { bg: "#f1f5f9", color: C.muted, border: C.border },
     };
     const s = map[type] || map.muted;
     return (
@@ -61,7 +61,7 @@ const Badge = ({ type, children }) => {
     );
 };
 
-const TH = { background: C.navyGrad, color: "#fff", fontSize: 11, fontWeight: 700, padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
+const TH = { background: C.navyGrad, color: C.white, fontSize: 11, fontWeight: 700, padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
 
 const SectionTitle = ({ children }) => (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
@@ -332,9 +332,9 @@ const AgregarProducto = () => {
 
                 {/* ── HEADER ── */}
                 <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
-                    <button onClick={handleVolver} disabled={cargando} style={{ width: 38, height: 38, borderRadius: 10, border: `1.5px solid ${C.border}`, background: "#fff", color: C.navy, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}
+                    <button onClick={handleVolver} disabled={cargando} style={{ width: 38, height: 38, borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.white, color: C.navy, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}
                         onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; }}
-                        onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; }}>
+                        onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; }}>
                         <FaArrowLeft size={14} />
                     </button>
                     <div>
@@ -352,7 +352,7 @@ const AgregarProducto = () => {
                                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
                                     <div style={{
                                         width: 38, height: 38, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                                        background: paso >= n ? C.navy : "#e2e8f0", color: paso >= n ? "#fff" : C.muted,
+                                        background: paso >= n ? C.navy : C.border, color: paso >= n ? C.white : C.muted,
                                         fontWeight: 800, fontSize: 14, fontFamily: "'Outfit',sans-serif",
                                         boxShadow: paso >= n ? `0 4px 12px ${C.navy}44` : "none", transition: "all 0.3s",
                                     }}>
@@ -361,7 +361,7 @@ const AgregarProducto = () => {
                                     <span style={{ fontSize: 11, fontWeight: 600, color: paso >= n ? C.navy : C.muted }}>{n === 1 ? "Datos" : "Variantes"}</span>
                                 </div>
                                 {i === 0 && (
-                                    <div style={{ width: 80, height: 2, background: paso >= 2 ? C.navy : "#e2e8f0", margin: "19px 16px 0", borderRadius: 2, transition: "background 0.3s" }} />
+                                    <div style={{ width: 80, height: 2, background: paso >= 2 ? C.navy : C.border, margin: "19px 16px 0", borderRadius: 2, transition: "background 0.3s" }} />
                                 )}
                             </React.Fragment>
                         ))}
@@ -372,7 +372,7 @@ const AgregarProducto = () => {
             PASO 1: Datos del producto
         ════════════════════════════════════════ */}
                 {paso === 1 && (
-                    <div style={{ maxWidth: 680, margin: "0 auto", background: "#fff", borderRadius: 18, padding: "32px 36px", boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", animation: "fadeIn 0.3s ease" }}>
+                    <div style={{ maxWidth: 680, margin: "0 auto", background: C.white, borderRadius: 18, padding: "32px 36px", boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", animation: "fadeIn 0.3s ease" }}>
                         <SectionTitle>Información del Producto</SectionTitle>
                         <form onSubmit={handleGuardarProducto} noValidate>
 
@@ -419,7 +419,7 @@ const AgregarProducto = () => {
                             {showPreview && (
                                 <div style={{ marginBottom: 24, borderRadius: 14, overflow: "hidden", border: `1.5px solid ${C.accentBorder}`, background: C.accentSoft }}>
                                     <div style={{ background: C.navyGrad, padding: "8px 16px" }}>
-                                        <span style={{ color: "#fff", fontSize: 12, fontWeight: 600 }}>Vista Previa</span>
+                                        <span style={{ color: C.white, fontSize: 12, fontWeight: 600 }}>Vista Previa</span>
                                     </div>
                                     <div style={{ padding: 16, textAlign: "center" }}>
                                         <img src={producto.ImagenProducto} alt="Preview" onError={() => setPreviewError(true)} style={{ maxHeight: 220, maxWidth: "100%", borderRadius: 10, objectFit: "contain" }} />
@@ -434,7 +434,7 @@ const AgregarProducto = () => {
                                     Cancelar
                                 </button>
                                 <button type="submit" disabled={cargando}
-                                    style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: cargando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, opacity: cargando ? 0.7 : 1 }}>
+                                    style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: cargando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, opacity: cargando ? 0.7 : 1 }}>
                                     {cargando ? <><div style={{ width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />{modoEdicion ? "Actualizando..." : "Creando..."}</> : (modoEdicion ? "Actualizar y Continuar" : "Crear y Continuar")}
                                 </button>
                             </div>
@@ -449,7 +449,7 @@ const AgregarProducto = () => {
                     <div style={{ maxWidth: 1100, margin: "0 auto", animation: "fadeIn 0.3s ease" }}>
 
                         {/* Card info producto */}
-                        <div style={{ background: "#fff", borderRadius: 18, padding: "24px 28px", marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
+                        <div style={{ background: C.white, borderRadius: 18, padding: "24px 28px", marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
                                 <SectionTitle>Información del Producto</SectionTitle>
                                 {modoEdicion && !editandoProd && (
@@ -492,7 +492,7 @@ const AgregarProducto = () => {
                                             Cancelar
                                         </button>
                                         <button type="submit" disabled={cargando}
-                                            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
+                                            style={{ background: C.navy, color: C.white, border: "none", borderRadius: 9, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>
                                             {cargando ? "Guardando..." : "Guardar cambios"}
                                         </button>
                                     </div>
@@ -521,7 +521,7 @@ const AgregarProducto = () => {
                         {!editandoProd && (
                             <>
                                 {/* Form nueva variante */}
-                                <div style={{ background: "#fff", borderRadius: 18, padding: "24px 28px", marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
+                                <div style={{ background: C.white, borderRadius: 18, padding: "24px 28px", marginBottom: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9" }}>
                                     <SectionTitle>{modoEdicion ? "Gestionar Variantes" : "Agregar Variantes"}</SectionTitle>
 
                                     <div style={{ background: C.accentSoft, borderRadius: 14, padding: "20px 22px", border: `1.5px solid ${C.accentBorder}`, marginBottom: 24 }}>
@@ -562,7 +562,7 @@ const AgregarProducto = () => {
                                             </div>
                                             <div style={{ paddingBottom: errores.PrecioBase ? 0 : 0 }}>
                                                 <button type="button" onClick={handleAgregarVariante} title="Agregar variante"
-                                                    style={{ width: 40, height: 40, borderRadius: 10, background: C.success, color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                                    style={{ width: 40, height: 40, borderRadius: 10, background: C.success, color: C.white, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                                     <FaPlus size={14} />
                                                 </button>
                                             </div>
@@ -592,7 +592,7 @@ const AgregarProducto = () => {
                                                 </thead>
                                                 <tbody>
                                                     {variantes.map((v, idx) => (
-                                                        <tr key={idx} className="var-row" style={{ background: idx % 2 === 0 ? "#fff" : C.accentSoft, transition: "background 0.15s" }}>
+                                                        <tr key={idx} className="var-row" style={{ background: idx % 2 === 0 ? C.white : C.accentSoft, transition: "background 0.15s" }}>
                                                             <td style={{ padding: "11px 14px", fontWeight: 600, color: C.navy }}>{v.nombreColor}</td>
                                                             <td style={{ padding: "11px 14px", color: C.muted }}>{v.nombreTalla}</td>
                                                             <td style={{ padding: "11px 14px" }}><Badge type={v.TelaID ? "accent" : "muted"}>{v.nombreTela}</Badge></td>
@@ -634,7 +634,7 @@ const AgregarProducto = () => {
                                         {modoEdicion ? "Cancelar" : "Volver"}
                                     </button>
                                     <button onClick={handleGuardarVariantes} disabled={cargando}
-                                        style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: cargando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, opacity: cargando ? 0.7 : 1 }}>
+                                        style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "10px 22px", fontSize: 13, fontWeight: 700, cursor: cargando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, opacity: cargando ? 0.7 : 1 }}>
                                         {cargando ? <><div style={{ width: 14, height: 14, border: "2px solid #fff4", borderTop: "2px solid #fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />Guardando...</> : <><FaCheck size={13} />{modoEdicion ? "Guardar Cambios" : "Finalizar"}</>}
                                     </button>
                                 </div>

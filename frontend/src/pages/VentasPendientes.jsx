@@ -11,7 +11,7 @@ import { C } from "../config/tokens";
 /* ── Tokens ── */
 
 const TH = {
-    background: C.navyGrad, color: "#fff", fontSize: 11, fontWeight: 700,
+    background: C.navyGrad, color: C.white, fontSize: 11, fontWeight: 700,
     padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em", textAlign: "left",
 };
 
@@ -61,13 +61,13 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
 
     const btnBase = {
         minWidth: 34, height: 34, borderRadius: 8, border: `1.5px solid ${C.border}`,
-        background: "#fff", color: C.muted, fontSize: 13, fontWeight: 600,
+        background: C.white, color: C.muted, fontSize: 13, fontWeight: 600,
         cursor: "pointer", display: "inline-flex", alignItems: "center", justifyContent: "center",
         fontFamily: "'Outfit',sans-serif", transition: "all 0.18s", padding: "0 8px",
     };
 
     return (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${C.border}`, background: "#fff", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderTop: `1px solid ${C.border}`, background: C.white, flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontSize: 13, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>
                     Mostrando <strong style={{ color: C.navy }}>{desde}–{hasta}</strong> de <strong style={{ color: C.navy }}>{totalItems}</strong> pedidos
@@ -75,7 +75,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 12, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>Por página:</span>
                     <select value={itemsPorPagina} onChange={e => onCambiarItemsPorPagina(Number(e.target.value))}
-                        style={{ border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontFamily: "'Outfit',sans-serif", outline: "none", color: C.navy, cursor: "pointer", background: "#fff" }}
+                        style={{ border: `1.5px solid ${C.border}`, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontFamily: "'Outfit',sans-serif", outline: "none", color: C.navy, cursor: "pointer", background: C.white }}
                         onFocus={e => e.target.style.borderColor = C.accent}
                         onBlur={e => e.target.style.borderColor = C.border}>
                         {ITEMS_POR_PAGINA_OPCIONES.map(n => <option key={n} value={n}>{n}</option>)}
@@ -89,7 +89,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                     disabled={paginaActual === 1}
                     style={{ ...btnBase, opacity: paginaActual === 1 ? 0.4 : 1, cursor: paginaActual === 1 ? "not-allowed" : "pointer" }}
                     onMouseEnter={e => { if (paginaActual !== 1) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                    onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
                     <FaChevronLeft size={11} />
                 </button>
 
@@ -100,14 +100,14 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                         <button key={p} onClick={() => onCambiarPagina(p)}
                             style={{
                                 ...btnBase,
-                                background: p === paginaActual ? C.navy : "#fff",
-                                color: p === paginaActual ? "#fff" : C.muted,
+                                background: p === paginaActual ? C.navy : C.white,
+                                color: p === paginaActual ? C.white : C.muted,
                                 borderColor: p === paginaActual ? C.navy : C.border,
                                 fontWeight: p === paginaActual ? 700 : 600,
                                 cursor: p === paginaActual ? "default" : "pointer",
                             }}
                             onMouseEnter={e => { if (p !== paginaActual) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-                            onMouseLeave={e => { if (p !== paginaActual) { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}>
+                            onMouseLeave={e => { if (p !== paginaActual) { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; } }}>
                             {p}
                         </button>
                     )
@@ -118,7 +118,7 @@ const Paginacion = ({ paginaActual, totalPaginas, totalItems, itemsPorPagina, on
                     disabled={paginaActual === totalPaginas}
                     style={{ ...btnBase, opacity: paginaActual === totalPaginas ? 0.4 : 1, cursor: paginaActual === totalPaginas ? "not-allowed" : "pointer" }}
                     onMouseEnter={e => { if (paginaActual !== totalPaginas) { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accent; e.currentTarget.style.color = C.accent; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                    onMouseLeave={e => { e.currentTarget.style.background = C.white; e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
                     <FaChevronRight size={11} />
                 </button>
             </div>
@@ -134,10 +134,10 @@ const EstadoModal = ({ show, onClose, onConfirm, enviando, estados, estadoSelecc
     const opciones = estados.filter(e => validos.includes(e.EstadoID));
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1010, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <div style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 460, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", overflow: "hidden", fontFamily: "'Outfit',sans-serif" }}>
+            <div style={{ background: C.white, borderRadius: 18, width: "100%", maxWidth: 460, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", overflow: "hidden", fontFamily: "'Outfit',sans-serif" }}>
                 <div style={{ background: C.navyGrad, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: "#fff" }}>Procesar Venta</p>
-                    <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 7, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
+                    <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: C.white }}>Procesar Venta</p>
+                    <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 7, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14 }}>✕</button>
                 </div>
                 <div style={{ padding: "20px 24px" }}>
                     <div style={{ background: C.warningSoft, border: `1.5px solid ${C.warningBorder}`, borderRadius: 10, padding: "12px 14px", marginBottom: 16, fontSize: 13, color: C.warning, fontWeight: 600 }}>
@@ -157,7 +157,7 @@ const EstadoModal = ({ show, onClose, onConfirm, enviando, estados, estadoSelecc
                     )}
                 </div>
                 <div style={{ padding: "0 24px 20px", display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                    <button onClick={onConfirm} disabled={enviando} style={{ opacity: enviando ? 0.6 : 1, background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: enviando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif" }}>{enviando ? "Enviando..." : "Confirmar"}</button>
+                    <button onClick={onConfirm} disabled={enviando} style={{ opacity: enviando ? 0.6 : 1, background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 700, cursor: enviando ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif" }}>{enviando ? "Enviando..." : "Confirmar"}</button>
                     <button onClick={onClose} style={{ background: "#f1f5f9", color: C.muted, border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Cancelar</button>
                 </div>
             </div>
@@ -302,20 +302,20 @@ const VentasPendientes = () => {
                         )}
                     </div>
                     <input type="text" placeholder="Filtrar por ID o cliente..." value={filtro} onChange={e => setFiltro(e.target.value)}
-                        style={{ border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "8px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", width: 240, color: "#0f172a" }}
+                        style={{ border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "8px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", width: 240, color: C.text }}
                         onFocus={e => e.target.style.borderColor = C.accent}
                         onBlur={e => e.target.style.borderColor = C.border} />
                 </div>
 
                 {error && (
-                    <div style={{ background: "#fef2f2", border: `1.5px solid #fecaca`, borderRadius: 12, padding: "12px 18px", marginBottom: 20, color: C.danger, fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ background: C.dangerSoft, border: `1.5px solid #fecaca`, borderRadius: 12, padding: "12px 18px", marginBottom: 20, color: C.danger, fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 12 }}>
                         {error}
-                        <button onClick={() => loadVentasPendientes(1, itemsPorPagina, filtro)} style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Reintentar</button>
+                        <button onClick={() => loadVentasPendientes(1, itemsPorPagina, filtro)} style={{ background: C.danger, color: C.white, border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Reintentar</button>
                     </div>
                 )}
 
                 {/* ── TABLA ── */}
-                <div style={{ background: "#fff", borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", overflow: "hidden", animation: "fadeIn 0.3s ease" }}>
+                <div style={{ background: C.white, borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", overflow: "hidden", animation: "fadeIn 0.3s ease" }}>
                     <div style={{ overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>
                             <thead>
@@ -338,7 +338,7 @@ const VentasPendientes = () => {
                                     </td></tr>
                                 ) : (
                                     ventasPagina.map((venta, idx) => (
-                                        <tr key={venta.VentaID} className="pend-row" style={{ background: idx % 2 === 0 ? "#fff" : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
+                                        <tr key={venta.VentaID} className="pend-row" style={{ background: idx % 2 === 0 ? C.white : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
                                             <td style={{ padding: "11px 14px" }}><Badge type="muted">#{venta.VentaID}</Badge></td>
                                             <td style={{ padding: "11px 14px", fontWeight: 600, color: C.navy }}>
                                                 {venta.usuario?.Nombre || `Doc: ${venta.DocumentoID}`}

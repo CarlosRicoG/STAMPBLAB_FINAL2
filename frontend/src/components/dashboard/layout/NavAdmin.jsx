@@ -34,8 +34,8 @@ const Field = ({ label, type = "text", value, onChange, disabled, rightSlot }) =
                     width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 9,
                     padding: rightSlot ? "9px 40px 9px 13px" : "9px 13px",
                     fontSize: 13, fontFamily: "'Outfit', sans-serif", outline: "none",
-                    color: disabled ? C.muted : "#0f172a",
-                    background: disabled ? C.bg : "#fff",
+                    color: disabled ? C.muted : C.text,
+                    background: disabled ? C.bg : C.white,
                     transition: "border-color 0.18s",
                     boxSizing: "border-box",
                 }}
@@ -256,37 +256,37 @@ const NavAdmin = () => {
 
             {/* ── NAVBAR ── */}
             <header style={{
-                height: 64, background: "#fff", borderBottom: "1px solid #f1f5f9",
+                height: 64, background: C.white, borderBottom: "1px solid #f1f5f9",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "0 28px", boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
                 flexShrink: 0, fontFamily: "'Outfit', sans-serif",
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     <BotonMenu />
-                    <span style={{ fontWeight: 800, fontSize: 22, color: "#0f172a", letterSpacing: "-0.03em", fontFamily: "'Outfit', sans-serif" }}>
-                        Stamp<span style={{ color: "#4f8ef7" }}>Lab</span>
+                    <span style={{ fontWeight: 800, fontSize: 22, color: C.text, letterSpacing: "-0.03em", fontFamily: "'Outfit', sans-serif" }}>
+                        Stamp<span style={{ color: C.accent }}>Lab</span>
                     </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                     <CampanaNotificaciones />
-                    <div style={{ width: 1, height: 28, background: "#e2e8f0" }} />
+                    <div style={{ width: 1, height: 28, background: C.border }} />
                     <button className="nav-avatar-btn" onClick={handleAbrirPerfil}>
                         <div style={{
                             width: 36, height: 36, borderRadius: "50%",
                             background: C.navyGrad, display: "flex", alignItems: "center",
                             justifyContent: "center", boxShadow: "0 2px 8px rgba(79,142,247,0.35)",
-                            fontSize: 13, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em",
+                            fontSize: 13, fontWeight: 800, color: C.white, letterSpacing: "-0.02em",
                         }}>
                             {iniciales}
                         </div>
                         <div style={{ textAlign: "left", lineHeight: 1.2 }}>
-                            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: "#0f172a" }}>
+                            <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: C.text }}>
                                 {perfil.Nombre || "Administrador"}
                             </p>
                             <p style={{ margin: 0, fontSize: 11, color: "#94a3b8", fontWeight: 500 }}>Admin</p>
                         </div>
                     </button>
-                    <div style={{ width: 1, height: 28, background: "#e2e8f0" }} />
+                    <div style={{ width: 1, height: 28, background: C.border }} />
                     <button className="nav-logout-btn" onClick={handleLogout}>
                         <FaSignOutAlt size={13} /> Cerrar Sesión
                     </button>
@@ -297,7 +297,7 @@ const NavAdmin = () => {
             {showPerfil && (
                 <div className="modal-overlay" onClick={() => { setShowPerfil(false); setMsgOk(""); }}>
                     <div onClick={e => e.stopPropagation()} style={{
-                        background: "#fff", borderRadius: 20, width: "100%", maxWidth: 420,
+                        background: C.white, borderRadius: 20, width: "100%", maxWidth: 420,
                         boxShadow: "0 12px 48px rgba(0,0,0,0.18)", overflow: "hidden",
                         fontFamily: "'Outfit', sans-serif", animation: "slideUp 0.25s ease",
                     }}>
@@ -306,14 +306,14 @@ const NavAdmin = () => {
                                 position: "absolute", top: 12, right: 12,
                                 background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)",
                                 borderRadius: 8, width: 28, height: 28, cursor: "pointer",
-                                color: "#fff", fontSize: 13, fontWeight: 700,
+                                color: C.white, fontSize: 13, fontWeight: 700,
                                 display: "flex", alignItems: "center", justifyContent: "center",
                             }}>✕</button>
                             <div style={{
                                 width: 68, height: 68, borderRadius: "50%",
                                 background: "rgba(255,255,255,0.15)", border: "3px solid rgba(255,255,255,0.4)",
                                 display: "flex", alignItems: "center", justifyContent: "center",
-                                margin: "0 auto 12px", fontSize: 26, fontWeight: 800, color: "#fff",
+                                margin: "0 auto 12px", fontSize: 26, fontWeight: 800, color: C.white,
                             }}>
                                 {iniciales}
                             </div>
@@ -321,7 +321,7 @@ const NavAdmin = () => {
                                 <p style={{ margin: 0, color: "rgba(255,255,255,0.7)", fontSize: 13 }}>Cargando...</p>
                             ) : (
                                 <>
-                                    <p style={{ margin: 0, fontWeight: 800, fontSize: 17, color: "#fff" }}>{perfil.Nombre || "—"}</p>
+                                    <p style={{ margin: 0, fontWeight: 800, fontSize: 17, color: C.white }}>{perfil.Nombre || "—"}</p>
                                     <p style={{ margin: "3px 0 0", color: "rgba(255,255,255,0.65)", fontSize: 12 }}>{perfil.Correo || "—"}</p>
                                 </>
                             )}
@@ -330,12 +330,12 @@ const NavAdmin = () => {
                         {!loading && (
                             <div style={{ padding: "20px 24px" }}>
                                 {msgOk && (
-                                    <div style={{ background: "#f0fdf4", border: "1.5px solid #bbf7d0", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: C.success, fontWeight: 600, fontSize: 13 }}>
+                                    <div style={{ background: C.successSoft, border: "1.5px solid #bbf7d0", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: C.success, fontWeight: 600, fontSize: 13 }}>
                                         ✓ {msgOk}
                                     </div>
                                 )}
                                 {msgError && (
-                                    <div style={{ background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: C.danger, fontWeight: 600, fontSize: 13 }}>
+                                    <div style={{ background: C.dangerSoft, border: "1.5px solid #fecaca", borderRadius: 10, padding: "10px 14px", marginBottom: 16, color: C.danger, fontWeight: 600, fontSize: 13 }}>
                                         ⚠ {msgError}
                                     </div>
                                 )}
@@ -346,7 +346,7 @@ const NavAdmin = () => {
                                 ].map(({ label, value }) => (
                                     <div key={label} style={{ display: "flex", justifyContent: "space-between", padding: "9px 0", borderBottom: `1px solid ${C.border}` }}>
                                         <span style={{ fontSize: 12, color: C.muted, fontWeight: 600 }}>{label}</span>
-                                        <span style={{ fontSize: 13, color: "#0f172a", fontWeight: 500 }}>{value}</span>
+                                        <span style={{ fontSize: 13, color: C.text, fontWeight: 500 }}>{value}</span>
                                     </div>
                                 ))}
                                 <button
@@ -365,7 +365,7 @@ const NavAdmin = () => {
                                         });
                                     }}
                                     style={{
-                                        marginTop: 20, width: "100%", background: C.navy, color: "#fff",
+                                        marginTop: 20, width: "100%", background: C.navy, color: C.white,
                                         border: "none", borderRadius: 10, padding: "11px", fontSize: 13,
                                         fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit', sans-serif",
                                         display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
@@ -386,22 +386,22 @@ const NavAdmin = () => {
             {showEditar && (
                 <div className="modal-overlay" onClick={() => setShowEditar(false)}>
                     <div onClick={e => e.stopPropagation()} style={{
-                        background: "#fff", borderRadius: 20, width: "100%", maxWidth: 480,
+                        background: C.white, borderRadius: 20, width: "100%", maxWidth: 480,
                         boxShadow: "0 12px 48px rgba(0,0,0,0.18)", overflow: "hidden",
                         fontFamily: "'Outfit', sans-serif", animation: "slideUp 0.25s ease",
                     }}>
                         <div style={{ background: C.navyGrad, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#fff" }}>Editar Perfil</p>
+                            <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: C.white }}>Editar Perfil</p>
                             <button onClick={() => setShowEditar(false)} style={{
                                 background: "rgba(255,255,255,0.15)", border: "1.5px solid rgba(255,255,255,0.25)",
-                                borderRadius: 8, width: 28, height: 28, cursor: "pointer", color: "#fff",
+                                borderRadius: 8, width: 28, height: 28, cursor: "pointer", color: C.white,
                                 fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
                             }}>✕</button>
                         </div>
 
                         <div style={{ padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
                             {msgError && (
-                                <div style={{ background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 10, padding: "10px 14px", color: C.danger, fontWeight: 600, fontSize: 13 }}>
+                                <div style={{ background: C.dangerSoft, border: "1.5px solid #fecaca", borderRadius: 10, padding: "10px 14px", color: C.danger, fontWeight: 600, fontSize: 13 }}>
                                     ⚠ {msgError}
                                 </div>
                             )}
@@ -434,7 +434,7 @@ const NavAdmin = () => {
 
                             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
                                 <button onClick={handleGuardar} disabled={guardando} style={{
-                                    flex: 1, background: guardando ? C.muted : C.navy, color: "#fff",
+                                    flex: 1, background: guardando ? C.muted : C.navy, color: C.white,
                                     border: "none", borderRadius: 10, padding: "11px", fontSize: 13,
                                     fontWeight: 700, cursor: guardando ? "not-allowed" : "pointer",
                                     fontFamily: "'Outfit', sans-serif",

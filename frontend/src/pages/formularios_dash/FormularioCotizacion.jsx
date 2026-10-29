@@ -18,7 +18,7 @@ import { C } from "../../config/tokens";
 /* ── Tokens ── */
 
 const TH = {
-    background: C.navyGrad, color: "#fff", fontSize: 12, fontWeight: 700,
+    background: C.navyGrad, color: C.white, fontSize: 12, fontWeight: 700,
     padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em", textAlign: "left",
 };
 
@@ -31,12 +31,12 @@ const Label = ({ children, required }) => (
 const inputStyle = {
     width: "100%", border: `1.5px solid ${C.border}`, borderRadius: 9,
     padding: "8px 12px", fontSize: 13, fontFamily: "'Outfit',sans-serif",
-    color: C.text, outline: "none", transition: "border-color 0.2s", background: "#fff",
+    color: C.text, outline: "none", transition: "border-color 0.2s", background: C.white,
 };
 
 const Input = ({ readOnly, style: sx, ...props }) => (
     <input {...props} readOnly={readOnly}
-        style={{ ...inputStyle, ...(readOnly ? { background: "#f8fafc", color: C.muted, cursor: "default" } : {}), ...sx }}
+        style={{ ...inputStyle, ...(readOnly ? { background: C.bg, color: C.muted, cursor: "default" } : {}), ...sx }}
         onFocus={e => { if (!readOnly) e.target.style.borderColor = C.accent; }}
         onBlur={e => { e.target.style.borderColor = C.border; }}
     />
@@ -60,10 +60,10 @@ const Select = ({ children, disabled, ...props }) => (
 const Badge = ({ type, children }) => {
     const map = {
         success: { bg: C.successSoft, color: C.success, border: C.successBorder },
-        warning: { bg: C.warningSoft, color: C.warning, border: "#fde68a" },
-        danger: { bg: C.dangerSoft, color: C.danger, border: "#fecaca" },
+        warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
+        danger: { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
         accent: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-        navy: { bg: C.navy, color: "#fff", border: C.navy },
+        navy: { bg: C.navy, color: C.white, border: C.navy },
         purple: { bg: C.purpleSoft, color: C.purple, border: C.purpleBorder },
         muted: { bg: "#f1f5f9", color: C.muted, border: C.border },
     };
@@ -86,19 +86,19 @@ const SectionTitle = ({ children, sub }) => (
 );
 
 const Card = ({ children, style: sx }) => (
-    <div style={{ background: "#fff", borderRadius: 16, padding: "22px 26px", boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px #f1f5f9", marginBottom: 20, ...sx }}>
+    <div style={{ background: C.white, borderRadius: 16, padding: "22px 26px", boxShadow: "0 2px 8px rgba(0,0,0,0.06), 0 0 0 1px #f1f5f9", marginBottom: 20, ...sx }}>
         {children}
     </div>
 );
 
 const Btn = ({ variant = "primary", children, style: sx, ...props }) => {
     const variants = {
-        primary: { background: C.navy, color: "#fff", border: "none" },
+        primary: { background: C.navy, color: C.white, border: "none" },
         secondary: { background: "#f1f5f9", color: C.muted, border: "none" },
-        success: { background: C.success, color: "#fff", border: "none" },
-        danger: { background: C.danger, color: "#fff", border: "none" },
-        warning: { background: C.warning, color: "#fff", border: "none" },
-        purple: { background: C.purple, color: "#fff", border: "none" },
+        success: { background: C.success, color: C.white, border: "none" },
+        danger: { background: C.danger, color: C.white, border: "none" },
+        warning: { background: C.warning, color: C.white, border: "none" },
+        purple: { background: C.purple, color: C.white, border: "none" },
         outline: { background: "transparent", color: C.navy, border: `1.5px solid ${C.navy}` },
         "outline-danger": { background: "transparent", color: C.danger, border: `1.5px solid ${C.danger}` },
         "outline-accent": { background: "transparent", color: C.accent, border: `1.5px solid ${C.accent}` },
@@ -192,7 +192,7 @@ const SearchableSelect = ({ options = [], value, onChange, placeholder = "Buscar
                     {selectedOption && !disabled && (
                         <button
                             onClick={handleClear}
-                            style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "#cbd5e1", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, lineHeight: 1 }}
+                            style={{ width: 18, height: 18, borderRadius: "50%", border: "none", background: "#cbd5e1", color: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, lineHeight: 1 }}
                         >✕</button>
                     )}
                     <FaChevronDown size={11} style={{ color: C.muted, transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none" }} />
@@ -203,7 +203,7 @@ const SearchableSelect = ({ options = [], value, onChange, placeholder = "Buscar
             {open && (
                 <div style={{
                     position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 10000,
-                    background: "#fff", borderRadius: 10,
+                    background: C.white, borderRadius: 10,
                     border: `1.5px solid ${C.accentBorder}`,
                     boxShadow: "0 8px 32px rgba(0,0,0,0.14)",
                     overflow: "hidden",
@@ -251,13 +251,13 @@ const SearchableSelect = ({ options = [], value, onChange, placeholder = "Buscar
                                         style={{
                                             padding: "10px 14px",
                                             cursor: "pointer",
-                                            background: isSelected ? C.accentSoft : "#fff",
+                                            background: isSelected ? C.accentSoft : C.white,
                                             borderLeft: `3px solid ${isSelected ? C.accent : "transparent"}`,
                                             transition: "background 0.12s",
                                             display: "flex", flexDirection: "column", gap: 2,
                                         }}
-                                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#f8fafc"; }}
-                                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = "#fff"; }}
+                                        onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = C.bg; }}
+                                        onMouseLeave={e => { if (!isSelected) e.currentTarget.style.background = C.white; }}
                                     >
                                         <span style={{ fontSize: 13, fontWeight: 600, color: C.navy, fontFamily: "'Outfit',sans-serif" }}>
                                             {isSelected && <span style={{ color: C.accent, marginRight: 6 }}>✓</span>}
@@ -676,20 +676,20 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                     {/* HEADER */}
                     <div style={{ background: C.navyGrad, borderRadius: "20px 20px 0 0", padding: "20px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 9, border: "1.5px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}
+                            <button onClick={onClose} style={{ width: 36, height: 36, borderRadius: 9, border: "1.5px solid rgba(255,255,255,0.25)", background: "rgba(255,255,255,0.1)", color: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s" }}
                                 onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
                                 onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}>
                                 <FaArrowLeft size={13} />
                             </button>
                             <div>
-                                <h4 style={{ margin: 0, fontWeight: 800, fontSize: 20, color: "#fff", letterSpacing: "-0.02em" }}>Nueva Cotización</h4>
+                                <h4 style={{ margin: 0, fontWeight: 800, fontSize: 20, color: C.white, letterSpacing: "-0.02em" }}>Nueva Cotización</h4>
                                 <p style={{ margin: "2px 0 0", color: "rgba(255,255,255,0.65)", fontSize: 12 }}>
                                     {carritoProductos.length} producto{carritoProductos.length !== 1 ? "s" : ""} · Total:{" "}
-                                    <strong style={{ color: "#fff" }}>${calcularTotalCarrito().toLocaleString("es-CO")}</strong>
+                                    <strong style={{ color: C.white }}>${calcularTotalCarrito().toLocaleString("es-CO")}</strong>
                                 </p>
                             </div>
                         </div>
-                        <Btn variant="outline-danger" onClick={onClose} style={{ borderColor: "rgba(255,255,255,0.4)", color: "#fff" }}><FaTimes size={13} /> Cerrar</Btn>
+                        <Btn variant="outline-danger" onClick={onClose} style={{ borderColor: "rgba(255,255,255,0.4)", color: C.white }}><FaTimes size={13} /> Cerrar</Btn>
                     </div>
 
                     <div style={{ padding: "24px 28px" }}>
@@ -719,11 +719,11 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                 </Card>
 
                                 {/* 2. MODO PERSONALIZADO */}
-                                <Card style={{ background: modoPersonalizado ? C.purpleSoft : "#fff", border: modoPersonalizado ? `1.5px solid ${C.purpleBorder}` : "none" }}>
+                                <Card style={{ background: modoPersonalizado ? C.purpleSoft : C.white, border: modoPersonalizado ? `1.5px solid ${C.purpleBorder}` : "none" }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                                         <div style={{ width: 44, height: 24, borderRadius: 12, background: modoPersonalizado ? C.purple : C.border, cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
                                             onClick={() => { setModoPersonalizado(!modoPersonalizado); if (modoPersonalizado) setProductoPersonalizado({ nombre: "", descripcion: "", precioUnitario: 0 }); else { setProductoSeleccionado(null); limpiarVariantes(); } }}>
-                                            <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: modoPersonalizado ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
+                                            <div style={{ width: 18, height: 18, borderRadius: "50%", background: C.white, position: "absolute", top: 3, left: modoPersonalizado ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
                                         </div>
                                         <div>
                                             <p style={{ margin: 0, fontWeight: 700, color: modoPersonalizado ? C.purple : C.navy, fontSize: 14, display: "flex", alignItems: "center", gap: 7 }}>
@@ -785,7 +785,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                     {productoSeleccionado.ImagenProducto ? (
                                                         <img src={productoSeleccionado.ImagenProducto} alt={productoSeleccionado.Nombre} style={{ width: 72, height: 72, objectFit: "cover", borderRadius: 10, border: `1px solid ${C.border}` }} />
                                                     ) : (
-                                                        <div style={{ width: 72, height: 72, borderRadius: 10, background: "#fff", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                                        <div style={{ width: 72, height: 72, borderRadius: 10, background: C.white, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                                                             <FaTshirt style={{ color: C.muted, opacity: 0.4, fontSize: 24 }} />
                                                         </div>
                                                     )}
@@ -809,7 +809,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                                                             <div style={{ width: 40, height: 22, borderRadius: 11, background: traePrenda ? C.success : C.border, cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
                                                                 onClick={() => { setTraePrenda(!traePrenda); if (!traePrenda) { setColorID(""); setTallaID(""); setTelaID(""); } else { setPrendaDescripcion(""); } }}>
-                                                                <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#fff", position: "absolute", top: 3, left: traePrenda ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+                                                                <div style={{ width: 16, height: 16, borderRadius: "50%", background: C.white, position: "absolute", top: 3, left: traePrenda ? 21 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
                                                             </div>
                                                             <p style={{ margin: 0, fontWeight: 600, color: C.navy, fontSize: 13 }}>El cliente trae su propia prenda</p>
                                                         </div>
@@ -854,7 +854,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                                 </div>
                                                             </div>
                                                             {productoSeleccionado && !traePrenda && validacionStock.mensaje && (
-                                                                <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, background: validacionStock.valido ? C.successSoft : C.dangerSoft, border: `1px solid ${validacionStock.valido ? C.successBorder : "#fecaca"}`, display: "flex", alignItems: "center", gap: 8 }}>
+                                                                <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, background: validacionStock.valido ? C.successSoft : C.dangerSoft, border: `1px solid ${validacionStock.valido ? C.successBorder : C.dangerBorder}`, display: "flex", alignItems: "center", gap: 8 }}>
                                                                     {validacionStock.valido ? <FaCheckCircle style={{ color: C.success }} size={14} /> : <FaExclamationTriangle style={{ color: C.danger }} size={14} />}
                                                                     <span style={{ fontSize: 12, color: validacionStock.valido ? C.success : C.danger, fontWeight: 600 }}>{validacionStock.mensaje}</span>
                                                                 </div>
@@ -941,7 +941,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                     </thead>
                                                     <tbody>
                                                         {disenos.map((d, i) => (
-                                                            <tr key={d.id} style={{ background: i % 2 === 0 ? "#fff" : C.accentSoft }}>
+                                                            <tr key={d.id} style={{ background: i % 2 === 0 ? C.white : C.accentSoft }}>
                                                                 <td style={{ padding: "9px 12px", fontWeight: 600, color: C.navy }}>{d.TecnicaNombre}</td>
                                                                 <td style={{ padding: "9px 12px", color: C.muted }}>{d.ParteNombre}</td>
                                                                 <td style={{ padding: "9px 12px", color: C.muted }}>{d.SubparteDescripcion || "—"}</td>
@@ -1006,7 +1006,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                         <>
                                             <div style={{ maxHeight: 420, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 }}>
                                                 {carritoProductos.map((prod, index) => (
-                                                    <div key={prod.id} style={{ background: editandoIndex === index ? C.warningSoft : "#f8fafc", borderRadius: 12, padding: "12px 14px", border: `1.5px solid ${editandoIndex === index ? "#fde68a" : C.border}`, transition: "all 0.15s" }}>
+                                                    <div key={prod.id} style={{ background: editandoIndex === index ? C.warningSoft : C.bg, borderRadius: 12, padding: "12px 14px", border: `1.5px solid ${editandoIndex === index ? C.warningBorder : C.border}`, transition: "all 0.15s" }}>
                                                         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                                                             {prod.ProductoImagen ? (
                                                                 <img src={prod.ProductoImagen} alt={prod.ProductoNombre} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.border}`, flexShrink: 0 }} />

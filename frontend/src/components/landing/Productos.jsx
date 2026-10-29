@@ -25,7 +25,7 @@ const CART_KEY = "cart_productos_landing";
 
 const coloresHex = {
     "Rojo": "#ef4444", "Azul": "#3b82f6", "Verde": "#22c55e", "Amarillo": "#eab308",
-    "Negro": "#0f172a", "Blanco": "#f0f0f0", "Rosa": "#ec4899", "Morado": "#a855f7",
+    "Negro": C.text, "Blanco": "#f0f0f0", "Rosa": "#ec4899", "Morado": "#a855f7",
     "Naranja": "#f97316", "Gris": "#94a3b8", "Cafe": "#92400e", "Café": "#92400e",
 };
 
@@ -369,7 +369,7 @@ const ProductModal = ({ product, open, onClose, tallas, onAddToCart, initColor =
                                 {coloresDisp.map(c => (
                                     <button key={c} onClick={() => { setColor(c); setTalla(""); }} title={c} aria-label={c}
                                         className={`cat-sw ${color === c ? "on" : ""}`} style={{ background: coloresHex[c] || "#ccc" }}>
-                                        <span className="cat-check" style={c === "Blanco" ? { color: "#1a2540", filter: "none" } : undefined}><FaCheck /></span>
+                                        <span className="cat-check" style={c === "Blanco" ? { color: C.navy, filter: "none" } : undefined}><FaCheck /></span>
                                     </button>
                                 ))}
                             </div>
@@ -425,7 +425,7 @@ const CartDrawer = ({ open, onClose, cart, onRemove, onUpdateQty, onEdit, onChec
                 <div className="cat-dh sx-hero-bg">
                     <span className="sx-blob b1" style={{ width: 200, height: 200 }} />
                     <div className="cat-dh-in">
-                        <div className="cat-dh-ico"><FaShoppingBag size={20} color="#fff" /></div>
+                        <div className="cat-dh-ico"><FaShoppingBag size={20} color={C.white} /></div>
                         <div>
                             <h3>Mi carrito</h3>
                             <small>{nItems} {nItems === 1 ? "ítem" : "ítems"}</small>
@@ -769,7 +769,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
 
                             {comprobanteFile && (
                                 <button onClick={(e) => { e.stopPropagation(); setComprobanteFile(null); setComprobantePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-                                    style={{ background: "#fef2f2", border: "1px solid #fecaca", color: C.danger, borderRadius: 10, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
+                                    style={{ background: C.dangerSoft, border: "1px solid #fecaca", color: C.danger, borderRadius: 10, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", marginTop: 8 }}>
                                     ✕ Cambiar archivo
                                 </button>
                             )}

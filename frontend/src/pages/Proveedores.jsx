@@ -10,12 +10,12 @@ import { C } from "../config/tokens";
 
 const Badge = ({ type, children }) => {
     const map = {
-        success: { bg: "#f0fdf4", color: C.success, border: "#bbf7d0" },
-        warning: { bg: "#fffbeb", color: C.warning, border: "#fde68a" },
-        danger: { bg: "#fef2f2", color: C.danger, border: "#fecaca" },
+        success: { bg: C.successSoft, color: C.success, border: C.successBorder },
+        warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
+        danger: { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
         accent: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-        navy: { bg: C.navy, color: "#fff", border: C.navy },
-        muted: { bg: "#f1f5f9", color: C.muted, border: "#e2e8f0" },
+        navy: { bg: C.navy, color: C.white, border: C.navy },
+        muted: { bg: "#f1f5f9", color: C.muted, border: C.border },
     };
     const s = map[type] || map.muted;
     return (
@@ -25,7 +25,7 @@ const Badge = ({ type, children }) => {
     );
 };
 
-const TH = { background: C.navyGrad, color: "#fff", fontSize: 11, fontWeight: 700, padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
+const TH = { background: C.navyGrad, color: C.white, fontSize: 11, fontWeight: 700, padding: "11px 14px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
 
 /* ── Modal detalle ── */
 const DetailModal = ({ show, onClose, proveedor, onEdit }) => {
@@ -33,13 +33,13 @@ const DetailModal = ({ show, onClose, proveedor, onEdit }) => {
     const isActive = proveedor.Estado === true || proveedor.Estado === "Activo";
     return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-            <div style={{ background: "#fff", borderRadius: 18, width: "100%", maxWidth: 520, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", overflow: "hidden", fontFamily: "'Outfit',sans-serif" }}>
+            <div style={{ background: C.white, borderRadius: 18, width: "100%", maxWidth: 520, boxShadow: "0 8px 40px rgba(0,0,0,0.18)", overflow: "hidden", fontFamily: "'Outfit',sans-serif" }}>
                 <div style={{ background: C.navyGrad, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
-                        <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: "#fff" }}>Detalles del Proveedor</p>
+                        <p style={{ margin: 0, fontWeight: 800, fontSize: 16, color: C.white }}>Detalles del Proveedor</p>
                         <p style={{ margin: 0, color: "rgba(255,255,255,0.7)", fontSize: 12 }}>NIT: {proveedor.Nit}</p>
                     </div>
-                    <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                    <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 8, border: "1.5px solid rgba(255,255,255,0.3)", background: "rgba(255,255,255,0.1)", color: C.white, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                 </div>
                 <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 10 }}>
                     {[
@@ -63,7 +63,7 @@ const DetailModal = ({ show, onClose, proveedor, onEdit }) => {
                         style={{ background: C.accentSoft, color: C.accent, border: `1.5px solid ${C.accentBorder}`, borderRadius: 10, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 6 }}>
                         <FaEdit size={11} /> Editar
                     </button>
-                    <button onClick={onClose} style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 10, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Cerrar</button>
+                    <button onClick={onClose} style={{ background: C.danger, color: C.white, border: "none", borderRadius: 10, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Cerrar</button>
                 </div>
             </div>
         </div>
@@ -189,15 +189,15 @@ const Proveedores = () => {
                     <h4 style={{ margin: 0, fontWeight: 800, fontSize: 22, color: C.navy, letterSpacing: "-0.02em" }}>Gestión de Proveedores</h4>
                     <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                         <input type="text" placeholder="Buscar por nombre..." value={searchName} onChange={e => setSearchName(e.target.value)}
-                            style={{ border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "8px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", width: 200, color: "#0f172a" }}
+                            style={{ border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "8px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", width: 200, color: C.text }}
                             onFocus={e => e.target.style.borderColor = C.accent}
                             onBlur={e => e.target.style.borderColor = C.border} />
                         <input type="text" placeholder="Filtrar por estado..." value={searchStatus} onChange={e => setSearchStatus(e.target.value)}
-                            style={{ border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "8px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", width: 180, color: "#0f172a" }}
+                            style={{ border: `1.5px solid ${C.border}`, borderRadius: 9, padding: "8px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif", outline: "none", width: 180, color: C.text }}
                             onFocus={e => e.target.style.borderColor = C.accent}
                             onBlur={e => e.target.style.borderColor = C.border} />
                         <button onClick={() => { setSelectedProveedor(null); setShowForm(true); }} disabled={loading}
-                            style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, opacity: loading ? 0.7 : 1 }}
+                            style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "10px 20px", fontSize: 13, fontWeight: 700, cursor: loading ? "not-allowed" : "pointer", fontFamily: "'Outfit',sans-serif", display: "flex", alignItems: "center", gap: 8, opacity: loading ? 0.7 : 1 }}
                             onMouseEnter={e => { if (!loading) e.currentTarget.style.background = "#2d3f6e"; }}
                             onMouseLeave={e => { e.currentTarget.style.background = C.navy; }}>
                             <FaPlusCircle size={15} /> Agregar Proveedor
@@ -206,14 +206,14 @@ const Proveedores = () => {
                 </div>
 
                 {error && (
-                    <div style={{ background: "#fef2f2", border: `1.5px solid #fecaca`, borderRadius: 12, padding: "12px 18px", marginBottom: 20, color: C.danger, fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{ background: C.dangerSoft, border: `1.5px solid #fecaca`, borderRadius: 12, padding: "12px 18px", marginBottom: 20, color: C.danger, fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 12 }}>
                         {error}
-                        <button onClick={cargarProveedores} style={{ background: C.danger, color: "#fff", border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Reintentar</button>
+                        <button onClick={cargarProveedores} style={{ background: C.danger, color: C.white, border: "none", borderRadius: 8, padding: "5px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Reintentar</button>
                     </div>
                 )}
 
                 {/* ── TABLA ── */}
-                <div style={{ background: "#fff", borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", overflow: "hidden", animation: "fadeIn 0.3s ease" }}>
+                <div style={{ background: C.white, borderRadius: 18, boxShadow: "0 2px 16px rgba(0,0,0,0.07), 0 0 0 1px #f1f5f9", overflow: "hidden", animation: "fadeIn 0.3s ease" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, fontFamily: "'Outfit',sans-serif" }}>
                         <thead>
                             <tr>
@@ -234,13 +234,13 @@ const Proveedores = () => {
                                     <p style={{ color: C.muted, marginBottom: 14, fontSize: 13 }}>
                                         {searchName || searchStatus ? "No se encontraron proveedores con los filtros aplicados." : "No hay proveedores registrados."}
                                     </p>
-                                    {!searchName && !searchStatus && <button onClick={() => { setSelectedProveedor(null); setShowForm(true); }} style={{ background: C.navy, color: "#fff", border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Crear primer proveedor</button>}
+                                    {!searchName && !searchStatus && <button onClick={() => { setSelectedProveedor(null); setShowForm(true); }} style={{ background: C.navy, color: C.white, border: "none", borderRadius: 10, padding: "9px 20px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'Outfit',sans-serif" }}>Crear primer proveedor</button>}
                                 </td></tr>
                             ) : (
                                 filtered.map((p, idx) => {
                                     const isActive = p.Estado === true || p.Estado === "Activo";
                                     return (
-                                        <tr key={p.Nit} className="prov-row" style={{ background: idx % 2 === 0 ? "#fff" : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
+                                        <tr key={p.Nit} className="prov-row" style={{ background: idx % 2 === 0 ? C.white : C.accentSoft, borderBottom: `1px solid ${C.border}`, transition: "background 0.15s" }}>
                                             <td style={{ padding: "11px 14px" }}><Badge type="accent">{p.Nit}</Badge></td>
                                             <td style={{ padding: "11px 14px", fontWeight: 600, color: C.navy }}>{p.Nombre}</td>
                                             <td style={{ padding: "11px 14px", color: C.muted, fontSize: 12 }}>{p.Correo}</td>

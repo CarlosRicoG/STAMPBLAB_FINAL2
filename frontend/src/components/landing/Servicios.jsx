@@ -7,6 +7,7 @@ import NavbarComponent from "./NavBarLanding";
 import FooterComponent from "./footer";
 import ScrollToTopButton from "./ScrollTopButton";
 import usePlus from "../../hooks/usePlus";
+import { C } from "../../config/tokens";
 
 const IMG_FALLBACK = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop';
 
@@ -255,7 +256,7 @@ const Servicios = () => {
                             ))}
                         </div>
                     </div>
-                    <div className="svc-hero-wave">{wave("#f8fafc")}</div>
+                    <div className="svc-hero-wave">{wave(C.bg)}</div>
                 </section>
 
                 {/* ══════════ TÉCNICAS ══════════ */}
@@ -285,10 +286,10 @@ const Servicios = () => {
                         )}
 
                         {error && (
-                            <div style={{ background: "#fef2f2", border: "1.5px solid #fecaca", borderRadius: 16, padding: "26px 30px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
-                                <p style={{ color: "#dc2626", fontWeight: 700, fontSize: 16, margin: "0 0 8px" }}>Error al cargar las técnicas</p>
-                                <p style={{ color: "#64748b", fontSize: 13, margin: "0 0 16px" }}>{error}</p>
-                                <button className="sx-btn sx-btn-sm" style={{ background: "#dc2626", boxShadow: "none" }} onClick={cargarTecnicas}>Reintentar</button>
+                            <div style={{ background: C.dangerSoft, border: "1.5px solid #fecaca", borderRadius: 16, padding: "26px 30px", textAlign: "center", maxWidth: 480, margin: "0 auto" }}>
+                                <p style={{ color: C.danger, fontWeight: 700, fontSize: 16, margin: "0 0 8px" }}>Error al cargar las técnicas</p>
+                                <p style={{ color: C.muted, fontSize: 13, margin: "0 0 16px" }}>{error}</p>
+                                <button className="sx-btn sx-btn-sm" style={{ background: C.danger, boxShadow: "none" }} onClick={cargarTecnicas}>Reintentar</button>
                             </div>
                         )}
 
@@ -347,7 +348,7 @@ const Servicios = () => {
                 </section>
 
                 {/* ══════════ POR QUÉ ELEGIRNOS ══════════ */}
-                <div style={{ background: "#f8fafc", lineHeight: 0 }}>{wave("#0f1824")}</div>
+                <div style={{ background: C.bg, lineHeight: 0 }}>{wave("#0f1824")}</div>
                 <section className="sx-section svc-dark">
                     <span className="sx-blob b1" style={{ opacity: .3 }} /><span className="sx-blob b2" style={{ opacity: .3 }} />
                     <div className="sx-wrap">
@@ -393,7 +394,7 @@ const Servicios = () => {
                 </section>
 
                 {/* ══════════ FAQ ══════════ */}
-                <section className="sx-section" style={{ background: "#f8fafc" }}>
+                <section className="sx-section" style={{ background: C.bg }}>
                     <div className="sx-wrap">
                         <div className="svc-head sx-reveal">
                             <span className="sx-eyebrow">Resolvemos tus dudas</span>
