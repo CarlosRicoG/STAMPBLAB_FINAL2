@@ -12,8 +12,7 @@ import { updateEstadoVenta, rechazarComprobante } from "../Services/api-ventas/v
 import { SIGUIENTE_NORMAL, NOMBRE_ESTADO_VENTA, ESTADOS_CON_FECHA, hoyISO } from "../Services/api-ventas/flujo";
 import { ESTADO_VENTA } from "../config/estados";
 import { EstadoBadge, fmtCOP, fmtFecha, fmtHora } from "./ModalDetalleVenta";
-
-const C = { navy: "#1a2540", accent: "#4f8ef7", violet: "#7c3aed", success: "#16a34a", warning: "#d97706", danger: "#dc2626", muted: "#64748b", border: "#e2e8f0", bg: "#f8fafc" };
+import { C } from "../config/tokens";
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');

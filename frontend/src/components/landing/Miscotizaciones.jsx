@@ -20,14 +20,11 @@ import {
     MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper,
     McModal, ModalHead, EmptyState, Skeletons
 } from './miCuentaKit';
+import { C } from "../../config/tokens";
 
 const esAprobadaConPrecio = (c) =>
     (Number(c.EstadoID) === 2 || c.estado?.Nombre === 'Aprobada') && parseFloat(c.ValorTotal) > 0;
 
-const C = {
-    navy: "#1a2540", accent: "#4f8ef7", success: "#16a34a", warning: "#d97706", danger: "#dc2626",
-    info: "#0369a1", muted: "#64748b",
-};
 
 const estadoConfig = {
     'Pendiente': { color: C.warning, bg: "#fffbeb", border: "#fde68a", icon: <FaClock size={11} /> },

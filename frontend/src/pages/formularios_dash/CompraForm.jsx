@@ -6,31 +6,11 @@ import { getInsumos } from "../../Services/api-insumos/insumos";
 import { getProductos } from "../../Services/api-productos/productos";
 import { getColores, getTallas, getTelas } from "../../Services/api-productos/atributos";
 import { createVariante } from "../../Services/api-productos/variantes";
+import { C } from "../../config/tokens";
 
 /* ─────────────────────────────────────────────────────────
    TOKENS
 ───────────────────────────────────────────────────────── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    navyHover: "#243050",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    violet: "#7c3aed",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    successBorder: "#bbf7d0",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    danger: "#dc2626",
-    dangerSoft: "#fef2f2",
-    muted: "#64748b",
-    text: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
-
 const STOCK_BAJO = 10;
 const money = (n) => `$${(Number(n) || 0).toLocaleString("es-CO", { maximumFractionDigits: 2 })}`;
 const esActivo = (e) => e === true || e === 1 || e === "1";

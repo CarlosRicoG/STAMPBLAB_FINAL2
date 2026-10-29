@@ -6,6 +6,7 @@ import { getProductos } from "../Services/api-productos/productos";
 import { getVariantesByProducto } from "../Services/api-productos/variantes";
 import { getTallas, getColores, getTelas } from "../Services/api-productos/atributos";
 import { getConfigPublica } from "../Services/api-resumen/resumen";
+import { C } from "../config/tokens";
 
 /* Etiqueta "Stock bajo" para variantes por debajo del mínimo configurado */
 const StockBajo = ({ minimo }) => (
@@ -16,19 +17,6 @@ const StockBajo = ({ minimo }) => (
 );
 
 /* ── Tokens ── */
-const C = {
-  navy: "#1a2540",
-  navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-  accent: "#4f8ef7",
-  accentSoft: "#f0f4ff",
-  accentBorder: "#c7d9ff",
-  success: "#16a34a",
-  warning: "#d97706",
-  danger: "#dc2626",
-  muted: "#64748b",
-  border: "#e2e8f0",
-  bg: "#f8fafc",
-};
 
 
 const formatPrecio = (valor) =>

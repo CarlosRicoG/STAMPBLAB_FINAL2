@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { FaTimes, FaRulerHorizontal, FaExclamationCircle } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { createTalla, updateTalla } from "../../Services/api-tallas/tallas";
+import { C } from "../../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -214,7 +215,6 @@ textarea.cf-p-input { resize: vertical; min-height: 96px; line-height: 1.5; }
 }
 `;
 
-const C = { navy: "#1a2540", muted: "#64748b", danger: "#dc2626" };
 
 const tallasConPrecio = ["XXL", "XXXL"];
 

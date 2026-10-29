@@ -4,6 +4,7 @@ import { FaPlusCircle, FaEye, FaEdit, FaTrash, FaSyncAlt, FaSearch, FaTimes, FaM
 import Swal from "sweetalert2";
 import TecnicasForm from "../pages/formularios_dash/TecnicasForm";
 import { getAllTecnicas, createTecnica, updateTecnica, deleteTecnica } from "../Services/api-tecnicas/tecnicas";
+import { C } from "../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -216,7 +217,6 @@ textarea.cf-p-input { resize: vertical; min-height: 96px; line-height: 1.5; }
 }
 `;
 
-const C = { navy: "#1a2540", muted: "#64748b", danger: "#dc2626" };
 
 /* Cierra un modal con la tecla Escape */
 const useEscape = (activo, onClose) => {

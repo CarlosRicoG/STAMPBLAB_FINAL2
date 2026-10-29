@@ -13,15 +13,9 @@ import { ESTADO_VENTA } from "../../config/estados";
 import { getConfigPublica, CONFIG_POR_DEFECTO } from "../../Services/api-cliente/cliente";
 import { textoCostoEnvio, num } from "../../utils/clienteUtils";
 import { FaStore } from "react-icons/fa";
+import { C } from "../../config/tokens";
 
 /* ── Tokens de color ── */
-const C = {
-    navy: "#1a2540",
-    accent: "#4f8ef7",
-    success: "#16a34a",
-    danger: "#dc2626",
-    muted: "#64748b",
-};
 
 /* ── SelectField wrapper con chevron ── */
 const SelectField = ({ label, value, onChange, disabled, children, required }) => (

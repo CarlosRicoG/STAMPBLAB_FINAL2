@@ -5,6 +5,7 @@ import { getUsuarios, deleteUsuario } from "../Services/api-usuarios/usuarios";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../utils/escapeHtml";
 import { ventaEstaActiva } from "../config/estados";
+import { C } from "../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -218,13 +219,6 @@ textarea.cf-p-input { resize: vertical; min-height: 96px; line-height: 1.5; }
 `;
 
 /* ── Tokens ── */
-const C = {
-  navy: "#1a2540",
-  accent: "#4f8ef7",
-  warning: "#d97706",
-  danger: "#dc2626",
-  muted: "#64748b",
-};
 
 const iniciales = (nombre) =>
   (nombre || "?").trim().split(/\s+/).slice(0, 2).map(p => p[0]?.toUpperCase() || "").join("") || "?";

@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { FaTimes, FaMagic, FaExclamationCircle } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { C } from "../../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -214,7 +215,6 @@ textarea.cf-p-input { resize: vertical; min-height: 96px; line-height: 1.5; }
 }
 `;
 
-const C = { navy: "#1a2540", muted: "#64748b", danger: "#dc2626" };
 
 const TecnicasForm = ({ onClose, onSave, tecnicaEdit = null, tecnicasExistentes = [], saving = false }) => {
   const [formData, setFormData] = useState({ nombre: "", descripcion: "", imagenTecnica: "", estado: true });

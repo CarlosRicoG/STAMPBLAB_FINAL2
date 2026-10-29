@@ -14,35 +14,12 @@ import usePlus from "../../hooks/usePlus";
 import { getTarifasPublicas } from "../../Services/api-cliente/cliente";
 import { estimarProducto, estimarCotizacion } from "../../utils/clienteUtils";
 import "../../styles/plus.css";
+import { C } from "../../config/tokens";
 
 const dinero = (n) => "$" + (Number(n) || 0).toLocaleString("es-CO");
 const NOTA_ESTIMADO = "Precio final lo confirma StampLab al revisar tus diseños.";
 
 // ── Design tokens (mismo sistema) ──
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    navyDeep: "linear-gradient(135deg, #0f1824 0%, #1a2540 60%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    successBorder: "#bbf7d0",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    warningBorder: "#fde68a",
-    danger: "#dc2626",
-    dangerSoft: "#fef2f2",
-    dangerBorder: "#fecaca",
-    purple: "#7c3aed",
-    purpleSoft: "#f5f3ff",
-    muted: "#64748b",
-    text: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-    white: "#ffffff",
-};
 
 // ── APIs ──
 const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;

@@ -1,19 +1,7 @@
 import { useState, useEffect } from "react";
+import { C } from "../../config/tokens";
 
 /* ── Tokens de color ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    warning: "#d97706",
-    danger: "#dc2626",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
 
 const inputStyle = (hasError, isTouched) => ({
     width: "100%", padding: "10px 14px", fontSize: 13, fontFamily: "'Outfit',sans-serif",

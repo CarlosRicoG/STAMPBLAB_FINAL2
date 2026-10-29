@@ -4,6 +4,7 @@ import { FaTimes, FaUserPlus, FaUserEdit, FaExclamationCircle, FaEye, FaEyeSlash
 import Swal from "sweetalert2";
 import { errorContrasena } from "../../utils/validarContrasena";
 import { createUsuario, updateUsuario, getRoles } from "../../Services/api-usuarios/usuarios";
+import { C } from "../../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -216,7 +217,6 @@ textarea.cf-p-input { resize: vertical; min-height: 96px; line-height: 1.5; }
 }
 `;
 
-const C = { navy: "#1a2540", muted: "#64748b", danger: "#dc2626" };
 
 const UsuariosForm = ({ onClose, onSave, usuario = null }) => {
   const [formData, setFormData] = useState({

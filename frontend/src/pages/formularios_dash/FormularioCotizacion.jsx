@@ -13,29 +13,9 @@ import { getUsuarios } from "../../Services/api-usuarios/usuarios";
 import { getProductos } from "../../Services/api-productos/productos";
 import { getVariantesByProducto } from "../../Services/api-productos/variantes";
 import { ESTADO_COTIZACION } from "../../config/estados";
+import { C } from "../../config/tokens";
 
 /* ── Tokens ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    successBorder: "#bbf7d0",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    danger: "#dc2626",
-    dangerSoft: "#fef2f2",
-    purple: "#7c3aed",
-    purpleSoft: "#f5f3ff",
-    purpleBorder: "#ddd6fe",
-    muted: "#64748b",
-    text: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
 
 const TH = {
     background: C.navyGrad, color: "#fff", fontSize: 12, fontWeight: 700,

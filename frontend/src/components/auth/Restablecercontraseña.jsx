@@ -8,26 +8,9 @@ import { errorContrasena } from "../../utils/validarContrasena";
 import fondo from "../../assets/images/imagenfondo.webp";
 import { FaArrowLeft, FaLock, FaKey, FaExclamationTriangle, FaExclamation, FaCheck, FaTimes, FaShieldAlt, FaRedoAlt } from "react-icons/fa";
 import { AuthShell, AuthField, AuthButton, StrengthMeter } from "./Login";
+import { C } from "../../config/tokens";
 
 /* ── Tokens de color ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    danger: "#dc2626",
-    dangerSoft: "#fef2f2",
-    dangerBorder: "#fecaca",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    warningBorder: "#fde68a",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
-
 const RestablecerContraseña = () => {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();

@@ -116,6 +116,7 @@ Cotización: Pendiente/En revisión ─► Aprobada ─► (cliente) Procesada +
 - Servicios de API en `src/Services/api-*`. La URL base viene de `VITE_API_URL` (`src/config/api.js`).
 - `src/utils/authInterceptors.js` añade el token, guarda el token renovado y cierra la sesión en 401.
 - `src/config/estados.js` es el espejo de los IDs de estado del backend (mantener iguales).
+- `src/config/tokens.js` es la fuente única de los colores de la interfaz (`C.navy`, `C.accent`, `C.success`…). Las pantallas lo importan; no se redefine un `const C` local. Si una pantalla necesita un valor propio, se extiende: `const C = { ...TOKENS, clave: "valor" }` (ver `NavAdmin.jsx`).
 - Datos de sesión en `localStorage`: `token` y `usuario`. El carrito local usa `cart_productos_landing` y se limpia al cerrar sesión.
 
 ## 4. Configuración y despliegue

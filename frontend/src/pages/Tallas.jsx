@@ -4,6 +4,7 @@ import Swal from "sweetalert2";
 
 import TallasForm from "./formularios_dash/TallasForm.jsx";
 import { getTallas, deleteTalla } from "../Services/api-tallas/tallas.js";
+import { C } from "../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -216,7 +217,6 @@ textarea.cf-p-input { resize: vertical; min-height: 96px; line-height: 1.5; }
 }
 `;
 
-const C = { navy: "#1a2540", muted: "#64748b", danger: "#dc2626" };
 
 const Tallas = () => {
     const [search, setSearch] = useState("");

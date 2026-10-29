@@ -15,19 +15,9 @@ import {
     FaMotorcycle, FaExchangeAlt, FaCheckCircle, FaBolt, FaChevronRight,
     FaFilter, FaRegSadTear, FaShoppingBag, FaTshirt, FaCloudUploadAlt, FaFilePdf, FaCheck, FaStore, FaTruck
 } from "react-icons/fa";
+import { C } from "../../config/tokens";
 
 /* ─── Paleta exacta del proyecto ─── */
-const C = {
-    navy: "#1a2540",
-    accent: "#4f8ef7",
-    success: "#16a34a",
-    danger: "#dc2626",
-    warning: "#d97706",
-    muted: "#64748b",
-    text: "#0f172a",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
 
 const FONT = "'Outfit', sans-serif";
 const PER_PAGE = 8;

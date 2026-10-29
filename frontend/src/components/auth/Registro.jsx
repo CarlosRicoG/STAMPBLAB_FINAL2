@@ -8,21 +8,10 @@ import Swal from "sweetalert2";
 import { FaUser, FaIdCard, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaLock, FaKey } from "react-icons/fa";
 import { errorContrasena } from "../../utils/validarContrasena";
 import { AuthShell, AuthTabs, AuthField, AuthButton, StrengthMeter } from "./Login";
+import { C } from "../../config/tokens";
 
 
 /* ── Tokens de color ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    danger: "#dc2626",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
-
 const RegistroLanding = () => {
     const [nombre, setNombre] = useState("");
     const [documento, setDocumento] = useState("");

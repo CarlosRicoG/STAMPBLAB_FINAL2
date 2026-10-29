@@ -4,6 +4,7 @@ import { FaPlusCircle, FaEdit, FaTrash, FaSyncAlt, FaUserShield, FaLock, FaExcla
 import { getRoles, createRol, updateRol, deleteRol } from "../Services/api-roles/roles";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../utils/escapeHtml";
+import { C } from "../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
@@ -216,13 +217,6 @@ textarea.cf-p-input { resize: vertical; min-height: 96px; line-height: 1.5; }
 }
 `;
 
-const C = {
-  navy: "#1a2540",
-  accent: "#4f8ef7",
-  warning: "#d97706",
-  danger: "#dc2626",
-  muted: "#64748b",
-};
 
 const esProtegido = (nombre) => ["administrador", "cliente"].includes((nombre || "").toLowerCase());
 

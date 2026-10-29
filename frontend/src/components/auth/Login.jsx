@@ -11,6 +11,7 @@ import {
     FaEye, FaEyeSlash, FaEnvelope, FaLock, FaCheck, FaExclamation, FaExclamationCircle,
     FaArrowRight, FaBoxOpen, FaPalette, FaShippingFast, FaShieldAlt,
 } from "react-icons/fa";
+import { C } from "../../config/tokens";
 
 /* ═══════════════════════════════════════════════════════════
    KIT DE AUTENTICACIÓN (compartido por Login, Registro,
@@ -18,14 +19,6 @@ import {
    ═══════════════════════════════════════════════════════════ */
 
 /* ── Tokens de color ── */
-const C = {
-    navy: "#1a2540",
-    accent: "#4f8ef7",
-    violet: "#7c3aed",
-    success: "#16a34a",
-    danger: "#dc2626",
-    muted: "#64748b",
-};
 
 export const AUTH_CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');

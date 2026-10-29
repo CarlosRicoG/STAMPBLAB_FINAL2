@@ -3,23 +3,9 @@ import { FaEdit, FaEye, FaPlusCircle, FaTrash, FaBoxOpen, FaTshirt, FaSearch, Fa
 import { getCompras, createCompra, updateCompra, deleteCompra } from "../Services/api-compras/compras";
 import Swal from "sweetalert2";
 import NuevaCompra from "./formularios_dash/CompraForm";
+import { C } from "../config/tokens";
 
 /* ── Tokens ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    violet: "#7c3aed",
-    success: "#16a34a",
-    warning: "#d97706",
-    danger: "#dc2626",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
-
 const money = (n) => `$${(Number(n) || 0).toLocaleString("es-CO", { maximumFractionDigits: 2 })}`;
 const subtotalDet = d => (parseFloat(d.PrecioUnitario) || 0) * (Number(d.Cantidad) || 0);
 const totalCompra = c => (c.detalles || []).reduce((s, d) => s + subtotalDet(d), 0);

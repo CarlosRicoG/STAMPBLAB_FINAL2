@@ -6,22 +6,9 @@ import { useNavigate, useParams } from "react-router-dom";
 import { createProducto, getProductoById, updateProducto } from "../../Services/api-productos/productos";
 import { createVariante, getVariantesByProducto, updateVariante, deleteVariante } from "../../Services/api-productos/variantes";
 import { getColores, getTallas, getTelas } from "../../Services/api-productos/atributos";
+import { C } from "../../config/tokens";
 
 /* ── Tokens ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    warning: "#d97706",
-    danger: "#dc2626",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
 
 /* ── Subcomponentes reutilizables ── */
 const Label = ({ children, required }) => (

@@ -6,25 +6,9 @@ import { getEstadosVenta } from "../Services/api-ventas/estados";
 import { siguientesEstados } from "../Services/api-ventas/flujo";
 import { ESTADO_VENTA } from "../config/estados";
 import ModalDetalleVenta, { CamposNotaFecha } from "./ModalDetalleVenta";
+import { C } from "../config/tokens";
 
 /* ── Tokens ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    success: "#16a34a",
-    successSoft: "#f0fdf4",
-    successBorder: "#bbf7d0",
-    warning: "#d97706",
-    warningSoft: "#fffbeb",
-    warningBorder: "#fde68a",
-    danger: "#dc2626",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
 
 const TH = {
     background: C.navyGrad, color: "#fff", fontSize: 11, fontWeight: 700,

@@ -5,6 +5,7 @@ import axios from "axios";
 import { cerrarSesion } from "../../../Services/api-auth/auth";
 import BotonMenu from "./BotonMenu";
 import CampanaNotificaciones from "../../notificaciones/CampanaNotificaciones";
+import { C as TOKENS } from "../../../config/tokens";
 
 const API_URL = `${import.meta.env.VITE_API_URL}/api/usuarios`;
 
@@ -16,18 +17,7 @@ const getTokenPayload = () => {
     } catch { return null; }
 };
 
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(135deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    danger: "#dc2626",
-    success: "#16a34a",
-    muted: "#64748b",
-    border: "#e2e8f0",
-    bg: "#f8fafc",
-};
+const C = { ...TOKENS, navyGrad: "linear-gradient(135deg, #1a2540 0%, #2d3f6e 100%)" };
 
 const Field = ({ label, type = "text", value, onChange, disabled, rightSlot }) => (
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

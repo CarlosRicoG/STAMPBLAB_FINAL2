@@ -14,6 +14,7 @@ import { plazoDePagoAplica, fechaLimitePago, textoTiempoRestante, formatoFechaHo
 import { LineaTiempo, BotonWhatsApp, useConfigPublica, CLIENTE_CSS } from "./clienteKit";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
+import { C } from "../../config/tokens";
 
 const CART_KEY = "cart_productos_landing";
 const esPendiente = (v) => (v.estado?.Nombre || "Pendiente") === "Pendiente";
@@ -21,7 +22,6 @@ const tieneComprobante = (v) => !!(v.ComprobanteTransferencia || v.TieneComproba
 // Un pedido por transferencia pendiente puede (re)subir comprobante si lo rechazaron o si aún no tiene uno
 const puedeSubirComprobante = (v) => esPendiente(v) && (!!v.ComprobanteMotivoRechazo || (v.MetodoPago === "transferencia" && !tieneComprobante(v)));
 
-const C = { accent: "#4f8ef7", success: "#16a34a", warning: "#d97706", danger: "#dc2626", muted: "#64748b" };
 
 /* ── Estados ── */
 const estadoConfig = {

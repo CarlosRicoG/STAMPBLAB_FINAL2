@@ -4,8 +4,8 @@ import Swal from "sweetalert2";
 import { escapeHtml } from "../utils/escapeHtml";
 import { getTarifas, guardarTarifa, eliminarTarifa } from "../Services/api-tarifas/tarifas";
 import { getTecnicas, getPartes } from "../Services/api-cotizacion-landing/cotizacion-landing";
+import { C } from "../config/tokens";
 
-const C = { navy: "#1a2540", accent: "#4f8ef7", violet: "#7c3aed", success: "#16a34a", warning: "#d97706", danger: "#dc2626", muted: "#64748b", border: "#e2e8f0", bg: "#f8fafc" };
 const MAX = 99999999;
 
 const CSS = `

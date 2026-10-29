@@ -5,6 +5,7 @@ import { FaUserCircle, FaTimes, FaShoppingBag, FaFileInvoice, FaEdit, FaSignOutA
 import logo from "../../assets/images/nuevo_logo_stamplab.png";
 import { cerrarSesion } from "../../Services/api-auth/auth";
 import { useResumenCliente } from "./clienteKit";
+import { C } from "../../config/tokens";
 
 /* Punto/contador de "hay algo que requiere tu atención" */
 const PuntoAtencion = ({ n, style }) => n > 0 ? (
@@ -15,16 +16,6 @@ const PuntoAtencion = ({ n, style }) => n > 0 ? (
 ) : null;
 
 /* ── Tokens de color ── */
-const C = {
-    navy: "#1a2540",
-    navyGrad: "linear-gradient(90deg, #1a2540 0%, #2d3f6e 100%)",
-    accent: "#4f8ef7",
-    accentSoft: "#f0f4ff",
-    accentBorder: "#c7d9ff",
-    danger: "#dc2626",
-    muted: "#64748b",
-    border: "#e2e8f0",
-};
 
 /* ── Modal Perfil ── */
 const PerfilModal = ({ show, onClose, userData, onLogout, pendientes = 0 }) => {
