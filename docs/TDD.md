@@ -67,7 +67,7 @@ Monorepo:
 - **Compras:** `Proveedor`, `Compra`, `DetalleCompra`.
 - **Experiencia:** `Notificacion`, `Carrito`.
 
-Migraciones activas: `backend/migrations/2026101*` (la baseline usa `sync()`); las anteriores están en `migrations/legacy/`.
+Migraciones activas: `backend/migrations/2026101*` (la baseline usa `sync()`); las anteriores (incluidas las automáticas de 2025) están en `migrations/legacy/`.
 
 ### 2.5 Estados (fuente única: `config/estados.js`)
 

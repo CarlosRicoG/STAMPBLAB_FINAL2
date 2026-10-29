@@ -1,7 +1,7 @@
 # Auditoría STAMPLAB_UNIFICADO
 
 Primera auditoría y correcciones: 2026-10-28. Segunda validación (revisión independiente de los cambios y pasada nueva): 2026-10-28.
-Documentos relacionados: `docs/PRD.md` (producto) y `docs/TDD.md` (diseño técnico).
+Documentos relacionados: `PRD.md` (producto) y `TDD.md` (diseño técnico).
 
 **Niveles de confianza:** [V] verificado leyendo el código · [R] reportado por un auditor, no reproducido · [D] dudoso.
 **Estado:** ✅ corregido · 🟡 mitigado en parte · ⏳ pendiente · ❓ decisión del negocio.

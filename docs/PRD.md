@@ -1,6 +1,6 @@
 # PRD — STAMPLAB (tienda y panel administrativo para estampados)
 
-Versión 1.0 · 2026-10-28 · Estado: documento de producto derivado del sistema existente y de la auditoría (`AUDITORIA.md`).
+Versión 1.0 · 2026-10-28 · Estado: documento de producto derivado del sistema existente y de la auditoría (`AUDITORIA.md`, en esta misma carpeta).
 
 ## 1. Resumen
 

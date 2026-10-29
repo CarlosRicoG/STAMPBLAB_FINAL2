@@ -99,3 +99,9 @@ Todo movimiento de stock por ventas/cotizaciones pasa por `backend/services/inve
 - Los IDs de `estados` estan centralizados en `backend/config/estados.js` (y `frontend/src/config/estados.js`); `seed-base.js` los carga desde ahi.
 - El panel `/dashboard` solo abre con rol Administrador.
 - `JWT_SECRET` y `MAIL_USER`/`MAIL_PASS` van en variables de entorno (nunca en el codigo).
+
+## Documentación
+- `docs/PRD.md`: qué hace el sistema y sus reglas de negocio.
+- `docs/TDD.md`: diseño técnico (módulos, rutas, modelos).
+- `docs/AUDITORIA.md`: hallazgos de seguridad y calidad, y su estado.
+- Migraciones vigentes en `backend/migrations/`; las históricas están en `backend/migrations/legacy/`.
