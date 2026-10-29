@@ -50,6 +50,17 @@ module.exports = (sequelize, DataTypes) => {
                 model: 'estados',
                 key: 'EstadoID'
             }
+        },
+        // Desde cuándo corre la vigencia de una cotización aprobada (el cliente tiene el plazo completo desde que se aprueba)
+        FechaAprobacion: {
+            type: DataTypes.DATE,
+            allowNull: true
+        },
+        // true cuando ya se avisó al cliente que la cotización está por vencer
+        AvisoVencimiento: {
+            type: DataTypes.BOOLEAN,
+            allowNull: false,
+            defaultValue: false
         }
     }, {
         sequelize,

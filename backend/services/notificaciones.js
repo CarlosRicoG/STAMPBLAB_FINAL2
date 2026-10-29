@@ -136,6 +136,17 @@ const pedidoVencido = seguro(async (ventaId, horas) => {
     await avisos.paraAdmins({ tipo: 'pedido', mensaje: `El pedido #${venta.VentaID} de ${nombreCliente(venta.usuario)} se canceló solo por falta de pago.`, enlace: '/dashboard/ventas' });
 });
 
+/** Aviso previo: el pedido se cancelará pronto si no se paga. */
+const pedidoPorVencer = seguro(async (ventaId, horas) => {
+    const venta = await cargarVenta(ventaId);
+    if (!venta) return;
+    if (venta.usuario?.Correo) {
+        const { asunto, html } = plantillas.pedidoPorVencer({ usuario: venta.usuario, venta, horas });
+        await correo.enviar({ para: venta.usuario.Correo, asunto, html });
+    }
+    await avisos.paraUsuario(venta.DocumentoID, { tipo: 'pedido', enlace: '/miscompras', mensaje: `Tu pedido #${venta.VentaID} se cancelará en unas ${horas} horas si no recibimos el pago. Sube tu comprobante para conservarlo.` });
+});
+
 // ───────────────────────── Cotizaciones ─────────────────────────
 
 const cotizacionRecibida = seguro(async (cotizacionId) => {
@@ -190,6 +201,17 @@ const cotizacionVencida = seguro(async (cotizacionId, dias) => {
     await avisos.paraUsuario(cot.DocumentoID, { tipo: 'cotizacion', enlace: '/cotizacionesLanding', mensaje: `Tu cotización #${cot.CotizacionID} venció tras ${dias} días sin respuesta. Puedes generar una nueva.` });
 });
 
+/** Aviso previo: la cotización aprobada vence pronto. */
+const cotizacionPorVencer = seguro(async (cotizacionId, dias) => {
+    const cot = await cargarCotizacion(cotizacionId);
+    if (!cot) return;
+    if (cot.usuario?.Correo) {
+        const { asunto, html } = plantillas.cotizacionPorVencer({ usuario: cot.usuario, cotizacion: cot, dias });
+        await correo.enviar({ para: cot.usuario.Correo, asunto, html });
+    }
+    await avisos.paraUsuario(cot.DocumentoID, { tipo: 'cotizacion', enlace: '/cotizacionesLanding', mensaje: `Tu cotización #${cot.CotizacionID} vence en ${dias} día(s). Acéptala si quieres hacer el pedido.` });
+});
+
 // ───────────────────────── Inventario ─────────────────────────
 
 const stockBajo = seguro(async (items) => {
@@ -201,6 +223,6 @@ const stockBajo = seguro(async (items) => {
 });
 
 module.exports = {
-    pedidoRecibido, pedidoEstado, pedidoCanceladoPorCliente, comprobanteSubido, comprobanteRechazado, pedidoVencido,
-    cotizacionRecibida, cotizacionEstado, cotizacionRespuesta, cotizacionVencida, stockBajo,
+    pedidoRecibido, pedidoEstado, pedidoCanceladoPorCliente, comprobanteSubido, comprobanteRechazado, pedidoVencido, pedidoPorVencer,
+    cotizacionRecibida, cotizacionEstado, cotizacionRespuesta, cotizacionVencida, cotizacionPorVencer, stockBajo,
 };

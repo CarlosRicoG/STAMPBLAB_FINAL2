@@ -615,10 +615,16 @@ exports.updateCotizacion = async (req, res) => {
                 await tx.rollback();
                 return res.status(409).json({ message: 'La cotización cambió mientras la editabas (por ejemplo, el cliente respondió). Recárgala e inténtalo de nuevo.' });
             }
-            await cotizacion.update({
+            const cambios = {
                 ValorTotal: ValorTotal !== undefined ? ValorTotal : cotizacion.ValorTotal,
                 EstadoID: estadoNuevo
-            }, { transaction: tx });
+            };
+            // La vigencia corre desde que se aprueba, no desde que el cliente la pidió
+            if (estadoNuevo === ESTADO_COTIZACION.APROBADA && estadoAnterior !== estadoNuevo) {
+                cambios.FechaAprobacion = new Date();
+                cambios.AvisoVencimiento = false;
+            }
+            await cotizacion.update(cambios, { transaction: tx });
             await tx.commit();
         } catch (e) { await tx.rollback().catch(() => {}); throw e; }
         // Al aprobar, el valor que ve el cliente se calcula con los precios ya asignados (si el panel no lo mandó)

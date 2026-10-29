@@ -59,7 +59,8 @@ Hoy el backend distingue solo administrador y no administrador. El CRUD de roles
 - **RF-41** El administrador asigna costos por diseño (a mano o con "Aplicar tarifas") y aprueba. El cliente recibe aviso.
 - **RF-42** **Precio congelado:** una vez aprobada, la cotización no admite cambios de costos ni de cantidades.
 - **RF-43** El cliente acepta o rechaza una cotización aprobada. Al aceptar se crea el pedido por el **mismo total aprobado**, con una línea por talla cotizada y reserva de stock.
-- **RF-44** Una cotización sin respuesta pasa a "Vencida" tras `VIGENCIA_COTIZACION_DIAS` días.
+- **RF-44** Una cotización sin respuesta pasa a "Vencida" tras `VIGENCIA_COTIZACION_DIAS` días. Si ya está aprobada, los días cuentan desde la aprobación (`FechaAprobacion`); si no, desde que se creó.
+- **RF-75** Aviso previo, una sola vez: el cliente recibe notificación y correo 24 h antes de que se cancele un pedido sin pago y 1 día antes de que venza una cotización aprobada.
 - **RF-45** Estados: Pendiente, En revisión, Aprobada, Rechazada, Cancelada, Procesada (ya convertida) y Vencida.
 
 ### 4.5 Pedidos y pagos
@@ -109,7 +110,6 @@ Estas decisiones cambian el comportamiento del sistema y no las tomó el código
 
 1. **Cancelar un pedido ya pagado:** hoy no devuelve stock ni registra reembolso. ¿Debe devolver el stock? ¿Se maneja reembolso?
 2. **Pedidos sin pago que no son por transferencia** (contraentrega o creados desde una cotización): hoy nunca vencen y mantienen stock reservado. ¿Se fija un plazo o un límite de pedidos pendientes por cliente?
-3. **Vigencia de la cotización:** hoy cuenta desde que se crea. ¿Debe contar desde que se aprueba?
 4. **Roles personalizados (RF-30):** ¿se necesitan empleados con permisos parciales? Hoy solo existe un administrador único.
 5. **IVA, descuentos e impuestos:** hoy no existen. ¿Se necesitan en el total?
 6. **Pagos parciales o anticipos** en pedidos por encargo.

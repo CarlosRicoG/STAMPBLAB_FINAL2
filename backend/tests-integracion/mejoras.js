@@ -215,14 +215,31 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     r = await call('POST', '/resumen/mantenimiento', {}, adm); si('correrlo de nuevo no cancela dos veces ni devuelve más stock', (await stock()) === stockAntes + 2 && r.j.pedidosCancelados === 0, JSON.stringify(r.j));
 
     const CV = await cotizar(cli); const CR = await cotizar(cli); const CN = await cotizar(cli);
-    await db.Cotizacion.update({ FechaCotizacion: new Date(Date.now() - 40 * 864e5) }, { where: { CotizacionID: [CV, CR] } });
-    await aprobar(CR);
+    const CA = await cotizar(cli); const CP = await cotizar(cli);
+    await db.Cotizacion.update({ FechaCotizacion: new Date(Date.now() - 40 * 864e5) }, { where: { CotizacionID: [CV, CR, CA, CP] } });
+    await aprobar(CR); await aprobar(CA); await aprobar(CP);
+    // CR lleva 40 días aprobada (vence); CA se acaba de aprobar aunque se pidió hace 40 días (NO vence); CP se aprobó hace 29,5 días (aviso previo)
+    await db.Cotizacion.update({ FechaAprobacion: new Date(Date.now() - 40 * 864e5) }, { where: { CotizacionID: CR } });
+    await db.Cotizacion.update({ FechaAprobacion: new Date(Date.now() - 29.5 * 864e5) }, { where: { CotizacionID: CP } });
     r = await call('POST', '/resumen/mantenimiento', {}, adm); si('vencen las cotizaciones de más de 30 días', r.s === 200 && r.j.cotizacionesVencidas >= 2, JSON.stringify(r.j));
     const ec = async (id) => (await call('GET', '/cotizaciones/' + id, undefined, adm)).j.EstadoID;
     si('la pendiente vieja quedó Vencida (7)', (await ec(CV)) === 7);
-    si('la aprobada sin respuesta también', (await ec(CR)) === 7);
+    si('la aprobada hace más de 30 días sin respuesta también', (await ec(CR)) === 7);
+    si('una aprobada ahora NO vence aunque la cotización sea vieja (la vigencia corre desde la aprobación)', (await ec(CA)) === 2);
     si('la reciente sigue pendiente', (await ec(CN)) === 1);
     si('el cliente recibe el aviso de vencimiento', !!(await hay(cli, new RegExp(`cotización #${CV} venció`))));
+
+    console.log('--- aviso previo de vencimiento');
+    si('la cotización aprobada a punto de vencer avisa al cliente', !!(await hay(cli, new RegExp(`cotización #${CP} vence en`))));
+    si('la que acaba de aprobarse NO recibe aviso', !(await hay(cli, new RegExp(`cotización #${CA} vence en`))));
+    si('queda marcada como avisada', (await db.Cotizacion.findByPk(CP)).AvisoVencimiento === true);
+    const avisosAntes = await db.Notificacion.count({ where: { Mensaje: { [Op.like]: `%cotización #${CP} vence%` } } });
+    await call('POST', '/resumen/mantenimiento', {}, adm);
+    si('el aviso se envía una sola vez', (await db.Notificacion.count({ where: { Mensaje: { [Op.like]: `%cotización #${CP} vence%` } } })) === avisosAntes && avisosAntes === 1, String(avisosAntes));
+    const VPV = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VPV);
+    if (VPV) await db.Venta.update({ ComprobanteTransferencia: null, FechaVenta: new Date(Date.now() - 30 * 3600 * 1000) }, { where: { VentaID: VPV } });
+    r = await call('POST', '/resumen/mantenimiento', {}, adm);
+    si('el pedido sin pago a 18 h de vencer avisa al cliente y sigue Pendiente', !!(await hay(cli, new RegExp(`pedido #${VPV} se cancelará`))) && (await est(VPV)) === 8, JSON.stringify(r.j));
 
     console.log('--- limpieza');
     for (const id of limpiar.ventas.filter(Boolean)) { await call('PATCH', `/ventas/${id}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${id}`, undefined, adm); }

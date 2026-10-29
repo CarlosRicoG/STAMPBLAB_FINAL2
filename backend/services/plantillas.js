@@ -117,6 +117,28 @@ function cotizacionVencida({ usuario, cotizacion, dias }) {
     };
 }
 
+function pedidoPorVencer({ usuario, venta, horas }) {
+    return {
+        asunto: `Tu pedido #${venta.VentaID} se cancelará pronto si no recibimos el pago`,
+        html: base({
+            titulo: `Tu pedido #${venta.VentaID} está por vencer`, saludo: `Hola ${primerNombre(usuario)},`,
+            cuerpo: `<p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Todavía no recibimos tu pago. Si no lo hacemos en unas ${esc(horas)} horas, cancelaremos el pedido y liberaremos las prendas reservadas. Puedes subir tu comprobante desde "Mis compras".</p>`,
+            boton: { texto: 'Subir comprobante', url: `${URL_WEB()}/miscompras` },
+        }),
+    };
+}
+
+function cotizacionPorVencer({ usuario, cotizacion, dias }) {
+    return {
+        asunto: `Tu cotización #${cotizacion.CotizacionID} vence pronto`,
+        html: base({
+            titulo: `Tu cotización #${cotizacion.CotizacionID} vence pronto`, saludo: `Hola ${primerNombre(usuario)},`,
+            cuerpo: `<p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Tu cotización ya tiene precio y vence en ${esc(dias)} día(s). Si quieres hacer el pedido, acéptala antes de que venza; después tendrías que cotizar de nuevo.</p>`,
+            boton: { texto: 'Ver mi cotización', url: `${URL_WEB()}/cotizacionesLanding` },
+        }),
+    };
+}
+
 // ── Avisos para el equipo (administradores) ──
 const URL_ADMIN = () => URL_WEB() + '/dashboard';
 
@@ -142,4 +164,4 @@ function stockBajoAdmin({ items, minimo }) {
     };
 }
 
-module.exports = { pedidoRecibido, pedidoEstado, cotizacionRecibida, cotizacionEstado, comprobanteRechazado, pedidoVencido, cotizacionVencida, avisoAdmin, stockBajoAdmin, esc, cop };
+module.exports = { pedidoRecibido, pedidoEstado, cotizacionRecibida, cotizacionEstado, comprobanteRechazado, pedidoVencido, cotizacionVencida, pedidoPorVencer, cotizacionPorVencer, avisoAdmin, stockBajoAdmin, esc, cop };
