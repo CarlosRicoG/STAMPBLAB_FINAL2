@@ -6,8 +6,8 @@
 
 ## Fase actual
 Mejoras derivadas de la auditoría del 2026-11-04, en la rama `mejoras-auditoria`. Plan por olas:
-1. **Ola 1 (sin cambio de comportamiento):** en curso. Hecho: audit fix de joi, dockerignore, USER node en frontend, quitar Tailwind, import dinámico de jspdf/html2canvas, `config/api.js` unificado, `PUBLIC_URL`, renombres `*Form.jsx`, docs, CI.
-2. **Ola 2:** `ADMIN_PASSWORD` sin default en compose, límite JSON 100 kb, puerto 3306 a 127.0.0.1, correcciones del dashboard.
+1. **Ola 1 (sin cambio de comportamiento):** hecha (commit 6c50524). Hecho: audit fix de joi, dockerignore, USER node en frontend, quitar Tailwind, import dinámico de jspdf/html2canvas, `config/api.js` unificado, `PUBLIC_URL`, renombres `*Form.jsx`, docs, CI.
+2. **Ola 2:** hecha. Límite JSON de 100 kb solo en login/registro/recuperación (el resto sigue en 12 MB por comprobantes e imágenes), puerto 3306 ligado a 127.0.0.1, dashboard sin pedidos cancelados y con `mes` validado (400 si no es 1-12). `ADMIN_PASSWORD` NO se hizo obligatoria en el compose para no romper el `.env` existente; solo se documentó.
 3. **Ola 3:** integridad (bloqueos en compras, atomicidad al aprobar cotización, índices, vencimiento de pedidos sin método de pago, índice único en inventario).
 4. **Ola 4:** refactor de componentes/controladores grandes (requiere autorización aparte).
 

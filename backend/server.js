@@ -48,7 +48,12 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(express.json({ limit: '12mb' }));
+// Los endpoints sin sesión (login, registro, recuperación) solo reciben JSON diminuto: 100 kb basta y evita que un anónimo envíe 12 MB.
+// Los demás (comprobantes e imágenes de productos en base64) siguen con 12 MB.
+const jsonPequeno = express.json({ limit: '100kb' });
+const jsonGrande = express.json({ limit: '12mb' });
+const RUTAS_SIN_SESION = new Set(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password']);
+app.use((req, res, next) => (RUTAS_SIN_SESION.has(req.path) ? jsonPequeno : jsonGrande)(req, res, next));
 app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); }); // cuerpo vacío o de otro tipo: no rompe los controladores
 app.use(express.urlencoded({ limit: '12mb', extended: true })); // antes del filtro: así también se revisan los formularios urlencoded
 const saneamiento = require('./middleware/saneamiento');

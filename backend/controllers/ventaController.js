@@ -491,11 +491,16 @@ exports.getDashboardData = async (req, res) => {
         // no tiene asociación con Tecnica en tu modelo actual.
 
         // ── Construir WHERE para Venta (filtro de mes) ──
-        let whereVenta = {};
+        // Los pedidos cancelados no son ventas: no cuentan en "más vendidos" ni en "ventas por mes".
+        let whereVenta = { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } };
         if (mes) {
-            const mesNum = parseInt(mes);
+            const mesNum = parseInt(mes, 10);
+            if (!Number.isInteger(mesNum) || mesNum < 1 || mesNum > 12) {
+                return res.status(400).json({ message: 'El mes debe ser un número entre 1 y 12' });
+            }
             whereVenta = {
                 [Op.and]: [
+                    { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } },
                     sequelize.where(sequelize.fn('MONTH', sequelize.col('venta.FechaVenta')), mesNum),
                     sequelize.where(sequelize.fn('YEAR', sequelize.col('venta.FechaVenta')), new Date().getFullYear())
                 ]
