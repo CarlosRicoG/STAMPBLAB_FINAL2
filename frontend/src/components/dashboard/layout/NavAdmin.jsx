@@ -1,3 +1,4 @@
+import API_ROOT from "../../../config/api";
 import { useState, useEffect } from "react";
 import { FaUserCircle, FaSignOutAlt, FaPencilAlt, FaEye, FaEyeSlash, FaSave } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
@@ -7,7 +8,7 @@ import BotonMenu from "./BotonMenu";
 import CampanaNotificaciones from "../../notificaciones/CampanaNotificaciones";
 import { C as TOKENS } from "../../../config/tokens";
 
-const API_URL = `${import.meta.env.VITE_API_URL}/api/usuarios`;
+const API_URL = `${API_ROOT}/api/usuarios`;
 
 const getTokenPayload = () => {
     try {

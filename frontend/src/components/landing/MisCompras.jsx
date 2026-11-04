@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FooterComponent from "./footer";
@@ -265,7 +266,7 @@ const MisCompras = () => {
     const cargarVentas = async () => {
         try {
             setErrorCarga(false);
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas?documentoID=${encodeURIComponent(documentoID)}&limit=1000&page=1`);
+            const response = await fetch(`${API_ROOT}/api/ventas?documentoID=${encodeURIComponent(documentoID)}&limit=1000&page=1`);
             if (!response.ok) throw new Error("ventas");
             const data = await response.json();
 
@@ -289,7 +290,7 @@ const MisCompras = () => {
 
     const verDetalle = async (ventaID) => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas/${ventaID}`);
+            const response = await fetch(`${API_ROOT}/api/ventas/${ventaID}`);
             if (!response.ok) throw new Error("detalle");
             const data = await response.json();
             setVentaSeleccionada(data);
@@ -352,7 +353,7 @@ const MisCompras = () => {
         });
         if (!r.isConfirmed) return;
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas/${venta.VentaID}/cancelar`, { method: "PATCH" });
+            const res = await fetch(`${API_ROOT}/api/ventas/${venta.VentaID}/cancelar`, { method: "PATCH" });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(data.message || data.mensaje || "No se pudo cancelar el pedido");
             await Swal.fire({ icon: "success", title: "Pedido cancelado", text: "Tu pedido fue cancelado.", timer: 1800, showConfirmButton: false });

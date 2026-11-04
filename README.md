@@ -10,7 +10,7 @@ Monorepo: tienda + panel administrativo para estampados.
 ```
 # 1) Base de datos MySQL vacia (ej. stamplab_unificado) y credenciales en backend/.env
 cd backend && cp .env.example .env && npm install
-npm run db:setup                  # migraciones (crean las 27 tablas) + roles, estados y administrador
+npm run db:setup                  # migraciones (crean las 30 tablas) + roles, estados y administrador
 node scripts/seed-demo.js         # catalogos, productos con variantes y stock, cliente demo
 npm run dev                       # API en http://localhost:3000
 node scripts/seed-demo-flujo.js   # (opcional, con la API arriba) compras, ventas y cotizaciones de ejemplo

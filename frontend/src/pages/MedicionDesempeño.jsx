@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- módulo de utilidades y componentes compartidos; solo afecta al recargado en caliente en desarrollo */
+import API_ROOT from "../config/api";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -7,11 +8,9 @@ import {
 import { FaFilePdf, FaChartBar, FaSyncAlt, FaBoxOpen, FaCubes, FaExclamationTriangle } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import { getResumenPendientes } from "../Services/api-resumen/resumen";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 import { C } from "../config/tokens";
 
-const API_BASE = `${import.meta.env.VITE_API_URL}/api`;
+const API_BASE = `${API_ROOT}/api`;
 
 
 const MESES = [
@@ -174,6 +173,7 @@ const DashboardMedicionDesempeño = () => {
         setExportingPDF(true);
         try {
             await new Promise(r => setTimeout(r, 400));
+            const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import("html2canvas"), import("jspdf")]);
             const canvas = await html2canvas(dashRef.current, {
                 scale: 2, useCORS: true, logging: false, backgroundColor: C.bg,
             });

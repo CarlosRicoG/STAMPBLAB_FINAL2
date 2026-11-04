@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import axios from "axios";
 import API_BASE from "../../config/api";
 const API_URL = `${API_BASE}/api/compras`;
@@ -117,14 +118,14 @@ export const deleteCompra = async (id) => {
 // Obtener todos los proveedores (para el dropdown)
 export const getProveedores = async () => {
     try {
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/proveedores`);
+        const response = await axios.get(`${API_ROOT}/api/proveedores`);
         console.log("Preedores obtenidos:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error completo al obtener proveedores:", error);
         console.error("Respuesta del servidor (completa):", JSON.stringify(error.response?.data, null, 2));
         console.error("Status:", error.response?.status);
-        console.error("URL intentada:", `${import.meta.env.VITE_API_URL}/api/proveedores`);
+        console.error("URL intentada:", `${API_ROOT}/api/proveedores`);
 
         const errorMessage = error.response?.data?.message ||
             error.response?.data?.mensaje ||
@@ -139,7 +140,7 @@ export const getProveedores = async () => {
 export const getVariantesByProductoEnCompra = async (productoId) => {
     try {
         // RUTA CORRECTA: usar el endpoint de inventario
-        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/inventarioproducto/producto/${productoId}`);
+        const response = await axios.get(`${API_ROOT}/api/inventarioproducto/producto/${productoId}`);
         
         console.log("Variantes obtenidas:", response.data);
         

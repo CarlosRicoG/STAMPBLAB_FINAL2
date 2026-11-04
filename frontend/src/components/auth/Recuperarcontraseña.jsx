@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import NavbarComponent from "../landing/NavBarLanding";
@@ -25,7 +26,7 @@ const RecuperarContraseña = () => {
         setLoading(true);
         setMensaje({ tipo: "", texto: "" });
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL}/api/recuperar-password`, { Correo: correo });
+            await axios.post(`${API_ROOT}/api/recuperar-password`, { Correo: correo });
             setEnviado(true);
             setMensaje({ tipo: "success", texto: "Si el correo está registrado, te enviaremos un enlace de recuperación." });
             setCorreo("");

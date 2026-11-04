@@ -15,3 +15,7 @@ backend/uploads/tecnicas/*
 e2e/capturas/
 e2e/node_modules/
 backend/respaldos/
+
+# Salidas locales
+*.log
+frontend/dist/

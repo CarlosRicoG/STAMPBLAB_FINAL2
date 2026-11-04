@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../../utils/escapeHtml";
@@ -22,7 +23,7 @@ const NOTA_ESTIMADO = "Precio final lo confirma StampLab al revisar tus diseños
 // ── Design tokens (mismo sistema) ──
 
 // ── APIs ──
-const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
+const API_BASE_URL = `${API_ROOT}/api`;
 const api = {
     getProductos: async () => { const r = await fetch(`${API_BASE_URL}/productos`); const d = await r.json(); return d.datos || d; },
     getTecnicas: async () => { const r = await fetch(`${API_BASE_URL}/tecnicas`); const d = await r.json(); return d.datos || d; },
@@ -512,7 +513,7 @@ const CotizacionLanding = () => {
                     if (!dis.ImagenDiseno) return dis;
                     try {
                         const fd = new FormData(); fd.append('imagen', dis.ImagenDiseno);
-                        const r = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/upload-diseno`, { method: 'POST', body: fd });
+                        const r = await fetch(`${API_ROOT}/api/cotizaciones/upload-diseno`, { method: 'POST', body: fd });
                         const d = await r.json().catch(() => ({}));
                         if (!r.ok || !d.filename) throw new Error(d.message || d.mensaje || "No se pudo subir la imagen de un diseño. Intenta de nuevo.");
                         return { ...dis, ImagenNombre: d.filename };

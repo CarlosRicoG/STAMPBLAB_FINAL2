@@ -18,7 +18,7 @@ Documentos relacionados: `PRD.md` (producto) y `TDD.md` (diseño técnico).
 | ESLint frontend | 45 errores, 20 avisos | **0 errores**, 20 avisos (`exhaustive-deps`) |
 | Build frontend (vite, PWA) | — | compila |
 
-**Cómo se probó:** se levantó una base MariaDB 12.3 **aislada y desechable** (puerto 3311, datos en el directorio temporal), se aplicaron las 7 migraciones desde cero, los seeds (`seed-base`, `seed-demo`, `seed-demo-flujo`), la API en el puerto 3100 y el frontend compilado. No se tocó la base de desarrollo del proyecto ni ningún servicio del equipo. Después se detuvo todo y se borró la base desechable.
+**Cómo se probó:** se levantó una base MariaDB 12.3 **aislada y desechable** (puerto 3311, datos en el directorio temporal), se aplicaron las 7 migraciones vigentes entonces (hoy son 9) desde cero, los seeds (`seed-base`, `seed-demo`, `seed-demo-flujo`), la API en el puerto 3100 y el frontend compilado. No se tocó la base de desarrollo del proyecto ni ningún servicio del equipo. Después se detuvo todo y se borró la base desechable.
 
 **Defectos que apareció al correr contra una base real (todos corregidos):**
 1. La migración `20261017-documento-bigint` **fallaba en MariaDB** al crear una base desde cero (`Can't DROP FOREIGN KEY`): ahora no hace nada si las columnas ya son BIGINT.

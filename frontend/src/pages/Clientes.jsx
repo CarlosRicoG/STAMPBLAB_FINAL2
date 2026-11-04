@@ -1,3 +1,4 @@
+import API_ROOT from "../config/api";
 import { useState, useEffect } from "react";
 import { FaPlusCircle, FaEye, FaEdit, FaTrash, FaSearch, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import ClientesForm from "./formularios_dash/ClientesForm";
@@ -222,7 +223,7 @@ const Clientes = () => {
             setLoading(true);
 
             // Verificar cotizaciones activas
-            const cotizacionesResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/usuario/${documentoID}`);
+            const cotizacionesResponse = await fetch(`${API_ROOT}/api/cotizaciones/usuario/${documentoID}`);
             const cotizaciones = await cotizacionesResponse.json();
             const cotizacionesActivas = (Array.isArray(cotizaciones) ? cotizaciones : [])
                 .filter(c => { const eID = c.EstadoID || c.estado?.EstadoID; return eID === 1 || eID === 2; });
@@ -233,7 +234,7 @@ const Clientes = () => {
             }
 
             // Verificar ventas activas — el endpoint ahora devuelve { datos, total, ... }
-            const ventasResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas?limit=1000&page=1`);
+            const ventasResponse = await fetch(`${API_ROOT}/api/ventas?limit=1000&page=1`);
             const ventasData = await ventasResponse.json();
             const todasLasVentas = ventasData.datos || [];
             const ventasActivas = todasLasVentas.filter(v => v.DocumentoID === documentoID && ventaEstaActiva(v.EstadoID));

@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -271,7 +272,7 @@ const MisCotizaciones = () => {
 
     const cargarCotizaciones = async () => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/usuario/${documentoID}`);
+            const res = await fetch(`${API_ROOT}/api/cotizaciones/usuario/${documentoID}`);
             const data = await res.json();
             setCotizaciones(Array.isArray(data) ? data : []);
         } catch { setCotizaciones([]); }
@@ -280,7 +281,7 @@ const MisCotizaciones = () => {
 
     const verDetalle = async (id) => {
         try {
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/${id}`);
+            const res = await fetch(`${API_ROOT}/api/cotizaciones/${id}`);
             if (!res.ok) throw new Error("detalle");
             const data = await res.json();
             setCotizacionSeleccionada(data);

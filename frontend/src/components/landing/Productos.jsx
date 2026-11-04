@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import { useState, useEffect, useRef } from "react";
 import NavbarComponent from "./NavBarLanding";
 import FooterComponent from "./footer";
@@ -647,7 +648,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
                 } : {}),
             };
 
-            const res = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas`, {
+            const res = await fetch(`${API_ROOT}/api/ventas`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)

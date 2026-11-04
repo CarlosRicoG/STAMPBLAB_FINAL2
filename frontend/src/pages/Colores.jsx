@@ -3,7 +3,7 @@ import { FaPlusCircle, FaEdit, FaTrash, FaSearch, FaTimes, FaPalette } from "rea
 import Swal from "sweetalert2";
 import { escapeHtml } from "../utils/escapeHtml";
 
-import ColoresForm from "./formularios_dash/colores.jsx";
+import ColoresForm from "./formularios_dash/ColoresForm.jsx";
 import { getColores, deleteColor } from "../Services/api-colores/colores.js";
 import { C } from "../config/tokens";
 

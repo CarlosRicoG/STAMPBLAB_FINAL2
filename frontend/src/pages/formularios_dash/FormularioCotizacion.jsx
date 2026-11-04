@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import React, { useState, useEffect, useRef } from "react";
 import {
     FaPlus, FaTrash, FaExclamationTriangle, FaCheckCircle, FaShoppingCart,
@@ -590,7 +591,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                             try {
                                 const formData = new FormData();
                                 formData.append('imagen', dis.Archivo);
-                                const res = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/upload-diseno`, { method: 'POST', body: formData });
+                                const res = await fetch(`${API_ROOT}/api/cotizaciones/upload-diseno`, { method: 'POST', body: formData });
                                 const data = await res.json().catch(() => ({}));
                                 if (!res.ok || !data.filename) throw new Error(data.message || data.mensaje || `No se pudo subir el diseño "${dis.ImagenNombre}"`);
                                 return { ...dis, ImagenSubida: data.filename };

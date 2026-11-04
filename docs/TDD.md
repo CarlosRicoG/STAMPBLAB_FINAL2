@@ -34,7 +34,7 @@ Monorepo:
 | Rutas | `routes/` | Autorización por ruta, validación Joi, reglas de propiedad |
 | Controladores | `controllers/` | Casos de uso |
 | Servicios | `services/` | Reglas transversales: inventario, sesión, historial, notificaciones, correo, vencimientos, configuración |
-| Modelos | `models/` | Sequelize (27 tablas) y asociaciones |
+| Modelos | `models/` | Sequelize (30 tablas) y asociaciones |
 | Configuración | `config/` | JWT, base de datos, IDs de estados y transiciones |
 
 ### 2.2 Middlewares globales (en orden)

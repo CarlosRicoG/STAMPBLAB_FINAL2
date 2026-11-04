@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import NavbarComponent from "../landing/NavBarLanding";
@@ -38,7 +39,7 @@ const RestablecerContraseña = () => {
         setLoading(true);
         setMensaje({ tipo: "", texto: "" });
         try {
-            await axios.post(`${import.meta.env.VITE_API_URL}/api/restablecer-password`, { token, nuevaContraseña });
+            await axios.post(`${API_ROOT}/api/restablecer-password`, { token, nuevaContraseña });
             setExito(true);
             await Swal.fire({ icon: "success", title: "¡Contraseña actualizada!", text: "Tu contraseña ha sido restablecida correctamente. Ya puedes iniciar sesión.", confirmButtonColor: C.navy });
             navigate("/login");

@@ -1,6 +1,7 @@
+import API_ROOT from "../config/api";
 import { useState, useEffect } from "react";
 import { FaPlusCircle, FaEye, FaEdit, FaTrash, FaSearch, FaTimes, FaChevronLeft, FaChevronRight, FaUsers, FaEnvelope, FaPhone, FaMapMarkerAlt, FaExclamationTriangle } from "react-icons/fa";
-import UsuariosForm from "./formularios_dash/usuarios";
+import UsuariosForm from "./formularios_dash/UsuariosForm";
 import { getUsuarios, deleteUsuario } from "../Services/api-usuarios/usuarios";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../utils/escapeHtml";
@@ -382,14 +383,14 @@ const Usuarios = () => {
   const handleEliminar = async (documentoID) => {
     try {
       setLoading(true);
-      const cotizacionesResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/cotizaciones/usuario/${documentoID}`);
+      const cotizacionesResponse = await fetch(`${API_ROOT}/api/cotizaciones/usuario/${documentoID}`);
       const cotizaciones = await cotizacionesResponse.json();
       const cotizacionesActivas = cotizaciones.filter(c => { const eID = c.EstadoID || c.estado?.EstadoID; return eID === 1 || eID === 2; });
       if (cotizacionesActivas.length > 0) {
         await Swal.fire({ icon: "warning", title: "No se puede eliminar", html: `Este usuario tiene <strong>${cotizacionesActivas.length} cotización(es) activa(s)</strong>.`, confirmButtonText: "Entendido", confirmButtonColor: C.warning });
         setLoading(false); return;
       }
-      const ventasResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/ventas?limit=1000&page=1`);
+      const ventasResponse = await fetch(`${API_ROOT}/api/ventas?limit=1000&page=1`);
       const ventasData = await ventasResponse.json();
       const todasLasVentas = ventasData.datos || [];
       const ventasActivas = todasLasVentas.filter(v => v.DocumentoID === documentoID && ventaEstaActiva(v.EstadoID));

@@ -544,7 +544,7 @@ exports.getCotizacionById = async (req, res) => {
                 tecnicas: det.tecnicas?.map(tec => ({                                                                                               // 22
                     ...tec.toJSON(),                                                                                                                // 23
                     ImagenUrl: tec.ImagenDiseño                                                                                                     // 24
-                        ? `${process.env.API_URL || 'http://localhost:3000'}/api/cotizaciones/imagen/${tec.ImagenDiseño}`                           // 25
+                        ? `${(process.env.PUBLIC_URL || 'http://localhost:3000').replace(/\/$/, '')}/api/cotizaciones/imagen/${tec.ImagenDiseño}`                           // 25
                         : null                                                                                                                      // 26
                 })) || []                                                                                                                           // 27
             }))                                                                                                                                     // 28

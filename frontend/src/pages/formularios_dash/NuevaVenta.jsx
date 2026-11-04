@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X } from "lucide-react";
@@ -93,7 +94,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
 
         const fetchUsuarios = async () => {
             try {
-                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/usuarios`, {
+                const res = await axios.get(`${API_ROOT}/api/usuarios`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const lista = Array.isArray(res.data) ? res.data : (res.data?.datos || []);
@@ -104,7 +105,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
 
         const fetchProductos = async () => {
             try {
-                const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/productos`, {
+                const res = await axios.get(`${API_ROOT}/api/productos`, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 setProductos(res.data.datos || []);
@@ -172,7 +173,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         try {
             const token = localStorage.getItem("token");
             const res = await axios.get(
-                `${import.meta.env.VITE_API_URL}/api/inventarioproducto/producto/${producto.ProductoID}`,
+                `${API_ROOT}/api/inventarioproducto/producto/${producto.ProductoID}`,
                 { headers: { Authorization: `Bearer ${token}` } }
             );
             const variantesResp = res.data.datos || res.data || [];
@@ -358,7 +359,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
         try {
             const token = localStorage.getItem("token");
             if (modoEdicion) {
-                await axios.put(`${import.meta.env.VITE_API_URL}/api/ventas/${ventaEdit.VentaID}`, venta, {
+                await axios.put(`${API_ROOT}/api/ventas/${ventaEdit.VentaID}`, venta, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 await Swal.fire({
@@ -367,7 +368,7 @@ export default function NuevaVenta({ onClose, ventaEdit }) {
                     confirmButtonColor: C.success,
                 });
             } else {
-                const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/ventas`, venta, {
+                const response = await axios.post(`${API_ROOT}/api/ventas`, venta, {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 const ventaCreada = response.data?.venta || response.data;

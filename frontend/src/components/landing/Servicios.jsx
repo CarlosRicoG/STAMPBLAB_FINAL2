@@ -1,3 +1,4 @@
+import API_ROOT from "../../config/api";
 import { useState, useEffect, useRef } from "react";
 import {
     FaSearch, FaCheckCircle, FaTimesCircle, FaArrowRight, FaStar, FaPalette, FaTruck, FaMedal,
@@ -92,7 +93,7 @@ const Servicios = () => {
         try {
             setLoading(true);
             setError(null);
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/tecnicas`);
+            const response = await fetch(`${API_ROOT}/api/tecnicas`);
             if (!response.ok) throw new Error('Error al cargar las técnicas');
             const data = await response.json();
             setTecnicas(data.datos || data || []);
