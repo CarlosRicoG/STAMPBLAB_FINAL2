@@ -39,3 +39,60 @@ jobs:
       - run: npm run build
         env:
           VITE_API_URL: http://localhost:3000
+
+  # Pruebas de integración: levantan MySQL, la API real y corren los 11 conjuntos (stock, pagos, cancelaciones, sesiones,
+  # concurrencia, abuso). Son las que más fallos reales atrapan: una rama que rompa el flujo no debería poder mezclarse.
+  integracion:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root
+          MYSQL_DATABASE: stamplab_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: stamplab_ci
+      DB_USER: root
+      DB_PASSWORD: ci_root
+      JWT_SECRET: ci-secreto-solo-para-pruebas-0123456789abcdef0123456789
+      MAIL_MODO: archivo
+      JOBS_DESACTIVADOS: "1"
+      AUTH_MAX_FALLOS: "5000"
+      RECUPERAR_MAX_HORA: "5000"
+      REGISTRO_MAX_HORA: "5000"
+      API_URL: http://127.0.0.1:3000/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run db:setup
+      - run: node scripts/seed-demo.js
+      - name: Levantar la API
+        run: |
+          nohup node server.js > api.log 2>&1 &
+          for i in $(seq 1 40); do
+            curl -sf http://127.0.0.1:3000/api/productos > /dev/null && exit 0
+            sleep 2
+          done
+          echo "La API no arrancó:"; cat api.log; exit 1
+      - run: node scripts/seed-demo-flujo.js
+      - run: npm run test:integracion
+      - name: Registro de la API (si algo falló)
+        if: failure()
+        run: tail -n 80 api.log

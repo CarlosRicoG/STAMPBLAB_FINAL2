@@ -54,9 +54,9 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 ## Pruebas
 | Que | Como | Cuantas |
 |---|---|---|
-| Backend (unitarias, sin BD) | `cd backend && npm test` | 165 |
+| Backend (unitarias, sin BD) | `cd backend && npm test` | 208 |
 | Backend (integracion: seguridad, validaciones, stock, cancelar, recuperacion, sesiones, correos, comprobante, **mejoras de flujo**, **abuso** (entradas hostiles), **concurrencia**) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba; con `MAIL_MODO=archivo` prueba los correos) | 10 conjuntos |
-| Frontend (token automatico, roles, estados, efectos) | `cd frontend && npm test` | 22 |
+| Frontend (token automatico, roles, estados, efectos, datos de pago, precios del carrito) | `cd frontend && npm test` | 55 |
 | E2E modulos (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
 | E2E **recorrido completo** cliente -> administrador (registro, cotiza con diseno, precio, aprueba, convierte, compra con comprobante, estados, cancela) | `cd e2e && node journey.js` | 50 |
 | E2E **movil (390px) + accesibilidad** (sin scroll lateral, alt, nombres de botones, etiquetas, h1, idioma) | `cd e2e && node responsive-a11y.js` | 20 |
@@ -75,6 +75,7 @@ Para dejar la BD en el estado que esperan las pruebas: `cd backend && npm run db
 - **Correos al cliente:** pedido recibido, cambios de estado y cotizaciones. `MAIL_USER`/`MAIL_PASS` envían de verdad; `MAIL_MODO=archivo` los guarda en memoria (solo desarrollo); sin configuración solo se registran en consola y nada falla.
 - **Comprobante PDF:** `GET /api/ventas/:id/factura` (cliente dueño o administrador); botón *Descargar comprobante* en Mis compras y en el detalle del pedido. No es factura electrónica DIAN.
 - **Pedidos entregados:** el administrador no puede eliminar pedidos pagados, en producción o entregados (son historial); solo cancelarlos.
+- **Indicadores:** cuentan pedidos (no líneas) del año en curso y usan la hora de Colombia (`ZONA_HORARIA`, por defecto `-05:00`).
 - **Respaldo:** `cd backend && npm run respaldo` copia `uploads/` y exporta la base si `mysqldump` está instalado (carpeta `RESPALDO_DIR`).
 - `seed-demo` queda bloqueado con `NODE_ENV=production` (crea cuentas con claves conocidas).
 
@@ -83,6 +84,8 @@ Para dejar la BD en el estado que esperan las pruebas: `cd backend && npm run db
 - **Notificaciones en la aplicación (campana):** cada acción importante avisa a la otra parte. El administrador recibe aviso cuando un cliente cotiza, pide, sube un comprobante, acepta/rechaza/cancela; el cliente, cuando su cotización tiene precio, su pedido cambia de estado (con la nota del equipo), se rechaza su comprobante o algo vence. Panel con *Activas / Historial*, marcar leído y archivar (igual que el del ERP). Además llegan por correo (ver `MAIL_*` y `ADMIN_NOTIFY_EMAIL`).
 - **Menú del administrador:** botón de hamburguesa que abre/cierra el menú lateral, contadores de pendientes en cada grupo y la bandeja **Hoy** (cotizaciones por atender, comprobantes por revisar, pedidos por avanzar y stock bajo, con acciones directas).
 - **Cotización → pedido:** el administrador pone el precio y aprueba; el **cliente acepta o rechaza** desde *Mis cotizaciones*. Al aceptar se crea el pedido y se reserva el stock. **Tarifas** por técnica y parte agilizan poner precio ("Aplicar tarifas"); el cliente ve un **estimado** antes de enviar.
+- **Datos para transferir:** la cuenta del negocio se configura con `PAGO_BANCO`, `PAGO_TIPO_CUENTA`, `PAGO_CUENTA`, `PAGO_TITULAR`, `PAGO_DOCUMENTO` y `PAGO_NOTA`; se muestra al pagar y en *Mis compras*. Sin `PAGO_CUENTA` no se muestra nada.
+- **Pedido que nace de una cotización:** llega sin método de pago; el cliente lo paga por transferencia subiendo el comprobante en *Mis compras* y tiene el mismo plazo `PLAZO_PAGO_HORAS`.
 - **Pago por transferencia:** el administrador puede **rechazar el comprobante con un motivo** y el cliente sube otro. Un pedido sin pago se cancela solo pasadas `PLAZO_PAGO_HORAS` horas (devuelve el stock); una cotización sin respuesta pasa a *Vencida* tras `VIGENCIA_COTIZACION_DIAS` días. Los de contra entrega y los que tienen comprobante en revisión nunca se cancelan solos.
 - **Seguimiento:** línea de tiempo con fechas y notas, fecha estimada de entrega, retiro en tienda o envío a domicilio (`COSTO_ENVIO`), datos del cliente congelados en el pedido, **Volver a pedir**, carrito sincronizado entre equipos, página **Mi cuenta** y botones de **WhatsApp** (`WHATSAPP`).
 - Variables de entorno de todo esto: ver `backend/.env.example`. El mantenimiento automático corre cada hora (`JOBS_DESACTIVADOS=1` lo apaga).

@@ -11,10 +11,22 @@ Mejoras derivadas de la auditoría del 2026-11-04, en la rama `mejoras-auditoria
 3. **Ola 3:** integridad (bloqueos en compras, atomicidad al aprobar cotización, índices, vencimiento de pedidos sin método de pago, índice único en inventario).
 4. **Ola 4:** refactor de componentes/controladores grandes (requiere autorización aparte).
 
+## Rama `correcciones-validacion` (2026-11-13), sin commitear ni desplegar
+Validación completa (pruebas, integración, E2E y lectura de código del flujo cliente, admin y seguridad) y correcciones:
+- **Cliente:** el pedido que nace de una cotización aceptada se paga por transferencia (sube comprobante en Mis compras) y vence con `PLAZO_PAGO_HORAS`; datos para transferir configurables (`PAGO_*`, se muestran al pagar y en Mis compras); el carrito se pone al día con los precios del catálogo; cancelar con comprobante sin revisar avisa al admin ("pago por verificar").
+- **Admin:** "Editar" solo en pedidos pendientes; dirección de entrega visible también en transferencia con envío; aviso de cancelación coherente con el stock; bandeja "Hoy" liviana (2.7 KB en vez de 700 KB: el comprobante se pide al abrirlo) y con totales reales; el contador "Hoy" del menú coincide con la bandeja; indicadores por pedidos, año en curso y hora de Colombia.
+- **Seguridad:** el PDF de cotización ya no descarga URLs del cliente; `ImagenDiseño` solo acepta nombres de archivo; `insumos[].CantidadRequerida` validada; el cliente no fija `FechaCotizacion`; comprobante validado en el servidor (imagen/PDF real, 5 MB); urlencoded limitado a 100 kb; cancelación del cliente comprobada bajo bloqueo; límites en datos de entrega.
+- **Rendimiento/infra:** compresión gzip en la API; índices `ventas_estado_fecha` y `cotizaciones_estado_fecha` (migración 20261112000000); el frontend ya no tiene avisos de `npm audit`; CI con trabajo de integración (MySQL + API real) — **no verificado en GitHub**, solo la sintaxis del YAML.
+- **Limpieza:** se borró `FormularioCompra.jsx` (inalcanzable, con datos bancarios de relleno) y los `console.log` de compras, tallas e insumos.
+- No tocado: `.env.example` (solo lectura en el entorno; faltan las líneas `PAGO_*` y `ZONA_HORARIA`), `NODE_ENV`/`ADMIN_PASSWORD` por defecto del compose, contraentrega, varios administradores, paginar el resto de listados, comprobantes como archivo, Ola 4.
+
 ## Decisiones pendientes
+- Contraentrega: hoy hay que marcar "Pagada" para producir (decisión de negocio).
+- Más de un administrador / rol "operador" con permisos reales (el backend solo distingue `RolID === 1`).
+- Guardar los comprobantes como archivo en vez de base64 en la base.
 - `USER node` en el backend: diferido por el bind mount de `uploads` (riesgo de permisos en Linux).
-- Plazo de vencimiento para pedidos sin método de pago (Ola 3).
+- Pedidos sin método de pago: resuelto en la rama `correcciones-validacion` (usan `PLAZO_PAGO_HORAS`); falta confirmar que el negocio quiere ese mismo plazo.
 - Purgar historial de git de los 32 diseños de `backend/uploads/disenos`: no hacer sin petición expresa.
 
-## Línea base de pruebas (2026-11-04)
-jest 193/193 · vitest 49/49 · lint y build en verde.
+## Línea base de pruebas (2026-11-13, rama `correcciones-validacion`)
+jest 208/208 · vitest 55/55 · lint y build en verde · integración 11/11 · E2E 7/7 recorridos (Docker). Antes (2026-11-04): jest 193 · vitest 49.

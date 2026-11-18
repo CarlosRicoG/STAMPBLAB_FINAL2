@@ -48,7 +48,7 @@ async function login(pg, [correo, clave]) {
     await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
     await setVal(pg, 'input[type=email],input[placeholder*="orreo"]', correo);
     await setVal(pg, 'input[type=password]', clave);
-    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit());
+    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await pg.waitForFunction(() => !!localStorage.getItem('token'), { timeout: 30000 }).catch(() => {});
     await sleep(3500);
 }
 

@@ -71,7 +71,7 @@ Documentos relacionados: `PRD.md` (producto) y `TDD.md` (diseño técnico).
 | F2 [R] | Sesión inconsistente entre `token`, `usuario` y `user` | ✅ (`cerrarSesion` y el 401 limpian las tres) |
 | F3 [R] | El carrito se compartía entre usuarios del mismo equipo | ✅ (se borra al cerrar sesión voluntaria; **no** en un 401, para no perder el carrito al vencer la sesión) |
 | F4 [R] | `fetch` sin comprobar `res.ok` (detalle de cotización, MisCompras, checkout, subida de diseño) | ✅ |
-| F5 [R] | Precios del carrito congelados | ⏳ |
+| F5 [R] | Precios del carrito congelados | ✅ | El carrito se pone al día con el catálogo al cargarlo (`actualizarPreciosCarrito`) |
 | F6 [R] | Crear cotización con producto personalizado siempre daba 400 (no enviaba `PrecioUnitario`) | ✅ |
 | F7 [R] | Editar una talla con recargo borraba el precio | ✅ |
 | F8 [R] | Volver al paso 1 al crear producto duplicaba el producto; variantes con `Promise.all` quedaban a medias | ✅ |
@@ -92,7 +92,7 @@ Documentos relacionados: `PRD.md` (producto) y `TDD.md` (diseño técnico).
 - ⏳ `PUT /inventarioproducto/:id` sobrescribe un valor absoluto: puede pisar ventas simultáneas (es lo que hace el formulario del panel).
 - ⏳ Precio por catálogo (`/ventas`, base + talla) distinto al de cotización (suma además tela): decidir una regla.
 - ⏳ Migración: las ventas pendientes anteriores a la columna `InventarioID` quedan sin ella. Se mitigó con un respaldo en `devolver` (resuelve por producto, color y talla); no hay *backfill* en la BD.
-- ⏳ Los `Services` de compras, tallas e insumos siguen imprimiendo objetos de negocio con `console.log` (no son contraseñas).
+- ✅ Los `Services` de compras, tallas e insumos ya no imprimen objetos de negocio con `console.log`.
 - ✅ `CotizacionProducto` (modelo y controlador sin ruta y sin tabla en las migraciones vigentes): eliminado, junto con `detalleventas` y `detallecompras` (CRUD directo que saltaba las reglas de stock y totales), `PUT /api/cotizaciones/detalle/:id` (evadía el bloqueo de cotizaciones aprobadas) y `POST /api/usuarios/login` (duplicado del login con límite de intentos).
 - ⏳ `GET /api/insumos` e `/inventarioproducto` son públicos y exponen costos y stock.
 - ⏳ Compras: no valida que el insumo esté activo (hacerlo bloquearía editar compras históricas de insumos desactivados después).
@@ -119,3 +119,15 @@ La revisión independiente de los cambios encontró errores **introducidos por l
 - `TRUST_PROXY=0` o `true` podía romper el arranque.
 - Un total aprobado con subtotal calculado en 0, o cantidades por talla que no suman, producían pedidos con líneas en 0 o con cantidad distinta a la cobrada.
 - El 401 del frontend vaciaba el carrito y perdía la ruta de origen.
+
+## 8. Validación del 2026-11-13 (rama `correcciones-validacion`)
+
+Recorrido completo (pruebas, integración, E2E y lectura de código de los flujos cliente, admin y seguridad). Corregido:
+- ✅ El pedido que nace de una cotización aceptada no tenía camino de pago ni vencía (ahora se paga por transferencia y usa `PLAZO_PAGO_HORAS`).
+- ✅ SSRF en el PDF de cotización: el servidor descargaba la URL que el cliente escribía como imagen de diseño.
+- ✅ `insumos[].CantidadRequerida` negativa rebajaba el precio de la cotización; `FechaCotizacion` ya no la fija el cliente.
+- ✅ El comprobante de transferencia se valida en el servidor (imagen o PDF real, 5 MB, nada de URLs ni texto libre).
+- ✅ El límite de 100 kb de la Ola 2 se saltaba con `urlencoded`.
+- ✅ La cancelación del cliente se comprueba con la fila bloqueada; cancelar con comprobante sin revisar avisa al administrador.
+- ✅ Bandeja "Hoy": 702 KB → 2.7 KB, totales reales y mismo conteo que el menú. Indicadores por pedidos, año en curso y hora de Colombia.
+Sigue pendiente: A18 (clave de admin por defecto en el compose), contraentrega (decisión de negocio), un solo administrador (los permisos no se aplican en el backend), comprobantes en base64 dentro de la base, paginar compras/insumos/proveedores, y la cobertura unitaria del backend (≈35 %; la integración cubre el resto pero no se mide).

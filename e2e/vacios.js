@@ -44,7 +44,7 @@ const setVal = (pg, sel, v) => pg.evaluate((s, v) => { const el = document.query
         console.log('\n▶ Panel de administración SIN datos');
         await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
         await setVal(pg, 'input[type=email]', 'admin@stamplab.com'); await setVal(pg, 'input[type=password]', 'Admin123*');
-        await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await sleep(3500);
+        await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await pg.waitForFunction(() => !!localStorage.getItem('token'), { timeout: 30000 }).catch(() => {}); await sleep(3500);
         ok('el administrador entra al panel', pg.url().includes('/dashboard'), pg.url());
         const modulos = [['', 'Indicadores (sin ventas)'], ['/ventas', 'Pedidos'], ['/ventas-pendientes', 'Pedidos pendientes'], ['/cotizaciones', 'Cotizaciones'],
             ['/roles', 'Roles'], ['/insumos', 'Insumos'], ['/pedidos', 'Compras'], ['/productos', 'Productos'], ['/colores', 'Colores'], ['/tallas', 'Tallas'],

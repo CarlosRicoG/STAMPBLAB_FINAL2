@@ -37,7 +37,7 @@ async function pagina(ctx) {
 async function login(pg, c, p) {
     await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
     await setVal(pg, 'input[type=email]', c); await setVal(pg, 'input[type=password]', p);
-    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit());
+    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await pg.waitForFunction(() => !!localStorage.getItem('token'), { timeout: 30000 }).catch(() => {});
     await pg.waitForFunction(() => !/\/login/.test(location.pathname) || document.querySelector('.swal2-popup'), { timeout: 10000 }).catch(() => {}); await sleep(600);
 }
 
