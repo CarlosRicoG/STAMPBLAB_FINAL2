@@ -29,4 +29,4 @@ Validación completa (pruebas, integración, E2E y lectura de código del flujo 
 - Purgar historial de git de los 32 diseños de `backend/uploads/disenos`: no hacer sin petición expresa.
 
 ## Línea base de pruebas (2026-11-13, rama `correcciones-validacion`)
-jest 208/208 · vitest 55/55 · lint y build en verde · integración 11/11 · E2E 7/7 recorridos (Docker). Antes (2026-11-04): jest 193 · vitest 49.
+jest 214/214 · vitest 55/55 · lint y build en verde · integración 11/11 · E2E 7/7 recorridos (Docker). Antes (2026-11-04): jest 193 · vitest 49.

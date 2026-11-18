@@ -195,4 +195,4 @@ function iniciar() {
     temporizador.unref();
 }
 
-module.exports = { ejecutar, cancelarPedidosSinPago, vencerCotizaciones, avisarPedidosPorVencer, avisarCotizacionesPorVencer, purgarNotificaciones, iniciar };
+module.exports = { ejecutar, pedidosConPlazo, cancelarPedidosSinPago, vencerCotizaciones, avisarPedidosPorVencer, avisarCotizacionesPorVencer, purgarNotificaciones, iniciar };

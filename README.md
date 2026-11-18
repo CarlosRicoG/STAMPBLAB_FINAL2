@@ -54,7 +54,7 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 ## Pruebas
 | Que | Como | Cuantas |
 |---|---|---|
-| Backend (unitarias, sin BD) | `cd backend && npm test` | 208 |
+| Backend (unitarias, sin BD) | `cd backend && npm test` | 214 |
 | Backend (integracion: seguridad, validaciones, stock, cancelar, recuperacion, sesiones, correos, comprobante, **mejoras de flujo**, **abuso** (entradas hostiles), **concurrencia**) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba; con `MAIL_MODO=archivo` prueba los correos) | 10 conjuntos |
 | Frontend (token automatico, roles, estados, efectos, datos de pago, precios del carrito) | `cd frontend && npm test` | 55 |
 | E2E modulos (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
