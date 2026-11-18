@@ -246,7 +246,7 @@ const AgregarProducto = () => {
         if (v.esExistente && v.InventarioID) {
             setCargando(true);
             try { await deleteVariante(v.InventarioID); Swal.fire({ icon: "success", title: "Variante eliminada", timer: 1200, showConfirmButton: false }); }
-            catch { Swal.fire("Error", "No se pudo eliminar", "error"); setCargando(false); return; }
+            catch (err) { Swal.fire("Error", err?.response?.data?.mensaje || err?.response?.data?.message || "No se pudo eliminar", "error"); setCargando(false); return; }
             finally { setCargando(false); }
         }
         setVariantes(p => p.filter((_, i) => i !== idx));

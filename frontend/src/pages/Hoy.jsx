@@ -8,7 +8,7 @@ import Swal from "sweetalert2";
 import API_BASE from "../config/api";
 import { escapeHtml } from "../utils/escapeHtml";
 import { getResumenHoy } from "../Services/api-resumen/resumen";
-import { updateEstadoVenta, rechazarComprobante } from "../Services/api-ventas/ventas";
+import { updateEstadoVenta, rechazarComprobante, getVentaById } from "../Services/api-ventas/ventas";
 import { SIGUIENTE_NORMAL, NOMBRE_ESTADO_VENTA, ESTADOS_CON_FECHA, hoyISO } from "../Services/api-ventas/flujo";
 import { ESTADO_VENTA } from "../config/estados";
 import { EstadoBadge, fmtCOP, fmtFecha, fmtHora } from "./ModalDetalleVenta";
@@ -79,7 +79,7 @@ const swalTop = (opts) => Swal.fire({ ...opts, didOpen: () => { const c = docume
 const errMsg = (e, fallback) => e?.response?.data?.message || e?.response?.data?.error || fallback;
 const refrescarMenu = () => { try { window.dispatchEvent(new Event("stamplab:refrescar-resumen")); } catch { /* sin window */ } };
 
-const Seccion = ({ icono, titulo, cantidad, cargando, vacio, children }) => (
+const Seccion = ({ icono, titulo, cantidad, mostrados, cargando, vacio, children }) => (
     <section className="cf-p-sec" aria-label={titulo}>
         <div className="cf-p-sec-h">{icono}<h2>{titulo}</h2>{!cargando && <span className="cf-p-count">{cantidad}</span>}</div>
         {cargando ? (
@@ -88,7 +88,12 @@ const Seccion = ({ icono, titulo, cantidad, cargando, vacio, children }) => (
             </div>
         ) : cantidad === 0 ? (
             <div className="cf-p-ok"><FaCheckCircle aria-hidden="true" /><b>Todo al día</b>{vacio}</div>
-        ) : children}
+        ) : (
+            <>
+                {children}
+                {mostrados < cantidad && <p className="cf-p-meta" style={{ padding: "10px 18px", margin: 0 }}>Mostrando los primeros {mostrados} de {cantidad}. Atiende estos y la lista se actualiza.</p>}
+            </>
+        )}
     </section>
 );
 
@@ -112,6 +117,7 @@ const Hoy = () => {
                 comprobantesPorRevisar: r?.comprobantesPorRevisar || [],
                 pedidosPorAvanzar: r?.pedidosPorAvanzar || [],
                 stockBajo: r?.stockBajo || [],
+                totales: r?.totales || null,
             });
         } catch (e) {
             if (id !== reqId.current) return;
@@ -128,6 +134,21 @@ const Hoy = () => {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, [zoom]);
+
+    // El comprobante pesa varios MB: no viaja con la lista, se pide solo cuando el administrador lo quiere ver
+    const verComprobante = async (v) => {
+        setOcupado(`ver-${v.VentaID}`);
+        try {
+            const venta = await getVentaById(v.VentaID);
+            const c = venta?.ComprobanteTransferencia;
+            if (!c) { swalTop({ icon: "info", title: "Este pedido no tiene comprobante" }); return; }
+            if (/^data:application\/pdf/i.test(c)) {
+                const bytes = Uint8Array.from(atob(c.split(",")[1] || ""), (ch) => ch.charCodeAt(0));
+                window.open(URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })), "_blank", "noopener");
+            } else setZoom(urlComprobante(c));
+        } catch (e) { swalTop({ icon: "error", title: "No se pudo abrir el comprobante", text: errMsg(e, "Intenta de nuevo.") }); }
+        finally { setOcupado(null); }
+    };
 
     const irA = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -210,7 +231,12 @@ const Hoy = () => {
     const comps = datos?.comprobantesPorRevisar || [];
     const peds = datos?.pedidosPorAvanzar || [];
     const stock = datos?.stockBajo || [];
-    const total = cots.length + comps.length + peds.length;
+    // Las listas vienen recortadas; los totales son los reales (si el servidor es viejo y no los manda, se usa el largo de la lista)
+    const nCots = datos?.totales?.cotizaciones ?? cots.length;
+    const nComps = datos?.totales?.comprobantes ?? comps.length;
+    const nPeds = datos?.totales?.pedidos ?? peds.length;
+    const nStock = datos?.totales?.stockBajo ?? stock.length;
+    const total = nCots + nComps + nPeds;
     const k = (n) => (cargando && !datos ? "…" : n);
 
     return (
@@ -237,16 +263,16 @@ const Hoy = () => {
                 )}
 
                 <div className="cf-p-kpis">
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-cotizaciones")}><span className="cf-p-kpi-ic" style={{ background: C.accentSoft, color: C.accent }}><FaFileInvoiceDollar /></span><div><b>{k(cots.length)}</b><span>Cotizaciones por atender</span></div></button>
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-comprobantes")}><span className="cf-p-kpi-ic" style={{ background: C.warningSoft, color: C.warning }}><FaReceipt /></span><div><b>{k(comps.length)}</b><span>Comprobantes por revisar</span></div></button>
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-pedidos")}><span className="cf-p-kpi-ic" style={{ background: C.purpleSoft, color: C.violet }}><FaTruck /></span><div><b>{k(peds.length)}</b><span>Pedidos por avanzar</span></div></button>
-                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-stock")}><span className="cf-p-kpi-ic" style={{ background: C.dangerSoft, color: C.danger }}><FaBoxes /></span><div><b>{k(stock.length)}</b><span>Variantes con stock bajo</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-cotizaciones")}><span className="cf-p-kpi-ic" style={{ background: C.accentSoft, color: C.accent }}><FaFileInvoiceDollar /></span><div><b>{k(nCots)}</b><span>Cotizaciones por atender</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-comprobantes")}><span className="cf-p-kpi-ic" style={{ background: C.warningSoft, color: C.warning }}><FaReceipt /></span><div><b>{k(nComps)}</b><span>Comprobantes por revisar</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-pedidos")}><span className="cf-p-kpi-ic" style={{ background: C.purpleSoft, color: C.violet }}><FaTruck /></span><div><b>{k(nPeds)}</b><span>Pedidos por avanzar</span></div></button>
+                    <button type="button" className="cf-p-kpi" onClick={() => irA("hoy-stock")}><span className="cf-p-kpi-ic" style={{ background: C.dangerSoft, color: C.danger }}><FaBoxes /></span><div><b>{k(nStock)}</b><span>Variantes con stock bajo</span></div></button>
                 </div>
 
                 {!error && (
                     <>
                         <div id="hoy-cotizaciones">
-                            <Seccion icono={<FaFileInvoiceDollar aria-hidden="true" />} titulo="Cotizaciones por atender" cantidad={cots.length} cargando={cargando && !datos}
+                            <Seccion icono={<FaFileInvoiceDollar aria-hidden="true" />} titulo="Cotizaciones por atender" cantidad={nCots} mostrados={cots.length} cargando={cargando && !datos}
                                 vacio="No hay cotizaciones esperando respuesta.">
                                 <ul className="cf-p-list">
                                     {cots.map(c => (
@@ -269,18 +295,17 @@ const Hoy = () => {
                         </div>
 
                         <div id="hoy-comprobantes">
-                            <Seccion icono={<FaReceipt aria-hidden="true" />} titulo="Comprobantes por revisar" cantidad={comps.length} cargando={cargando && !datos}
+                            <Seccion icono={<FaReceipt aria-hidden="true" />} titulo="Comprobantes por revisar" cantidad={nComps} mostrados={comps.length} cargando={cargando && !datos}
                                 vacio="No hay comprobantes de transferencia pendientes de revisión.">
                                 <ul className="cf-p-list">
                                     {comps.map(v => {
-                                        const src = urlComprobante(v.comprobante);
                                         const enCurso = ocupado === `comp-${v.VentaID}`;
                                         return (
                                             <li key={v.VentaID} className="cf-p-row">
-                                                <button className="cf-p-thumb" onClick={() => src && setZoom(src)} disabled={!src}
-                                                    aria-label={`Ampliar comprobante del pedido ${v.VentaID}`} title="Ampliar comprobante">
-                                                    {src ? <img src={src} alt={`Comprobante del pedido ${v.VentaID}`} loading="lazy" /> : <FaReceipt aria-hidden="true" />}
-                                                    {src && <FaSearchPlus size={11} aria-hidden="true" style={{ position: "absolute", right: 4, bottom: 4, color: C.white, filter: "drop-shadow(0 0 2px #000)" }} />}
+                                                <button className="cf-p-thumb" onClick={() => verComprobante(v)} disabled={ocupado === `ver-${v.VentaID}`}
+                                                    aria-label={`Ver comprobante del pedido ${v.VentaID}`} title="Ver comprobante">
+                                                    <FaReceipt aria-hidden="true" />
+                                                    <FaSearchPlus size={11} aria-hidden="true" style={{ position: "absolute", right: 4, bottom: 4, color: C.muted }} />
                                                 </button>
                                                 <div className="cf-p-main">
                                                     <div className="cf-p-name">Pedido #{v.VentaID} · {v.cliente || "Cliente sin nombre"}</div>

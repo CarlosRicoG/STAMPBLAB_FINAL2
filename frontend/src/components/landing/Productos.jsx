@@ -7,7 +7,8 @@ import { getProductos } from "../../Services/api-productos/productos";
 import { getTallas } from "../../Services/api-productos/atributos";
 import { getConfigPublica, CONFIG_POR_DEFECTO } from "../../Services/api-cliente/cliente";
 import { getCarritoServidor, guardarCarritoServidor } from "../../Services/api-carrito/carrito";
-import { fusionarCarritos, textoCostoEnvio, num } from "../../utils/clienteUtils";
+import { fusionarCarritos, actualizarPreciosCarrito, textoCostoEnvio, num } from "../../utils/clienteUtils";
+import DatosDePago from "./DatosDePago";
 import Swal from "sweetalert2";
 import usePlus from "../../hooks/usePlus";
 import {
@@ -491,7 +492,7 @@ const CartDrawer = ({ open, onClose, cart, onRemove, onUpdateQty, onEdit, onChec
 /* ══════════════════════════════════
    MODAL PAGO
 ══════════════════════════════════ */
-const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
+const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0, pago = null }) => {
     const [method, setMethod] = useState("");
     const [tipoEntrega, setTipoEntrega] = useState("retiro");
     const [comprobanteFile, setComprobanteFile] = useState(null);
@@ -740,6 +741,7 @@ const PaymentModal = ({ open, onClose, cart, onSuccess, costoEnvio = 0 }) => {
                     {/* ── TRANSFERENCIA ── */}
                     {method === "transferencia" && (
                         <div className="cat-sec">
+                            <DatosDePago pago={pago} />
                             <p className="cat-lbl" style={{ margin: "0 0 8px" }}>Comprobante de pago *</p>
                             <div
                                 onClick={() => fileInputRef.current?.click()}
@@ -912,6 +914,17 @@ const ProductosLanding = () => {
         return () => { vivo = false; };
     }, []);
 
+    // Con el catálogo cargado: poner al día los precios guardados en el carrito (si el precio subió, el servidor
+    // rechazaría el pedido una y otra vez hasta que el cliente quitara y volviera a agregar el producto)
+    useEffect(() => {
+        if (!productos.length) return;
+        setCart((prev) => {
+            const alDia = actualizarPreciosCarrito(prev, productos, tallas);
+            if (alDia !== prev) saveCart(alDia);
+            return alDia;
+        });
+    }, [productos, tallas]);
+
     // Guardar en el servidor con espera de ~800 ms tras el último cambio
     useEffect(() => {
         if (!carritoSincronizado.current || !localStorage.getItem("token")) return undefined;
@@ -1070,7 +1083,7 @@ const ProductosLanding = () => {
                 initColor={productModal.initColor} initTalla={productModal.initTalla} initQty={productModal.initQty}
                 editMode={productModal.editIdx !== null}
             />
-            <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} cart={cart} usuario={usuario} onSuccess={handlePaymentSuccess} costoEnvio={config?.costoEnvio} />
+            <PaymentModal open={paymentOpen} onClose={() => setPaymentOpen(false)} cart={cart} usuario={usuario} onSuccess={handlePaymentSuccess} costoEnvio={config?.costoEnvio} pago={config?.pago} />
 
             {/* Pedido exitoso */}
             {orderSuccess && (

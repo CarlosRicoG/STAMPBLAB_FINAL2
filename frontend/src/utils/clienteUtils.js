@@ -83,13 +83,14 @@ export function fechaLimitePago(fechaVenta, plazoPagoHoras) {
 }
 
 /**
- * ¿Corre un plazo para pagar este pedido? Solo si está pendiente, es por transferencia y todavía no hay un comprobante
+ * ¿Corre un plazo para pagar este pedido? Solo si está pendiente, es por transferencia (o aún no tiene método de pago:
+ * los pedidos que nacen de una cotización aceptada se pagan por transferencia) y todavía no hay un comprobante
  * válido (sin comprobante, o rechazado). Los de contra entrega y los que tienen el comprobante en revisión no se
  * cancelan por plazo: el servidor aplica exactamente esta misma regla.
  */
 export function plazoDePagoAplica(v = {}) {
     const pendiente = Number(v.EstadoID) === 8 || (v.estado?.Nombre || v.Estado) === "Pendiente";
-    if (!pendiente || v.MetodoPago !== "transferencia") return false;
+    if (!pendiente || (v.MetodoPago && v.MetodoPago !== "transferencia")) return false;
     const tieneComprobante = Boolean(v.ComprobanteTransferencia || v.TieneComprobante);
     return !tieneComprobante || Boolean(v.ComprobanteMotivoRechazo);
 }
@@ -158,6 +159,28 @@ export function fusionarCarritos(local, remoto) {
  * Usa el precio ACTUAL (PrecioBase + talla) y solo variantes existentes con stock.
  * @returns {{ items: Array, omitidos: Array<{nombre:string, motivo:string}> }}
  */
+/**
+ * Pone al día los precios del carrito con el catálogo recién cargado (precio base + recargo de la talla).
+ * El carrito se guarda en el navegador y en el servidor, así que puede traer un precio viejo: el servidor
+ * rechaza el pedido si el precio quedó por debajo del catálogo. Los productos que ya no están en el catálogo
+ * se dejan como estaban. Devuelve el MISMO arreglo si nada cambió.
+ */
+export function actualizarPreciosCarrito(carrito = [], productosCatalogo = [], tallasCatalogo = []) {
+    if (!Array.isArray(carrito) || !carrito.length || !productosCatalogo.length) return carrito;
+    let cambio = false;
+    const actualizado = carrito.map((item) => {
+        const id = item?.producto?.ProductoID ?? item?.ProductoID;
+        const producto = productosCatalogo.find((p) => String(p.ProductoID) === String(id));
+        if (!producto) return item;
+        const talla = tallasCatalogo.find((t) => t.Nombre === item.talla);
+        const precio = num(producto.PrecioBase) + num(talla?.Precio);
+        if (precio === Number(item.precio) && item.producto === producto) return item;
+        cambio = true;
+        return { ...item, producto, precio };
+    });
+    return cambio ? actualizado : carrito;
+}
+
 export function itemsParaVolverAPedir(venta, productosCatalogo = [], tallasCatalogo = []) {
     const items = [];
     const omitidos = [];

@@ -209,7 +209,6 @@ const Ventas = () => {
                                 ) : (
                                     ventas.map((venta, idx) => {
                                         const cancelada = venta.EstadoID === ESTADO_VENTA.CANCELADA;
-                                        const entregada = venta.EstadoID === ESTADO_VENTA.ENTREGADA;
                                         // Solo se pueden eliminar pedidos pendientes o cancelados; el resto es historial (se cancelan)
                                         const puedeEliminar = venta.EstadoID === ESTADO_VENTA.PENDIENTE || cancelada;
                                         return (
@@ -235,11 +234,12 @@ const Ventas = () => {
                                                                 ? <span style={{ width: 12, height: 12, border: "2px solid #c7d9ff", borderTopColor: C.accent, borderRadius: "50%", animation: "vtSpin .7s linear infinite" }} />
                                                                 : <FaEye size={13} />}
                                                         </button>
-                                                        <button className="vt-ibtn vt-ibtn-edit" onClick={() => handleEditar(venta)}
-                                                            title={cancelada ? "Una venta cancelada no se puede editar" : entregada ? "Una venta entregada no se puede editar" : "Editar"}
-                                                            disabled={cancelada || entregada}>
-                                                            <FaEdit size={12} />
-                                                        </button>
+                                                        {/* Los productos solo se editan mientras el pedido está pendiente (el servidor rechaza el resto) */}
+                                                        {venta.EstadoID === ESTADO_VENTA.PENDIENTE && (
+                                                            <button className="vt-ibtn vt-ibtn-edit" onClick={() => handleEditar(venta)} title="Editar">
+                                                                <FaEdit size={12} />
+                                                            </button>
+                                                        )}
                                                         <button className="vt-ibtn vt-ibtn-state" onClick={() => setVentaEstado(venta)}
                                                             title={cancelada ? "Una venta cancelada no puede cambiar de estado" : "Cambiar estado"}
                                                             disabled={cancelada}>

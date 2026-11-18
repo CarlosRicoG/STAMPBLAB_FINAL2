@@ -51,29 +51,17 @@ export const getTelas = async () => {
       insumos = [];
     }
 
-    console.log("Total insumos recibidos:", insumos.length);
 
     // FILTRO MEJORADO: Búsqueda case-insensitive y flexible
     const telas = insumos.filter(insumo => {
       if (!insumo || !insumo.Tipo) return false;
       
       const tipo = insumo.Tipo.toString().toLowerCase().trim();
-      const esTela = tipo === 'tela' || tipo === 'telas';
-      
-      if (esTela) {
-        console.log("Tela encontrada:", insumo.Nombre, "- Tipo:", insumo.Tipo);
-      }
-      
-      return esTela;
+      return tipo === 'tela' || tipo === 'telas';
     });
 
-    console.log("Total telas encontradas:", telas.length);
     
-    if (telas.length === 0) {
-      console.warn("No se encontraron telas. Tipos disponibles:");
-      const tiposUnicos = [...new Set(insumos.map(i => i.Tipo).filter(Boolean))];
-      console.log("Tipos en BD:", tiposUnicos);
-    }
+    if (telas.length === 0) console.warn("No se encontraron telas entre los insumos.");
 
     return telas;
   } catch (error) {

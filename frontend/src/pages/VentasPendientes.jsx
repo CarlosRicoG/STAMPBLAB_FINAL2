@@ -209,6 +209,8 @@ const VentasPendientes = () => {
         try {
             setLoading(true); setError(null);
             const data = await getVentas({ page, limit, search, estado: "pendientes" });
+            // Si se atendió el único pedido de la última página, esa página queda vacía: se vuelve a la anterior
+            if (!(data.datos || []).length && (data.total || 0) > 0 && page > 1) { setPaginaActual(page - 1); return loadVentasPendientes(page - 1, limit, search); }
             setVentas(data.datos || []);
             setTotalItems(data.total || 0);
             setTotalPaginas(data.totalPaginas || 1);

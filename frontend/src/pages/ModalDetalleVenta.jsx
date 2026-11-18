@@ -359,6 +359,8 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
     if (!show || !venta) return null;
 
     const unidades = (venta.detalles || []).reduce((a, d) => a + (parseInt(d.Cantidad) || 0), 0);
+    // Misma regla que el servidor: al cancelar, el stock vuelve si el pedido aún no entró a producción
+    const devuelveStock = [ESTADO_VENTA.PENDIENTE, ESTADO_VENTA.PAGADA].includes(venta.EstadoID);
     const selID = parseInt(sel);
     // Solo estados válidos según la máquina de estados del pedido
     const validos = siguientesEstados(venta.EstadoID);
@@ -434,10 +436,11 @@ export const EstadoVentaModal = ({ show, venta, estados, titulo = "Cambiar estad
                             pideFecha={pideFecha} errorFecha={errorFecha} errorNota={errorNota} />
                     )}
                     {selID === 12 && (
-                        <div style={{ marginTop: 12, background: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successSoft : C.dangerSoft, border: `1px solid ${venta.EstadoID === ESTADO_VENTA.PENDIENTE ? VT.successBorder : C.dangerBorder}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: venta.EstadoID === ESTADO_VENTA.PENDIENTE ? "#166534" : "#991b1b", fontWeight: 600 }}>
-                            {venta.EstadoID === ESTADO_VENTA.PENDIENTE
+                        <div style={{ marginTop: 12, background: devuelveStock ? VT.successSoft : C.dangerSoft, border: `1px solid ${devuelveStock ? VT.successBorder : C.dangerBorder}`, borderRadius: 12, padding: "10px 14px", fontSize: 12.5, color: devuelveStock ? "#166534" : "#991b1b", fontWeight: 600 }}>
+                            {devuelveStock
                                 ? `Se devolverán ${unidades} unidad(es) al inventario. `
-                                : "La venta ya no está pendiente: el stock NO se devuelve al inventario. "}
+                                : "El pedido ya entró a producción: el stock NO se devuelve al inventario. "}
+                            {venta.EstadoID !== ESTADO_VENTA.PENDIENTE && "Como ya estaba pagado, quedará un reembolso pendiente. "}
                             Una venta cancelada no se puede reactivar.
                         </div>
                     )}
@@ -565,6 +568,8 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
     const pendiente = venta.EstadoID === ESTADO_VENTA.PENDIENTE;
     const esEnvio = venta.TipoEntrega === "envio";
     const hayEntrega = !!venta.TipoEntrega;
+    // Receptor y dirección que el cliente escribió al pagar: contra entrega y también envío pagado por transferencia
+    const conDatosEntrega = metodo === "contraentrega" || esEnvio || !!venta.DireccionEntrega;
     const costoEnvio = parseFloat(venta.CostoEnvio) || 0;
     const telefonoCliente = venta.ContactoTelefono || cliente.Telefono || venta.TelefonoEntrega;
     const waUrl = whatsappUrl(telefonoCliente, `Hola ${venta.ContactoNombre || cliente.Nombre || ""}, te escribimos de STAMPLAB sobre tu pedido #${venta.VentaID}.`.replace(/\s+,/, ","));
@@ -706,9 +711,9 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
                         </div>
                     )}
 
-                    {(metodo === "contraentrega" || venta.ComprobanteTransferencia) && (
-                        <div className="vt-grid-2" style={{ marginBottom: 14, gridTemplateColumns: metodo === "contraentrega" && venta.ComprobanteTransferencia ? "1fr 1fr" : "1fr" }}>
-                            {metodo === "contraentrega" && (
+                    {(conDatosEntrega || venta.ComprobanteTransferencia) && (
+                        <div className="vt-grid-2" style={{ marginBottom: 14, gridTemplateColumns: conDatosEntrega && venta.ComprobanteTransferencia ? "1fr 1fr" : "1fr" }}>
+                            {conDatosEntrega && (
                                 <div className="vt-sec">
                                     <p className="vt-sec-title"><span className="vt-sec-ic" style={{ background: VT.successSoft, color: VT.success }}><FaTruck /></span>Datos de entrega</p>
                                     <div className="vt-grid-3" style={{ gap: 10 }}>

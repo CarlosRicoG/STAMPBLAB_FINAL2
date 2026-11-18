@@ -223,7 +223,7 @@ const Productos = () => {
           const r = await getVariantesByProducto(p.ProductoID);
           const vs = r.datos || r;
           stockMap[p.ProductoID] = vs.reduce((a, v) => a + (v.Stock || 0), 0);
-          bajoMap[p.ProductoID] = minimo > 0 ? vs.filter(v => v.Estado !== false && (v.Stock || 0) < minimo).length : 0;
+          bajoMap[p.ProductoID] = minimo > 0 ? vs.filter(v => v.Estado !== false && (v.Stock || 0) <= minimo).length : 0;
         } catch { stockMap[p.ProductoID] = 0; }
       }));
       setStock(stockMap);

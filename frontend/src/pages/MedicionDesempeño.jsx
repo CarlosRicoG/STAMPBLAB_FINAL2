@@ -328,7 +328,7 @@ const DashboardMedicionDesempeño = () => {
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
                             <KpiCard label="Ventas registradas"  value={totalVentas}    icon={FaChartBar} color={C.success} bg={C.successSoft} border={C.successBorder} />
                             <KpiCard label="Productos vendidos"  value={totalProductos} icon={FaBoxOpen}  color={C.violet} bg={C.purpleSoft} border={C.purpleBorder} />
-                            <KpiCard label="Insumos utilizados"  value={totalInsumos}   icon={FaCubes}    color="#2563eb" bg="#eff6ff" border="#bfdbfe" />
+                            <KpiCard label="Insumos comprados"  value={totalInsumos}   icon={FaCubes}    color="#2563eb" bg="#eff6ff" border="#bfdbfe" />
                         </div>
 
                         {/* FILA 1 */}

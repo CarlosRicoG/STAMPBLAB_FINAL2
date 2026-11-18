@@ -16,12 +16,15 @@ import { LineaTiempo, BotonWhatsApp, useConfigPublica, CLIENTE_CSS } from "./cli
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
 import { C } from "../../config/tokens";
+import DatosDePago from "./DatosDePago";
 
 const CART_KEY = "cart_productos_landing";
 const esPendiente = (v) => (v.estado?.Nombre || "Pendiente") === "Pendiente";
 const tieneComprobante = (v) => !!(v.ComprobanteTransferencia || v.TieneComprobante);
 // Un pedido por transferencia pendiente puede (re)subir comprobante si lo rechazaron o si aún no tiene uno
-const puedeSubirComprobante = (v) => esPendiente(v) && (!!v.ComprobanteMotivoRechazo || (v.MetodoPago === "transferencia" && !tieneComprobante(v)));
+// (los pedidos que nacen de una cotización aceptada llegan sin método de pago y también se pagan por transferencia)
+const pagaPorTransferencia = (v) => !v.MetodoPago || v.MetodoPago === "transferencia";
+const puedeSubirComprobante = (v) => esPendiente(v) && (!!v.ComprobanteMotivoRechazo || (pagaPorTransferencia(v) && !tieneComprobante(v)));
 
 
 /* ── Estados ── */
@@ -108,12 +111,13 @@ const AvisosPago = ({ venta, config, onSubido }) => {
                     </div>
                 </div>
             )}
-            {!venta.ComprobanteMotivoRechazo && venta.MetodoPago === "transferencia" && !tieneComprobante(venta) && (
+            {!venta.ComprobanteMotivoRechazo && pagaPorTransferencia(venta) && !tieneComprobante(venta) && (
                 <div className="ck-alert warn" role="status">
                     <FaExclamationTriangle size={18} />
                     <div>
                         <b>Aún no has subido tu comprobante</b>
-                        <p>Sube la foto de tu transferencia para que podamos confirmar el pago.</p>
+                        <p>Haz la transferencia y sube la foto del comprobante para que podamos confirmar el pago.</p>
+                        <DatosDePago pago={config?.pago} />
                         <BotonComprobante venta={venta} etiqueta="Subir comprobante" onSubido={onSubido} />
                     </div>
                 </div>

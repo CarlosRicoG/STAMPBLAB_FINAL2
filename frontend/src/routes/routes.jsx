@@ -26,7 +26,6 @@ const RecuperarContraseña = lazy(() => import("../components/auth/Recuperarcont
 const DashboardMedicionesempeño = lazy(() => import("../pages/MedicionDesempeño"));
 const EditarPerfil = lazy(() => import("../components/landing/EditarPerfil"));
 const MisCotizaciones = lazy(() => import("../components/landing/Miscotizaciones"));
-const FormularioCompra = lazy(() => import("../components/landing/FormularioCompra"));
 const AgregarProducto = lazy(() => import("../pages/formularios_dash/AgregarProducto"));
 const Ventas = lazy(() => import("../pages/Ventas"));
 import { ProtectedRoute } from "./ProtectedRoute";
@@ -85,7 +84,6 @@ const AppRoutes = () => {
             <Route path="/micuenta" element={<ProtectedRoute><MiCuenta /></ProtectedRoute>} />
             <Route path="/miscompras" element={<ProtectedRoute><MisCompras /></ProtectedRoute>} />
             <Route path="/miscotizaciones" element={<ProtectedRoute><MisCotizaciones /></ProtectedRoute>} />
-            <Route path="/formularioCompra" element={<ProtectedRoute><FormularioCompra /></ProtectedRoute>} />
 
 
             <Route

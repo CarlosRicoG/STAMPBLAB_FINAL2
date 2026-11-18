@@ -449,7 +449,7 @@ const LoginLanding = () => {
                 navigate(destino);
             }
         } catch (err) {
-            if (err.response?.status === 401 || err.response?.status === 400) {
+            if (err.response?.status === 401 || (err.response?.status === 400 && !err.response?.data?.mensaje)) {
                 Swal.fire({ icon: "error", title: "Credenciales incorrectas", text: "El correo o la contraseña son incorrectos.", confirmButtonColor: C.danger });
             } else if (err.response?.status === 404) {
                 Swal.fire({ icon: "error", title: "Usuario no encontrado", text: "No existe una cuenta con este correo electrónico.", confirmButtonColor: C.danger });
