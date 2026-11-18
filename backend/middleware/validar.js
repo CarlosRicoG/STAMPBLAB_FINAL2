@@ -70,6 +70,10 @@ const esquemas = {
         Subtotal: dinero('El subtotal'),
         Total: dinero('El total'),
         metodoPago: Joi.string().valid('transferencia', 'contraentrega').allow(null, ''),
+        // Datos de entrega: los límites son los de las columnas (un teléfono de 21 caracteres daba un error 500 sin explicación)
+        nombreReceptor: Joi.string().trim().max(100).allow('', null).label('El nombre de quien recibe'),
+        telefonoEntrega: Joi.string().trim().max(20).allow('', null).label('El teléfono de entrega'),
+        direccionEntrega: Joi.string().trim().max(255).allow('', null).label('La dirección de entrega'),
         detalles: Joi.array().min(1).max(200).items(Joi.object({
             ProductoID: entero('El producto').required(),
             ColorID: Joi.number().integer().positive().allow(null),
@@ -103,6 +107,11 @@ const esquemas = {
             colores: Joi.array().max(50).items(Joi.object({
                 ColorID: entero('El color').required(),
                 Cantidad: entero('La cantidad del color', 1, 100000),
+            }).unknown(true)),
+            // La tela se cobra por unidad: una cantidad negativa o en cero restaría del precio
+            insumos: Joi.array().max(50).items(Joi.object({
+                InsumoID: entero('El insumo').required(),
+                CantidadRequerida: entero('La cantidad del insumo', 1, 100000),
             }).unknown(true)),
         }).unknown(true).custom((d, helpers) => {
             // Si cada talla trae su cantidad, deben sumar la cantidad del producto (se cobra una cantidad y se reserva otra si no)

@@ -76,4 +76,4 @@ function borrarSiEsLocal(valor) {
     fs.promises.unlink(archivo).catch(() => { /* ya no existía */ });
 }
 
-module.exports = { aUrlPublica, normalizar, borrarSiEsLocal, RAIZ };
+module.exports = { aUrlPublica, normalizar, borrarSiEsLocal, esImagenReal, RAIZ };

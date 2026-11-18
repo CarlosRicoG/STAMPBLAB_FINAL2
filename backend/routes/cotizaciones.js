@@ -23,12 +23,19 @@ const cotizacionDelCliente = async (req, res, next) => {
     try {
         if (esAdmin(req)) return next();
         req.body.DocumentoID = req.usuario.id;
+        delete req.body.FechaCotizacion; // la fecha la pone el servidor (de ella dependen la vigencia y los plazos)
         for (const d of Array.isArray(req.body.detalles) ? req.body.detalles : []) {
             if (!d || typeof d !== 'object') continue;
             delete d.PrecioUnitario; // el cliente no fija precios
             for (const t of Array.isArray(d.tecnicas) ? d.tecnicas : []) {
                 if (!t || typeof t !== 'object') continue;
                 t.CostoTecnica = 0; // lo asigna el administrador al revisar el diseño
+                // La imagen del diseño es el nombre de un archivo subido antes con /upload-diseno, nunca una URL ni una ruta
+                for (const campo of ['ImagenDiseño', 'ImagenDiseno']) {
+                    if (t[campo] != null && t[campo] !== '' && !/^[\w.-]{1,120}$/.test(String(t[campo]))) {
+                        return res.status(400).json({ message: 'La imagen del diseño no es válida. Vuelve a subirla e inténtalo de nuevo.' });
+                    }
+                }
                 if (!(await Tecnica.findByPk(t.TecnicaID, { attributes: ['TecnicaID'] })) || !(await Parte.findByPk(t.ParteID, { attributes: ['ParteID'] }))) {
                     return res.status(400).json({ message: 'La técnica o la parte del diseño no existe. Actualiza la página e inténtalo de nuevo.' });
                 }

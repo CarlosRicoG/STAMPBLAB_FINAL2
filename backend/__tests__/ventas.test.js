@@ -159,6 +159,38 @@ describe('VentaController - Pruebas Unitarias', () => {
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ stockDevuelto: true }));
         });
 
+        test('cancelar un pedido pendiente con comprobante sin revisar avisa que hay que verificar el pago', async () => {
+            Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
+            Venta.findByPk.mockResolvedValue({ ...ventaConEstado(8), MetodoPago: 'transferencia', ComprobanteTransferencia: 'data:image/png;base64,AAAA', ComprobanteMotivoRechazo: null });
+            DetalleVenta.findAll.mockResolvedValue([]);
+            const res = mockRes();
+            await controller.updateEstadoVenta({ params: { id: '1' }, body: { EstadoID: 12 } }, res);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ stockDevuelto: true, reembolsoPendiente: false, pagoPorVerificar: true }));
+        });
+
+        test('cancelar un pedido pendiente sin comprobante (o con el comprobante rechazado) no pide verificar nada', async () => {
+            Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
+            DetalleVenta.findAll.mockResolvedValue([]);
+            for (const extra of [{ MetodoPago: null }, { MetodoPago: 'contraentrega' }, { MetodoPago: 'transferencia', ComprobanteTransferencia: 'data:image/png;base64,AAAA', ComprobanteMotivoRechazo: 'Ilegible' }]) {
+                Venta.findByPk.mockResolvedValue({ ...ventaConEstado(8), ...extra });
+                const res = mockRes();
+                await controller.updateEstadoVenta({ params: { id: '1' }, body: { EstadoID: 12 } }, res);
+                expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ pagoPorVerificar: false }));
+            }
+        });
+
+        test('un cliente no puede cancelar un pedido que ya no está pendiente (se comprueba con la fila bloqueada)', async () => {
+            Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
+            const venta = ventaConEstado(9);
+            Venta.findByPk.mockResolvedValue(venta);
+            const res = mockRes();
+            await controller.updateEstadoVenta({ params: { id: '1' }, body: { EstadoID: 12 }, usuario: { id: 5, rol: 2 } }, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(venta.update).not.toHaveBeenCalled();
+            expect(inventario.devolver).not.toHaveBeenCalled();
+            expect(mockTx.rollback).toHaveBeenCalled();
+        });
+
         test('cancelar una venta pagada (aún sin producir) devuelve el stock y deja el reembolso pendiente', async () => {
             Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
             Venta.findByPk.mockResolvedValue(ventaConEstado(9));

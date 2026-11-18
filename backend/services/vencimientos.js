@@ -1,6 +1,6 @@
 /**
  * Mantenimiento automático (corre cada hora y al arrancar):
- *  - Pedidos por transferencia sin comprobante válido pasadas PLAZO_PAGO_HORAS horas: se cancelan y devuelven el stock.
+ *  - Pedidos por transferencia (o aún sin método de pago: los que nacen de una cotización) sin comprobante válido pasadas PLAZO_PAGO_HORAS horas: se cancelan y devuelven el stock.
  *    (Los pedidos con comprobante en revisión y los de contra entrega NUNCA se cancelan solos.)
  *  - Cotizaciones sin respuesta pasados VIGENCIA_COTIZACION_DIAS días: pasan a Vencida. Si ya está aprobada, los días
  *    corren desde la aprobación (no desde que el cliente la pidió); si no, desde la fecha de la cotización.
@@ -28,7 +28,8 @@ const pedidosConPlazo = ({ ahora, plazoPagoHoras, plazoContraentregaDias, margen
     const o = [];
     if (plazoPagoHoras) {
         o.push({
-            MetodoPago: 'transferencia',
+            // Sin método de pago = pedido nacido de una cotización aceptada: se paga por transferencia y tiene el mismo plazo
+            MetodoPago: { [Op.or]: [{ [Op.eq]: 'transferencia' }, { [Op.is]: null }] },
             FechaVenta: desde ? { [Op.between]: [antes(plazoPagoHoras + margenHoras), antes(plazoPagoHoras)] } : { [Op.lt]: antes(plazoPagoHoras) },
             [Op.or]: [{ ComprobanteTransferencia: null }, { ComprobanteTransferencia: '' }, { ComprobanteMotivoRechazo: { [Op.ne]: null } }],
         });

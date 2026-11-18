@@ -109,6 +109,13 @@ const reembolsoPendiente = seguro(async (ventaId) => {
     await avisos.paraAdmins({ tipo: 'pago', mensaje: `Se canceló el pedido #${venta.VentaID} de ${nombreCliente(venta.usuario)} y ya estaba pagado (${cop(venta.Total)}): hay un reembolso pendiente.`, enlace: '/dashboard/ventas' });
 });
 
+/** Se canceló un pedido pendiente que tenía un comprobante sin revisar: puede haber dinero recibido. */
+const pagoPorVerificar = seguro(async (ventaId) => {
+    const venta = await cargarVenta(ventaId);
+    if (!venta) return;
+    await avisos.paraAdmins({ tipo: 'pago', mensaje: `Se canceló el pedido #${venta.VentaID} de ${nombreCliente(venta.usuario)} con un comprobante sin revisar (${cop(venta.Total)}): verifica si el pago llegó y devuélvelo si es el caso.`, enlace: '/dashboard/ventas' });
+});
+
 /** El cliente subió (o volvió a subir) un comprobante de transferencia. */
 const comprobanteSubido = seguro(async (ventaId) => {
     const venta = await cargarVenta(ventaId);
@@ -216,7 +223,7 @@ const cotizacionPorVencer = seguro(async (cotizacionId, dias) => {
         const { asunto, html } = plantillas.cotizacionPorVencer({ usuario: cot.usuario, cotizacion: cot, dias });
         await correo.enviar({ para: cot.usuario.Correo, asunto, html });
     }
-    await avisos.paraUsuario(cot.DocumentoID, { tipo: 'cotizacion', enlace: '/cotizacionesLanding', mensaje: `Tu cotización #${cot.CotizacionID} vence en ${dias} día(s). Acéptala si quieres hacer el pedido.` });
+    await avisos.paraUsuario(cot.DocumentoID, { tipo: 'cotizacion', enlace: '/miscotizaciones', mensaje: `Tu cotización #${cot.CotizacionID} vence en ${dias} día(s). Acéptala si quieres hacer el pedido.` });
 });
 
 // ───────────────────────── Inventario ─────────────────────────
@@ -230,6 +237,6 @@ const stockBajo = seguro(async (items) => {
 });
 
 module.exports = {
-    pedidoRecibido, pedidoEstado, pedidoCanceladoPorCliente, comprobanteSubido, comprobanteRechazado, pedidoVencido, pedidoPorVencer, reembolsoPendiente,
+    pedidoRecibido, pedidoEstado, pedidoCanceladoPorCliente, comprobanteSubido, comprobanteRechazado, pedidoVencido, pedidoPorVencer, reembolsoPendiente, pagoPorVerificar,
     cotizacionRecibida, cotizacionEstado, cotizacionRespuesta, cotizacionVencida, cotizacionPorVencer, stockBajo,
 };

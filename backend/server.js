@@ -3,6 +3,7 @@ const db = require('./models');
 const express = require("express");
 const cors = require("cors");
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { admin, adminParaEscritura } = require('./middleware/authMiddleware');
 const { cotizacionEditable } = require('./middleware/cotizacionEditable');
@@ -24,6 +25,7 @@ const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http:/
     .split(',').map(o => o.trim());
 // Cabeceras de seguridad (las imagenes de diseños se sirven a otro origen: el frontend)
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(compression()); // JSON y textos pesan mucho menos; las imágenes y los PDF ya vienen comprimidos y se dejan igual
 app.use(cors({
     origin: allowedOrigins,
     credentials: true,
@@ -55,7 +57,7 @@ const jsonGrande = express.json({ limit: '12mb' });
 const RUTAS_SIN_SESION = new Set(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password']);
 app.use((req, res, next) => (RUTAS_SIN_SESION.has(req.path) ? jsonPequeno : jsonGrande)(req, res, next));
 app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); }); // cuerpo vacío o de otro tipo: no rompe los controladores
-app.use(express.urlencoded({ limit: '12mb', extended: true })); // antes del filtro: así también se revisan los formularios urlencoded
+app.use(express.urlencoded({ limit: '100kb', extended: true })); // nadie envía formularios grandes: los archivos van en JSON o multipart // antes del filtro: así también se revisan los formularios urlencoded
 const saneamiento = require('./middleware/saneamiento');
 app.use('/api', saneamiento.ocultarSecretos);
 app.use('/api', saneamiento.rechazarHtml);

@@ -15,6 +15,8 @@ const uno = async (sql, replacements) => Number((await q(sql, replacements))[0]?
 
 const SIN_PRECIO = `EXISTS (SELECT 1 FROM detallecotizacion d JOIN cotizaciontecnica t ON t.DetalleCotizacionID = d.DetalleCotizacionID
     WHERE d.CotizacionID = c.CotizacionID AND (t.CostoTecnica IS NULL OR t.CostoTecnica <= 0))`;
+// Pedidos que el equipo debe mover: pagados, en producción o listos para entregar
+const ESTADOS_POR_AVANZAR = [ESTADO_VENTA.PAGADA, ESTADO_VENTA.EN_PRODUCCION, ESTADO_VENTA.LISTA_ENTREGA];
 const COMPROBANTE_POR_REVISAR = `v.EstadoID = :pendiente AND v.MetodoPago = 'transferencia' AND v.ComprobanteTransferencia IS NOT NULL AND v.ComprobanteTransferencia <> '' AND v.ComprobanteMotivoRechazo IS NULL`;
 
 async function stockBajo(limite = 50) {
@@ -38,10 +40,12 @@ router.get('/pendientes', async (req, res) => {
         const pedidosEnProduccion = await porEstado(ESTADO_VENTA.EN_PRODUCCION);
         const pedidosListos = await porEstado(ESTADO_VENTA.LISTA_ENTREGA);
         const stockBajoCount = (await stockBajo(500)).length;
+        // Misma definición que la bandeja "Hoy": así el número del menú coincide con lo que se ve al abrirla
+        const cotizacionesPorAtender = await uno('SELECT COUNT(*) n FROM cotizaciones c WHERE c.EstadoID IN (:e, :r)', { e: ESTADO_COTIZACION.PENDIENTE, r: ESTADO_COTIZACION.EN_REVISION });
         res.json({
             cotizacionesPendientes, cotizacionesSinPrecio, cotizacionesAprobadasSinRespuesta, pedidosPendientes, comprobantesPorRevisar,
-            pedidosPorProducir, pedidosEnProduccion, pedidosListos, stockBajoCount,
-            total: cotizacionesPendientes + comprobantesPorRevisar + pedidosPorProducir + pedidosListos,
+            pedidosPorProducir, pedidosEnProduccion, pedidosListos, stockBajoCount, cotizacionesPorAtender,
+            total: cotizacionesPorAtender + comprobantesPorRevisar + pedidosPorProducir + pedidosEnProduccion + pedidosListos,
         });
     } catch (e) {
         console.error('Error en resumen/pendientes:', e);
@@ -55,16 +59,24 @@ router.get('/hoy', async (req, res) => {
             FROM cotizaciones c LEFT JOIN usuarios u ON u.DocumentoID = c.DocumentoID WHERE c.EstadoID IN (:e, :r) ORDER BY c.FechaCotizacion ASC LIMIT 15`, { e: ESTADO_COTIZACION.PENDIENTE, r: ESTADO_COTIZACION.EN_REVISION }))
             .map((c) => ({ ...c, sinPrecio: !!Number(c.sinPrecio), valorTotal: Number(c.valorTotal) || 0 }));
 
-        const comprobantesPorRevisar = (await q(`SELECT v.VentaID, u.Nombre AS cliente, v.Total AS total, v.FechaTransferencia AS fecha, v.ComprobanteTransferencia AS comprobante, v.ComprobanteMotivoRechazo AS motivoRechazo
+        const comprobantesPorRevisar = (await q(`SELECT v.VentaID, u.Nombre AS cliente, v.Total AS total, v.FechaTransferencia AS fecha, 1 AS tieneComprobante, v.ComprobanteMotivoRechazo AS motivoRechazo
             FROM ventas v LEFT JOIN usuarios u ON u.DocumentoID = v.DocumentoID WHERE ${COMPROBANTE_POR_REVISAR} ORDER BY v.FechaVenta ASC LIMIT 10`, { pendiente: ESTADO_VENTA.PENDIENTE }))
-            .map((v) => ({ ...v, total: Number(v.total) || 0 }));
+            .map((v) => ({ ...v, total: Number(v.total) || 0, tieneComprobante: true }));
 
         const pedidosPorAvanzar = (await q(`SELECT v.VentaID, u.Nombre AS cliente, v.Total AS total, v.EstadoID AS estadoID, e.Nombre AS estado, v.FechaVenta AS fecha
             FROM ventas v LEFT JOIN usuarios u ON u.DocumentoID = v.DocumentoID JOIN estados e ON e.EstadoID = v.EstadoID
-            WHERE v.EstadoID IN (:estados) ORDER BY v.FechaVenta ASC LIMIT 30`, { estados: [ESTADO_VENTA.PAGADA, ESTADO_VENTA.EN_PRODUCCION, ESTADO_VENTA.LISTA_ENTREGA] }))
+            WHERE v.EstadoID IN (:estados) ORDER BY v.FechaVenta ASC LIMIT 30`, { estados: ESTADOS_POR_AVANZAR }))
             .map((v) => ({ ...v, total: Number(v.total) || 0 }));
 
-        res.json({ cotizacionesPendientes, comprobantesPorRevisar, pedidosPorAvanzar, stockBajo: await stockBajo(30) });
+        // Las listas se recortan (15/10/30/30); los totales son los reales, para que los números no mientan
+        const stockBajoTodo = await stockBajo(500);
+        const totales = {
+            cotizaciones: await uno('SELECT COUNT(*) n FROM cotizaciones c WHERE c.EstadoID IN (:e, :r)', { e: ESTADO_COTIZACION.PENDIENTE, r: ESTADO_COTIZACION.EN_REVISION }),
+            comprobantes: await uno(`SELECT COUNT(*) n FROM ventas v WHERE ${COMPROBANTE_POR_REVISAR}`, { pendiente: ESTADO_VENTA.PENDIENTE }),
+            pedidos: await uno('SELECT COUNT(*) n FROM ventas v WHERE v.EstadoID IN (:estados)', { estados: ESTADOS_POR_AVANZAR }),
+            stockBajo: stockBajoTodo.length,
+        };
+        res.json({ cotizacionesPendientes, comprobantesPorRevisar, pedidosPorAvanzar, stockBajo: stockBajoTodo.slice(0, 30), totales });
     } catch (e) {
         console.error('Error en resumen/hoy:', e);
         res.status(500).json({ message: 'Error al armar la bandeja de hoy' });

@@ -21,6 +21,7 @@ const historial = require('../services/historial');
 const configuracion = require('../services/config');
 const { esAdmin } = require('../middleware/authMiddleware');
 const log = require('../utils/log');
+const { errorDeComprobante } = require('../utils/comprobante');
 const { Op } = require('sequelize');
 
 // Obtener todas las ventas
@@ -187,6 +188,10 @@ exports.crearVenta = async (req, res) => {
     if (metodoPago === 'transferencia' && !comprobanteTransferencia) {
         return res.status(400).json({ error: "Debe proporcionar el comprobante de transferencia", message: "Debe proporcionar el comprobante de transferencia" });
     }
+    if (metodoPago === 'transferencia') {
+        const errorComprobante = errorDeComprobante(comprobanteTransferencia);
+        if (errorComprobante) return res.status(400).json({ error: errorComprobante, message: errorComprobante });
+    }
     if ((metodoPago === 'contraentrega' || tipoEntrega === 'envio') && (!nombreReceptor || !telefonoEntrega || !direccionEntrega)) {
         return res.status(400).json({
             error: "Complete todos los datos de entrega (nombre, teléfono y dirección)",
@@ -295,6 +300,14 @@ exports.updateEstadoVenta = async (req, res) => {
             return res.status(400).json({ message, mensaje: message });
         }
 
+        // El cliente solo cancela mientras el pedido sigue pendiente. Se comprueba aquí, con la fila bloqueada:
+        // si el administrador lo marcó como pagado en ese mismo instante, la cancelación ya no procede.
+        if (req.usuario && !esAdmin(req) && estadoAnterior !== ESTADO_VENTA.PENDIENTE) {
+            await t.rollback();
+            const message = 'Solo puedes cancelar pedidos que aún estén pendientes. Contáctanos si ya está en proceso.';
+            return res.status(400).json({ message, mensaje: message });
+        }
+
         log(`Cambio de estado de venta #${ventaId}: ${estadoAnterior} -> ${estadoNuevo}`);
 
         const cancela = estadoNuevo === ESTADO_VENTA.CANCELADA;
@@ -307,6 +320,9 @@ exports.updateEstadoVenta = async (req, res) => {
         }
         // Un pedido que ya se pagó y se cancela deja un reembolso por hacer
         const reembolsoPendiente = cancela && [ESTADO_VENTA.PAGADA, ESTADO_VENTA.EN_PRODUCCION, ESTADO_VENTA.LISTA_ENTREGA].includes(estadoAnterior);
+        // Pendiente con un comprobante que nadie alcanzó a revisar: puede que el cliente sí haya transferido
+        const pagoPorVerificar = cancela && estadoAnterior === ESTADO_VENTA.PENDIENTE && venta.MetodoPago === 'transferencia'
+            && Boolean(venta.ComprobanteTransferencia) && !venta.ComprobanteMotivoRechazo;
 
         await venta.update({
             EstadoID: estadoNuevo,
@@ -314,13 +330,15 @@ exports.updateEstadoVenta = async (req, res) => {
             ...(reembolsoPendiente ? { ReembolsoPendiente: true } : {}),
         }, { transaction: t });
         const porCliente = !esAdmin(req);
-        const notaFinal = [nota || (porCliente ? 'Cancelado por el cliente' : null), reembolsoPendiente ? 'Reembolso pendiente: el pedido ya estaba pagado' : null].filter(Boolean).join(' · ') || null;
+        const notaFinal = [nota || (porCliente ? 'Cancelado por el cliente' : null), reembolsoPendiente ? 'Reembolso pendiente: el pedido ya estaba pagado' : null,
+            pagoPorVerificar ? 'Tenía un comprobante sin revisar: verificar si hubo pago' : null].filter(Boolean).join(' · ') || null;
         await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: estadoNuevo, nota: notaFinal, documentoId: req.usuario?.id }, t);
         await t.commit();
         if (reembolsoPendiente) notificaciones.reembolsoPendiente(venta.VentaID);
+        if (pagoPorVerificar) notificaciones.pagoPorVerificar(venta.VentaID);
         notificaciones.pedidoEstado(venta.VentaID, nota || null); // correo y aviso al cliente con el nuevo estado
         if (porCliente && estadoNuevo === ESTADO_VENTA.CANCELADA) notificaciones.pedidoCanceladoPorCliente(venta.VentaID);
-        return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock, reembolsoPendiente });
+        return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock, reembolsoPendiente, pagoPorVerificar });
     } catch (error) {
         await t.rollback();
         return responderError(res, error, 'Error al actualizar estado');
@@ -429,9 +447,8 @@ exports.rechazarComprobante = async (req, res) => {
 // El cliente (o el administrador) sube o reemplaza el comprobante de un pedido pendiente
 exports.subirComprobante = async (req, res) => {
     const { comprobanteTransferencia, fechaTransferencia } = req.body;
-    if (typeof comprobanteTransferencia !== 'string' || !comprobanteTransferencia.trim()) {
-        return res.status(400).json({ message: 'Debes adjuntar el comprobante de transferencia' });
-    }
+    const errorComprobante = errorDeComprobante(comprobanteTransferencia);
+    if (errorComprobante) return res.status(400).json({ message: errorComprobante });
     try {
         const venta = await Venta.findByPk(req.params.id);
         if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
@@ -492,7 +509,16 @@ exports.getDashboardData = async (req, res) => {
 
         // ── Construir WHERE para Venta (filtro de mes) ──
         // Los pedidos cancelados no son ventas: no cuentan en "más vendidos" ni en "ventas por mes".
-        let whereVenta = { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } };
+        // Las fechas se guardan en UTC: se convierten a la hora local antes de sacar mes y año, para que una venta de las
+        // 8 p. m. del último día del mes no cuente en el mes siguiente (ZONA_HORARIA, por defecto Colombia: -05:00)
+        const zona = /^[+-]\d{2}:\d{2}$/.test(process.env.ZONA_HORARIA || '') ? process.env.ZONA_HORARIA : '-05:00';
+        const local = (col) => sequelize.fn('CONVERT_TZ', sequelize.col(col), '+00:00', zona);
+        const anio = parseInt(new Date(Date.now() + parseInt(zona, 10) * 3600 * 1000).toISOString().slice(0, 4), 10);
+        // Sin mes se muestra todo el año en curso (antes mezclaba enero de años distintos)
+        let whereVenta = { [Op.and]: [
+            { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } },
+            sequelize.where(sequelize.fn('YEAR', local('venta.FechaVenta')), anio),
+        ] };
         if (mes) {
             const mesNum = parseInt(mes, 10);
             if (!Number.isInteger(mesNum) || mesNum < 1 || mesNum > 12) {
@@ -501,8 +527,8 @@ exports.getDashboardData = async (req, res) => {
             whereVenta = {
                 [Op.and]: [
                     { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } },
-                    sequelize.where(sequelize.fn('MONTH', sequelize.col('venta.FechaVenta')), mesNum),
-                    sequelize.where(sequelize.fn('YEAR', sequelize.col('venta.FechaVenta')), new Date().getFullYear())
+                    sequelize.where(sequelize.fn('MONTH', local('venta.FechaVenta')), mesNum),
+                    sequelize.where(sequelize.fn('YEAR', local('venta.FechaVenta')), anio)
                 ]
             };
         }
@@ -516,8 +542,9 @@ exports.getDashboardData = async (req, res) => {
         // ── 1. Ventas por mes (agrupado por mes) ──
         const ventasPorMes = await DetalleVenta.findAll({
             attributes: [
-                [sequelize.fn('MONTH', sequelize.col('venta.FechaVenta')), 'mes'],
-                [sequelize.fn('COUNT', sequelize.col('DetalleVentaID')), 'ventas']
+                [sequelize.fn('MONTH', local('venta.FechaVenta')), 'mes'],
+                // Pedidos, no líneas: un pedido con 3 productos cuenta una vez
+                [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('DetalleVenta.VentaID'))), 'ventas']
             ],
             include: [
                 {
@@ -528,8 +555,8 @@ exports.getDashboardData = async (req, res) => {
                 }
             ],
             where: whereDetalle,
-            group: [sequelize.fn('MONTH', sequelize.col('venta.FechaVenta'))],
-            order: [[sequelize.fn('MONTH', sequelize.col('venta.FechaVenta')), 'ASC']],
+            group: [sequelize.fn('MONTH', local('venta.FechaVenta'))],
+            order: [[sequelize.fn('MONTH', local('venta.FechaVenta')), 'ASC']],
             raw: true
         });
 
@@ -564,7 +591,7 @@ exports.getDashboardData = async (req, res) => {
         // así que consultamos DetalleCompra agrupado por mes.
         const insumosUtilizados = await DetalleCompra.findAll({
             attributes: [
-                [sequelize.fn('MONTH', sequelize.col('compra.FechaCompra')), 'mes'],
+                [sequelize.fn('MONTH', local('compra.FechaCompra')), 'mes'],
                 [sequelize.fn('SUM', sequelize.col('DetalleCompra.Cantidad')), 'cantidad']
             ],
             include: [
@@ -572,17 +599,17 @@ exports.getDashboardData = async (req, res) => {
                     model: Compra,
                     as: 'compra',
                     attributes: [],
-                    where: mes ? {
+                    where: {
                         [Op.and]: [
-                            sequelize.where(sequelize.fn('MONTH', sequelize.col('compra.FechaCompra')), parseInt(mes)),
-                            sequelize.where(sequelize.fn('YEAR', sequelize.col('compra.FechaCompra')), new Date().getFullYear())
+                            ...(mes ? [sequelize.where(sequelize.fn('MONTH', local('compra.FechaCompra')), parseInt(mes))] : []),
+                            sequelize.where(sequelize.fn('YEAR', local('compra.FechaCompra')), anio)
                         ]
-                    } : {}
+                    }
                 }
             ],
             where: { TipoSeleccion: 'insumo' },
-            group: [sequelize.fn('MONTH', sequelize.col('compra.FechaCompra'))],
-            order: [[sequelize.fn('MONTH', sequelize.col('compra.FechaCompra')), 'ASC']],
+            group: [sequelize.fn('MONTH', local('compra.FechaCompra'))],
+            order: [[sequelize.fn('MONTH', local('compra.FechaCompra')), 'ASC']],
             raw: true
         });
 

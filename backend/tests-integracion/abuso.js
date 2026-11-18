@@ -224,6 +224,24 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     r = await call('PUT', `/cotizaciones/${CP}/cancelar`, undefined, cli); si('no se puede cancelar dos veces', r.s === 400, r.s);
     if (C) { await call('PUT', '/cotizaciones/' + C, { EstadoID: 6 }, adm); r = await call('PUT', `/cotizaciones/${C}/cancelar`, undefined, cli); si('el cliente NO cancela una cotización que ya está en revisión', r.s === 400, r.s); }
 
+    console.log('--- VALIDACIÓN 2026-11: cotización y comprobante manipulados');
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det({ insumos: [{ InsumoID: 1, CantidadRequerida: -20 }] })] }, cli);
+    si('cantidad de tela negativa en la cotización se rechaza', r.s === 400, r.s); if (r.j?.cotizacion?.CotizacionID) creadas.push(['c', r.j.cotizacion.CotizacionID]);
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det({ tecnicas: [{ ...det().tecnicas[0], 'ImagenDiseño': 'http://127.0.0.1:3306/' }] })] }, cli);
+    si('una URL como imagen del diseño se rechaza', r.s === 400, r.s); if (r.j?.cotizacion?.CotizacionID) creadas.push(['c', r.j.cotizacion.CotizacionID]);
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det({ tecnicas: [{ ...det().tecnicas[0], 'ImagenDiseño': '../../.env' }] })] }, cli);
+    si('una ruta como imagen del diseño se rechaza', r.s === 400, r.s); if (r.j?.cotizacion?.CotizacionID) creadas.push(['c', r.j.cotizacion.CotizacionID]);
+    r = await call('POST', '/cotizaciones/inteligente', { FechaCotizacion: '2099-01-01', detalles: [det()] }, cli);
+    const CF = r.j?.cotizacion?.CotizacionID; if (CF) creadas.push(['c', CF]);
+    const fechaCot = CF ? new Date((await call('GET', '/cotizaciones/' + CF, undefined, cli)).j.FechaCotizacion) : null;
+    si('el cliente no puede fijar la fecha de su cotización', !!fechaCot && Math.abs(fechaCot.getTime() - Date.now()) < 2 * 864e5, `${r.s} ${fechaCot}`);
+    for (const [nombre, valor] of [['una URL externa', 'https://ejemplo.invalid/recibo.png'], ['texto libre', 'ya pagué'], ['un HTML', 'data:text/html;base64,PHNjcmlwdD4='], ['un PNG falso', 'data:image/png;base64,' + Buffer.alloc(60, 1).toString('base64')]]) {
+        r = await call('POST', '/ventas', pedido({ metodoPago: 'transferencia', comprobanteTransferencia: valor }), cli);
+        si(`comprobante con ${nombre} se rechaza`, r.s === 400, r.s); if (r.s === 201) creadas.push(r.j.venta.VentaID);
+    }
+    r = await call('POST', '/login', 'Correo=' + 'a'.repeat(300 * 1024), undefined, { raw: true, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    si('un formulario de 300 kb en el login se rechaza', r.s === 413, r.s);
+
     console.log('--- limpieza');
     for (const x of creadas.filter((y) => Array.isArray(y) && y[0] === 'basura')) {
         const id = x[2].datos?.ColorID || x[2].datos?.TallaID || x[2].datos?.RolID || x[2].datos?.ProveedorID || x[2].insumo?.InsumoID || x[2].tecnica?.TecnicaID || x[2].datos?.TecnicaID;
