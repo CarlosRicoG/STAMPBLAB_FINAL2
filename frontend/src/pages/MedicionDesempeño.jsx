@@ -221,7 +221,6 @@ const DashboardMedicionDesempeño = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
                 * { box-sizing: border-box; }
                 .fsel:focus { outline: none; border-color: #2563eb !important; }
                 .btn-limpiar:hover { background: #f1f5f9 !important; }

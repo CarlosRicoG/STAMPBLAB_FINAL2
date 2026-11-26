@@ -91,7 +91,6 @@ export const colorHex = (nombre = "") => COLORES_HEX[nombre.trim().toLowerCase()
 
 /* CSS compartido (prefijo .vt-) */
 export const VT_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 .vt-page, .vt-page *, .vt-overlay, .vt-overlay * { box-sizing: border-box; }
 .vt-page { font-family:'Outfit',sans-serif; }
 @keyframes vtFadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
@@ -800,7 +799,7 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
                                         <div key={d.DetalleVentaID || i} className="vt-item">
                                             <div className="vt-thumb">
                                                 {d.producto?.ImagenProducto
-                                                    ? <img src={d.producto.ImagenProducto} alt={d.producto?.Nombre} />
+                                                    ? <img loading="lazy" decoding="async" src={d.producto.ImagenProducto} alt={d.producto?.Nombre} />
                                                     : <FaBoxOpen style={{ color: "#cbd5e1" }} size={22} />}
                                             </div>
                                             <div style={{ flex: 1, minWidth: 0 }}>

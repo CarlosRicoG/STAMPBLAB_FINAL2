@@ -18,6 +18,23 @@ function obtenerNombreProducto(detalle) {
     return detalle.producto?.Nombre || "Producto sin especificar";
 }
 
+// Árbol completo de una cotización (misma forma que antes en todas las respuestas).
+// Las asociaciones hasMany van con separate: true: una consulta por tipo (WHERE ... IN) en lugar de un JOIN que
+// multiplica filas (detalles × técnicas × tallas × colores × insumos) y repite cada columna en cada combinación.
+// Así además un listado con limit no necesita la subconsulta de Sequelize para paginar.
+// Es una función: Sequelize modifica los objetos include que recibe, así que cada consulta usa uno nuevo.
+const includeDetallesCotizacion = () => ({
+    model: DetalleCotizacion, as: 'detalles', separate: true, order: [['DetalleCotizacionID', 'ASC']],
+    include: [
+        { model: Producto, as: 'producto' },
+        { model: CotizacionTecnica, as: 'tecnicas', separate: true, include: [{ model: Tecnica, as: 'tecnica' }, { model: Parte, as: 'parte' }] },
+        { model: CotizacionTalla, as: 'tallas', separate: true, include: [{ model: Talla, as: 'talla' }] },
+        { model: CotizacionColor, as: 'colores', separate: true, include: [{ model: Color, as: 'color' }] },
+        { model: CotizacionInsumo, as: 'insumos', separate: true, include: [{ model: Insumo, as: 'insumo' }] },
+    ],
+});
+const includeCotizacion = () => [{ model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' }, includeDetallesCotizacion()];
+
 // ============================================
 // FUNCIÓN PRINCIPAL: CREAR COTIZACIÓN INTELIGENTE
 // ============================================
@@ -68,6 +85,16 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
     const tallaIDs = [...new Set(detalles.flatMap((d) => (d?.TraePrenda ? [] : (d?.tallas || []).map((t) => t?.TallaID).filter(Boolean))))];
     const precioTalla = new Map((tallaIDs.length ? await Talla.findAll({ where: { TallaID: tallaIDs }, attributes: ['TallaID', 'Precio'], raw: true }) : [])
         .map((t) => [String(t.TallaID), parseFloat(t.Precio) || 0]));
+    // Productos y telas también en una consulta por tabla (antes eran dos por producto)
+    const deCatalogo = detalles.filter((d) => d && !d.TraePrenda);
+    const productoIDs = [...new Set(deCatalogo.map((d) => d.ProductoID).filter((v) => v != null))];
+    const insumoIDs = [...new Set(deCatalogo.map((d) => d.insumos?.[0]?.InsumoID).filter((v) => v != null))];
+    const [productos, telas] = await Promise.all([
+        productoIDs.length ? Producto.findAll({ where: { ProductoID: productoIDs }, attributes: ['ProductoID', 'Nombre', 'PrecioBase'], raw: true }) : [],
+        insumoIDs.length ? Insumo.findAll({ where: { InsumoID: insumoIDs }, attributes: ['InsumoID', 'PrecioTela'], raw: true }) : [],
+    ]);
+    const productoPorId = new Map(productos.map((p) => [String(p.ProductoID), p]));
+    const precioTelaPorId = new Map(telas.map((i) => [String(i.InsumoID), parseFloat(i.PrecioTela) || 0]));
     for (const detalle of detalles) {
         const cantidad = parseInt(detalle.Cantidad);
         if (detalle.TraePrenda) {
@@ -82,9 +109,9 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
             .map((t) => ({ tallaID: t.TallaID, cantidad: parseInt(t.Cantidad, 10) || (tallasPedidas.length === 1 ? cantidad : 0) }))
             .filter((t) => t.cantidad > 0);
         if (!colorID || !porTalla.length) throw new ErrorNegocio('Se requiere Color y Talla');
-        const producto = await Producto.findByPk(detalle.ProductoID);
+        const producto = productoPorId.get(String(detalle.ProductoID));
         if (!producto) throw new ErrorNegocio(`Producto ${detalle.ProductoID} no encontrado`, 404);
-        const precioTela = parseFloat((await Insumo.findByPk(insumoID))?.PrecioTela) || 0;
+        const precioTela = precioTelaPorId.get(String(insumoID)) || 0;
         for (const { tallaID, cantidad: cantTalla } of porTalla) {
             const precioUnitario = (parseFloat(producto.PrecioBase) || 0)
                 + (precioTalla.get(String(tallaID)) || 0)
@@ -178,34 +205,7 @@ async function crearCotizacionConDiseños(req, res, { DocumentoID, FechaCotizaci
         await tx.commit();
         await historial.registrar({ tipo: 'cotizacion', refId: nuevaCotizacion.CotizacionID, estadoId: nuevaCotizacion.EstadoID, nota: 'Cotización recibida', documentoId: DocumentoID });
         notificaciones.cotizacionRecibida(nuevaCotizacion.CotizacionID);
-        const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { // 26
-            include: [                                                                  // 27
-                { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },     // 28
-                {
-                    model: DetalleCotizacion, as: 'detalles', include: [{
-                        model:
-                            Producto, as: 'producto'
-                    }, {
-                        model: CotizacionTecnica, as: 'tecnicas',
-                        include: [{ model: Tecnica, as: 'tecnica' }, {
-                            model:
-                                Parte, as: 'parte'
-                        }]
-                    }, {
-                        model: CotizacionTalla, as: 'tallas',
-                        include: [{ model: Talla, as: 'talla' }]
-                    },
-                    {
-                        model: CotizacionColor, as: 'colores', include: [{
-                            model: Color, as: 'color'
-                        }]
-                    }, {
-                        model: CotizacionInsumo,
-                        as: 'insumos', include: [{ model: Insumo, as: 'insumo' }]
-                    }]
-                } // 29
-            ]                                                                           // 30
-        });                                                                             // 31
+        const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { include: includeCotizacion() });
         return res.status(201).json({ tipo: 'cotizacion', message: 'Cotización creada exitosamente', cotizacion: cotizacionCompleta }); // 32
     } catch (error) {                                                                   // 33
         if (!tx.finished) await tx.rollback();
@@ -240,37 +240,7 @@ function subtotalDetalle(detalle) {
 exports.convertirCotizacionAVenta = async (req, res) => {
     try {                                                                               // 1
         const { cotizacionID } = req.params;                                            // 2
-        const cotizacion = await Cotizacion.findByPk(cotizacionID, {                    // 3
-            include: [                                                                  // 4
-                {
-                    model: DetalleCotizacion, as: 'detalles', include: [                  // 5
-                        { model: Producto, as: 'producto' },                            // 6
-                        {
-                            model: CotizacionTalla, as: 'tallas', include: [{
-                                model: Talla,
-                                as: 'talla'
-                            }]
-                        }, // 7
-                        {
-                            model: CotizacionColor, as: 'colores', include: [{
-                                model: Color, as: 'color'
-                            }]
-                        }, // 8
-                        {
-                            model: CotizacionInsumo, as: 'insumos', include: [{
-                                model: Insumo, as: 'insumo'
-                            }]
-                        }, // 9
-                        {
-                            model: CotizacionTecnica, as: 'tecnicas', include: [{
-                                model: Tecnica, as: 'tecnica'
-                            }, { model: Parte, as: 'parte' }]
-                        } // 10
-                    ]
-                },                                                                 // 11
-                { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' }      // 12
-            ]                                                                           // 13
-        });                                                                             // 14
+        const cotizacion = await Cotizacion.findByPk(cotizacionID, { include: includeCotizacion() });
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada', cotizacionID }); // 15
         if (cotizacion.EstadoID === ESTADO_COTIZACION.PROCESADA) return res.status(400).json({ message: 'Esta cotización ya fue convertida a venta' });
         if (cotizacion.EstadoID !== ESTADO_COTIZACION.APROBADA) return res.status(400).json({
@@ -396,11 +366,15 @@ exports.createCotizacionCompleta = async (req, res) => {
         if (!detalles || detalles.length === 0) return res.status(400).json({ message: 'Debe incluir al menos un producto' }); // 4
         const usuario = await Usuario.findByPk(DocumentoID);                            // 5
         if (!usuario) return res.status(404).json({ message: 'Usuario no encontrado', DocumentoID }); // 6
+        // Productos citados: una sola consulta (antes una por línea)
+        const productoIDs = [...new Set(detalles.map((d) => d.ProductoID).filter(Boolean))];
+        const existentes = new Set((productoIDs.length ? await Producto.findAll({ where: { ProductoID: productoIDs }, attributes: ['ProductoID'], raw: true }) : [])
+            .map((p) => String(p.ProductoID)));
         for (const [i, d] of detalles.entries()) {
             if (!(parseInt(d.Cantidad) > 0)) return res.status(400).json({ message: `Producto ${i + 1}: la cantidad debe ser mayor a 0` });
             if (!d.ProductoID && !d.TraePrenda && !(parseFloat(d.PrecioUnitario) > 0))
                 return res.status(400).json({ message: `Producto ${i + 1}: un producto personalizado necesita precio unitario` });
-            if (d.ProductoID && !(await Producto.findByPk(d.ProductoID)))
+            if (d.ProductoID && !existentes.has(String(d.ProductoID)))
                 return res.status(400).json({ message: `Producto ${i + 1}: el producto ${d.ProductoID} no existe` });
         }
         // Todo o nada: si falla un detalle no queda una cotización a medias
@@ -440,25 +414,7 @@ exports.createCotizacionCompleta = async (req, res) => {
             await calcularValorTotalCotizacion(nuevaCotizacion.CotizacionID, { transaction: tx });
             return nuevaCotizacion;
         });
-        const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { // 22
-            include: [                                                                  // 23
-                { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },     // 24
-                {
-                    model: DetalleCotizacion, as: 'detalles', include: [{ model: Producto, as: 'producto' },
-                    {
-                        model: CotizacionTecnica, as: 'tecnicas', include: [{ model: Tecnica, as: 'tecnica' },
-                        { model: Parte, as: 'parte' }]
-                    }, {
-                        model: CotizacionTalla, as: 'tallas',
-                        include: [{ model: Talla, as: 'talla' }]
-                    }, {
-                        model:
-                            CotizacionColor, as: 'colores', include: [{ model: Color, as: 'color' }]
-                    },
-                    { model: CotizacionInsumo, as: 'insumos', include: [{ model: Insumo, as: 'insumo' }] }]
-                } // 25
-            ]                                                                           // 26
-        });                                                                             // 27
+        const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { include: includeCotizacion() });
         return res.status(201).json({ message: 'Cotización creada exitosamente', cotizacion: cotizacionCompleta }); // 28
     } catch (error) {                                                                   // 29
         res.status(500).json({ message: 'Error al crear cotización', error: error.message }); // 30
@@ -508,15 +464,8 @@ exports.getAllCotizaciones = async (req, res) => {
             include: [                                                                  // 33
                 { model: Usuario, as: 'usuario', required: !!search },                  // 34
                 { model: Estado, as: 'estado', where: Object.keys(whereEstado).length ? whereEstado : undefined, required: estado !== "Todos" }, // 35
-                {
-                    model: DetalleCotizacion, as: 'detalles', include: [                  // 36
-                        { model: Producto, as: 'producto' },                                // 37
-                        { model: CotizacionTecnica, as: 'tecnicas', include: [{ model: Tecnica, as: 'tecnica' }, { model: Parte, as: 'parte' }] }, // 38
-                        { model: CotizacionTalla, as: 'tallas', include: [{ model: Talla, as: 'talla' }] }, // 39
-                        { model: CotizacionColor, as: 'colores', include: [{ model: Color, as: 'color' }] },// 40
-                        { model: CotizacionInsumo, as: 'insumos', include: [{ model: Insumo, as: 'insumo' }] } // 41
-                    ]
-                }                                                                      // 42
+                // Las líneas y sus hasMany van en consultas aparte (separate): la página se pide con un LIMIT simple
+                includeDetallesCotizacion()
             ], order: [['CotizacionID', 'DESC']], limit, offset                         // 43
         });                                                                             // 44
         res.json({ datos: rows, total: totalCount, pagina: page, totalPaginas: Math.ceil(totalCount / limit), limit }); // 45
@@ -530,20 +479,7 @@ exports.getAllCotizaciones = async (req, res) => {
 
 exports.getCotizacionById = async (req, res) => {
     try {                                                                                                                                            // 1
-        const cotizacion = await Cotizacion.findByPk(req.params.id, {                                                                               // 2
-            include: [                                                                                                                              // 3
-                { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },                                                                 // 4
-                {                                                                                                                                   // 5
-                    model: DetalleCotizacion, as: 'detalles', include: [                                                                            // 6
-                        { model: Producto, as: 'producto' },                                                                                        // 7
-                        { model: CotizacionTecnica, as: 'tecnicas', include: [{ model: Tecnica, as: 'tecnica' }, { model: Parte, as: 'parte' }] },   // 8
-                        { model: CotizacionTalla, as: 'tallas', include: [{ model: Talla, as: 'talla' }] },                                         // 9
-                        { model: CotizacionColor, as: 'colores', include: [{ model: Color, as: 'color' }] },                                        // 10
-                        { model: CotizacionInsumo, as: 'insumos', include: [{ model: Insumo, as: 'insumo' }] }                                      // 11
-                    ]                                                                                                                               // 12
-                }                                                                                                                                   // 13
-            ]                                                                                                                                       // 14
-        });                                                                                                                                         // 15
+        const cotizacion = await Cotizacion.findByPk(req.params.id, { include: includeCotizacion() });
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada' });                                                      // 16
         const cotizacionEnriquecida = {                                                                                                             // 17
             ...cotizacion.toJSON(),                                                                                                                 // 18
@@ -569,21 +505,17 @@ exports.updateCotizacion = async (req, res) => {
     try {                                                                               // 1
         const { ValorTotal, EstadoID } = req.body;                                      // 2
         const cotizacionID = req.params.id;                                             // 3
-        const cotizacion = await Cotizacion.findByPk(cotizacionID, {                    // 4
-            include: [{                                                                 // 5
-                model: DetalleCotizacion, as: 'detalles',                               // 6
-                include: [{ model: Producto, as: 'producto' }, {
-                    model:
-                        CotizacionTalla, as: 'tallas', include: [{
-                            model:
-                                Talla, as: 'talla'
-                        }]
-                }, {
-                    model: CotizacionColor,
-                    as: 'colores', include: [{ model: Color, as: 'color' }]
-                }] // 7
-            }]                                                                          // 8
-        });                                                                             // 9
+        // La respuesta conserva detalles (producto, tallas, colores); las hasMany en consultas aparte (sin producto cartesiano)
+        const cotizacion = await Cotizacion.findByPk(cotizacionID, {
+            include: [{
+                model: DetalleCotizacion, as: 'detalles', separate: true, order: [['DetalleCotizacionID', 'ASC']],
+                include: [
+                    { model: Producto, as: 'producto' },
+                    { model: CotizacionTalla, as: 'tallas', separate: true, include: [{ model: Talla, as: 'talla' }] },
+                    { model: CotizacionColor, as: 'colores', separate: true, include: [{ model: Color, as: 'color' }] },
+                ],
+            }],
+        });
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada' }); // 10
         const estadoAnterior = cotizacion.EstadoID;                                     // 11
         const estadoNuevo = EstadoID ? parseInt(EstadoID) : estadoAnterior;             // 12
@@ -664,28 +596,25 @@ exports.deleteCotizacion = async (req, res) => {
     }
 };
 
+// Sin ?page ni ?limit responde el arreglo completo (lo que usan hoy el panel y "Mis cotizaciones").
+// Con alguno de los dos (opcional): { datos, total, pagina, totalPaginas, limit }, como el listado del administrador.
 exports.getCotizacionesByUsuario = async (req, res) => {
     try {
         const { documentoID } = req.params;
-        const cotizaciones = await Cotizacion.findAll({
-            where: { DocumentoID: documentoID },
-            include: [
-                { model: Usuario, as: 'usuario' },
-                { model: Estado, as: 'estado' },
-                {
-                    model: DetalleCotizacion, as: 'detalles',
-                    include: [
-                        { model: Producto, as: 'producto' },
-                        { model: CotizacionTecnica, as: 'tecnicas', include: [{ model: Tecnica, as: 'tecnica' }, { model: Parte, as: 'parte' }] },
-                        { model: CotizacionTalla, as: 'tallas', include: [{ model: Talla, as: 'talla' }] },
-                        { model: CotizacionColor, as: 'colores', include: [{ model: Color, as: 'color' }] },
-                        { model: CotizacionInsumo, as: 'insumos', include: [{ model: Insumo, as: 'insumo' }] }
-                    ]
-                }
-            ],
-            order: [['CotizacionID', 'DESC']]
-        });
-        res.json(cotizaciones);
+        const where = { DocumentoID: documentoID };
+        const query = req.query || {};
+        const pagina = query.page !== undefined || query.limit !== undefined;
+        if (!pagina) {
+            const cotizaciones = await Cotizacion.findAll({ where, include: includeCotizacion(), order: [['CotizacionID', 'DESC']] });
+            return res.json(cotizaciones);
+        }
+        const page = Math.max(1, parseInt(query.page) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(query.limit) || 10));
+        const [total, datos] = await Promise.all([
+            Cotizacion.count({ where }),
+            Cotizacion.findAll({ where, include: includeCotizacion(), order: [['CotizacionID', 'DESC']], limit, offset: (page - 1) * limit }),
+        ]);
+        res.json({ datos, total, pagina: page, totalPaginas: Math.ceil(total / limit), limit });
     } catch (error) {
         res.status(500).json({ message: 'Error al obtener cotizaciones del usuario', error: error.message });
     }
@@ -694,20 +623,8 @@ exports.getCotizacionesByUsuario = async (req, res) => {
 exports.cancelarCotizacion = async (req, res) => {
     try {                                                                               // 1
         const { cotizacionID } = req.params;                                            // 2
-        const cotizacion = await Cotizacion.findByPk(cotizacionID, {                    // 3
-            include: [                                                                  // 4
-                {
-                    model: DetalleCotizacion, as: 'detalles', include: [{
-                        model:
-                            Producto, as: 'producto'
-                    }, { model: CotizacionTalla, as: 'tallas' }, {
-                        model:
-                            CotizacionColor, as: 'colores'
-                    }]
-                }, // 5
-                { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' }      // 6
-            ]                                                                           // 7
-        });                                                                             // 8
+        // Solo se necesita el estado: no se cargan líneas, tallas, colores ni usuario (la respuesta no los incluye)
+        const cotizacion = await Cotizacion.findByPk(cotizacionID, { attributes: ['CotizacionID', 'EstadoID'] });
         if (!cotizacion) return res.status(404).json({ message: 'Cotización no encontrada', cotizacionID }); // 9
         if (cotizacion.EstadoID === ESTADO_COTIZACION.PROCESADA) return res.status(400).json({
             message: 'No se puede cancelar una cotización ya convertida a venta'
@@ -744,9 +661,10 @@ const calcularValorTotalCotizacion = async (cotizacionID, { forzar = false, tran
     try {
         const cotizacion = await Cotizacion.findByPk(cotizacionID, {
             transaction,
+            // hasMany en consultas aparte (heredan la transacción): sin producto cartesiano técnicas × tallas × insumos
             include: [{
-                model: DetalleCotizacion, as: 'detalles',
-                include: [{ model: Producto, as: 'producto' }, { model: CotizacionTecnica, as: 'tecnicas' }, { model: CotizacionTalla, as: 'tallas', include: [{ model: Talla, as: 'talla' }] }, { model: CotizacionInsumo, as: 'insumos', include: [{ model: Insumo, as: 'insumo' }] }]
+                model: DetalleCotizacion, as: 'detalles', separate: true,
+                include: [{ model: Producto, as: 'producto' }, { model: CotizacionTecnica, as: 'tecnicas', separate: true }, { model: CotizacionTalla, as: 'tallas', separate: true, include: [{ model: Talla, as: 'talla' }] }, { model: CotizacionInsumo, as: 'insumos', separate: true, include: [{ model: Insumo, as: 'insumo' }] }]
             }]
         });
         if (!cotizacion) return 0;

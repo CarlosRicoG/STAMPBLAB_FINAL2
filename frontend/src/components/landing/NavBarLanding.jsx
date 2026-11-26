@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import CampanaNotificaciones from "../notificaciones/CampanaNotificaciones";
+// La campana solo aparece con sesión iniciada: se descarga aparte para no pesar en la carga inicial de la tienda
+const CampanaNotificaciones = lazy(() => import("../notificaciones/CampanaNotificaciones"));
 import { FaUserCircle, FaTimes, FaShoppingBag, FaFileInvoice, FaEdit, FaSignOutAlt, FaTachometerAlt } from "react-icons/fa";
 import logo from "../../assets/images/nuevo_logo_stamplab.png";
 import { cerrarSesion } from "../../Services/api-auth/auth";
@@ -127,7 +128,6 @@ const NavbarComponent = () => {
     return (
         <>
             <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
         @keyframes fadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
         @keyframes slideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:none} }
         .nav-link-item { position: relative; }
@@ -165,7 +165,7 @@ const NavbarComponent = () => {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }} className="d-none d-md-flex">
                         {isAuthenticated ? (
                             <>
-                                {!esMovil && <CampanaNotificaciones />}
+                                {!esMovil && <Suspense fallback={null}><CampanaNotificaciones /></Suspense>}
                                 <button onClick={() => setShowPerfil(true)}
                                     style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 10, border: `1.5px solid ${C.border}`, background: C.bg, color: C.navy, cursor: "pointer", fontFamily: "'Outfit',sans-serif", fontWeight: 600, fontSize: 13, transition: "all 0.15s" }}
                                     onMouseEnter={e => { e.currentTarget.style.background = C.accentSoft; e.currentTarget.style.borderColor = C.accentBorder; }}
@@ -200,7 +200,7 @@ const NavbarComponent = () => {
                     </div>
 
                     {/* Campana - Mobile */}
-                    {isAuthenticated && esMovil && <div className="d-flex d-md-none" style={{ marginLeft: "auto", marginRight: 8 }}><CampanaNotificaciones /></div>}
+                    {isAuthenticated && esMovil && <div className="d-flex d-md-none" style={{ marginLeft: "auto", marginRight: 8 }}><Suspense fallback={null}><CampanaNotificaciones /></Suspense></div>}
 
                     {/* Hamburger - Mobile */}
                     <button onClick={() => setMobileOpen(!mobileOpen)}

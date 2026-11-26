@@ -9,7 +9,6 @@ const FooterComponent = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
                 .sl-footer {
                     background: linear-gradient(135deg, #0f1824 0%, #1a2540 60%, #2d3f6e 100%);

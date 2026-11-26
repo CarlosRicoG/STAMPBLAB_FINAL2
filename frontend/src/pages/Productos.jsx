@@ -295,7 +295,6 @@ const Productos = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
         .prod-row:hover { background: #f0f4ff !important; }
         .prod-row:hover td { color: #0f172a; }
@@ -366,7 +365,7 @@ const Productos = () => {
                       <td style={{ padding: "12px 16px", color: C.muted, fontWeight: 600 }}>#{p.ProductoID}</td>
                       <td style={{ padding: "10px 16px" }}>
                         {p.ImagenProducto ? (
-                          <img src={p.ImagenProducto} alt={p.Nombre}
+                          <img loading="lazy" decoding="async" src={p.ImagenProducto} alt={p.Nombre}
                             onClick={() => setImagenModal(p.ImagenProducto)}
                             style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 10, cursor: "pointer", border: `2px solid ${C.border}`, transition: "transform 0.2s" }}
                             onMouseEnter={e => e.target.style.transform = "scale(1.1)"}

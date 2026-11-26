@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary";
-import DashboardLayout from "../components/layouts/DashboardLayout";
+const DashboardLayout = lazy(() => import("../components/layouts/DashboardLayout"));
 const MiCuenta = lazy(() => import("../components/landing/MiCuenta"));
 const Hoy = lazy(() => import("../pages/Hoy"));
 const Tarifas = lazy(() => import("../pages/Tarifas"));

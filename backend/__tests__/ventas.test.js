@@ -161,7 +161,7 @@ describe('VentaController - Pruebas Unitarias', () => {
 
         test('cancelar un pedido pendiente con comprobante sin revisar avisa que hay que verificar el pago', async () => {
             Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
-            Venta.findByPk.mockResolvedValue({ ...ventaConEstado(8), MetodoPago: 'transferencia', ComprobanteTransferencia: 'data:image/png;base64,AAAA', ComprobanteMotivoRechazo: null });
+            Venta.findByPk.mockResolvedValue({ ...ventaConEstado(8), MetodoPago: 'transferencia', TieneComprobante: 1, ComprobanteMotivoRechazo: null });
             DetalleVenta.findAll.mockResolvedValue([]);
             const res = mockRes();
             await controller.updateEstadoVenta({ params: { id: '1' }, body: { EstadoID: 12 } }, res);
@@ -171,7 +171,7 @@ describe('VentaController - Pruebas Unitarias', () => {
         test('cancelar un pedido pendiente sin comprobante (o con el comprobante rechazado) no pide verificar nada', async () => {
             Estado.findByPk.mockResolvedValue({ EstadoID: 12, Tipo: 'venta' });
             DetalleVenta.findAll.mockResolvedValue([]);
-            for (const extra of [{ MetodoPago: null }, { MetodoPago: 'contraentrega' }, { MetodoPago: 'transferencia', ComprobanteTransferencia: 'data:image/png;base64,AAAA', ComprobanteMotivoRechazo: 'Ilegible' }]) {
+            for (const extra of [{ MetodoPago: null }, { MetodoPago: 'contraentrega' }, { MetodoPago: 'transferencia', TieneComprobante: 1, ComprobanteMotivoRechazo: 'Ilegible' }]) {
                 Venta.findByPk.mockResolvedValue({ ...ventaConEstado(8), ...extra });
                 const res = mockRes();
                 await controller.updateEstadoVenta({ params: { id: '1' }, body: { EstadoID: 12 } }, res);

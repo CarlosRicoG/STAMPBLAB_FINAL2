@@ -662,7 +662,6 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
     return (
         <>
             <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
         @keyframes spin   { to{transform:rotate(360deg)} }
@@ -1008,7 +1007,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                     <div key={prod.id} style={{ background: editandoIndex === index ? C.warningSoft : C.bg, borderRadius: 12, padding: "12px 14px", border: `1.5px solid ${editandoIndex === index ? C.warningBorder : C.border}`, transition: "all 0.15s" }}>
                                                         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                                                             {prod.ProductoImagen ? (
-                                                                <img src={prod.ProductoImagen} alt={prod.ProductoNombre} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.border}`, flexShrink: 0 }} />
+                                                                <img loading="lazy" decoding="async" src={prod.ProductoImagen} alt={prod.ProductoNombre} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.border}`, flexShrink: 0 }} />
                                                             ) : (
                                                                 <div style={{ width: 48, height: 48, borderRadius: 8, background: prod.EsPersonalizado ? C.purpleSoft : C.accentSoft, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                                                     {prod.EsPersonalizado ? <FaMagic style={{ color: C.purple, opacity: 0.6 }} /> : <FaTshirt style={{ color: C.accent, opacity: 0.5 }} />}

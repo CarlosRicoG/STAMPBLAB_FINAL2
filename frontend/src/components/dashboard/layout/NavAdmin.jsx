@@ -235,7 +235,6 @@ const NavAdmin = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
                 .nav-avatar-btn {
                     background: none; border: none; cursor: pointer;
                     display: flex; align-items: center; gap: 10px;

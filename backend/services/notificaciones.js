@@ -24,9 +24,15 @@ async function correoAAdmins({ asunto, html }) {
     for (const para of await correosAdmin()) await correo.enviar({ para, asunto, html });
 }
 
+// Ningún aviso usa la imagen del comprobante (base64 de hasta ~7 MB): se lee solo si existe (TieneComprobante)
 const cargarVenta = (ventaId, extra = []) => db.Venta.findByPk(ventaId, {
+    attributes: {
+        exclude: ['ComprobanteTransferencia'],
+        include: [[db.sequelize.literal("(`Venta`.`ComprobanteTransferencia` IS NOT NULL AND `Venta`.`ComprobanteTransferencia` <> '')"), 'TieneComprobante']],
+    },
     include: [{ model: db.Usuario, as: 'usuario' }, { model: db.Estado, as: 'estado' }, ...extra],
 });
+const tieneComprobante = (venta) => Boolean(typeof venta?.get === 'function' ? venta.get('TieneComprobante') : venta?.TieneComprobante);
 const cargarCotizacion = (id) => db.Cotizacion.findByPk(id, { include: [{ model: db.Usuario, as: 'usuario' }, { model: db.Estado, as: 'estado' }] });
 const nombreCliente = (u) => u?.Nombre || 'Un cliente';
 
@@ -34,16 +40,22 @@ const nombreCliente = (u) => u?.Nombre || 'Un cliente';
 async function variantesBajas(ventaId) {
     const { stockMinimo } = configuracion.leer();
     if (!stockMinimo) return [];
-    const detalles = await db.DetalleVenta.findAll({ where: { VentaID: ventaId }, raw: true });
-    const resultado = [];
-    for (const d of detalles) {
-        if (!d.InventarioID) continue;
-        const inv = await db.InventarioProducto.findByPk(d.InventarioID, { raw: true });
-        if (!inv || inv.Stock > stockMinimo || inv.Stock + d.Cantidad <= stockMinimo) continue; // solo si ACABA de cruzar el umbral
-        const [p, c, t] = await Promise.all([db.Producto.findByPk(inv.ProductoID, { raw: true }), db.Color.findByPk(inv.ColorID, { raw: true }), db.Talla.findByPk(inv.TallaID, { raw: true })]);
-        resultado.push({ producto: p?.Nombre || 'Producto', color: c?.Nombre || '—', talla: t?.Nombre || '—', stock: inv.Stock });
-    }
-    return resultado;
+    const detalles = (await db.DetalleVenta.findAll({ where: { VentaID: ventaId }, attributes: ['InventarioID', 'Cantidad'], raw: true })).filter((d) => d.InventarioID);
+    if (!detalles.length) return [];
+    // Una consulta por tabla (antes eran ~4 por línea del pedido)
+    const unicos = (lista) => [...new Set(lista)];
+    const inventario = await db.InventarioProducto.findAll({ where: { InventarioID: unicos(detalles.map((d) => d.InventarioID)) }, raw: true });
+    const invPorId = new Map(inventario.map((i) => [String(i.InventarioID), i]));
+    const cruzaron = detalles
+        .map((d) => ({ d, inv: invPorId.get(String(d.InventarioID)) }))
+        .filter(({ d, inv }) => inv && inv.Stock <= stockMinimo && inv.Stock + d.Cantidad > stockMinimo); // solo si ACABA de cruzar el umbral
+    if (!cruzaron.length) return [];
+    const nombres = async (modelo, campo) => new Map((await modelo.findAll({ where: { [campo]: unicos(cruzaron.map(({ inv }) => inv[campo])) }, attributes: [campo, 'Nombre'], raw: true }))
+        .map((f) => [String(f[campo]), f.Nombre]));
+    const [productos, colores, tallas] = await Promise.all([nombres(db.Producto, 'ProductoID'), nombres(db.Color, 'ColorID'), nombres(db.Talla, 'TallaID')]);
+    return cruzaron.map(({ inv }) => ({
+        producto: productos.get(String(inv.ProductoID)) || 'Producto', color: colores.get(String(inv.ColorID)) || '—', talla: tallas.get(String(inv.TallaID)) || '—', stock: inv.Stock,
+    }));
 }
 
 // ───────────────────────── Pedidos ─────────────────────────
@@ -74,7 +86,7 @@ const pedidoRecibido = seguro(async (ventaId) => {
         ruta: '/ventas-pendientes', boton: 'Revisar el pedido',
     });
     await correoAAdmins(m);
-    if (venta.MetodoPago === 'transferencia' && venta.ComprobanteTransferencia) {
+    if (venta.MetodoPago === 'transferencia' && tieneComprobante(venta)) {
         await avisos.paraAdmins({ tipo: 'pago', mensaje: `Hay un comprobante por revisar en el pedido #${venta.VentaID} de ${nombreCliente(cliente)}.`, enlace: '/dashboard/ventas-pendientes' });
     }
 
@@ -242,4 +254,6 @@ const stockBajo = seguro(async (items) => {
 module.exports = {
     pedidoRecibido, pedidoEstado, pedidoCanceladoPorCliente, comprobanteSubido, comprobanteRechazado, pedidoVencido, pedidoPorVencer, reembolsoPendiente, pagoPorVerificar,
     cotizacionRecibida, cotizacionEstado, cotizacionRespuesta, cotizacionVencida, cotizacionPorVencer, stockBajo,
+    // Expuestas para las pruebas
+    cargarVenta, variantesBajas,
 };

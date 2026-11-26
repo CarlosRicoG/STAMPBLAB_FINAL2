@@ -586,7 +586,6 @@ const CotizacionLanding = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
                 * { box-sizing: border-box; }
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -704,7 +703,7 @@ const CotizacionLanding = () => {
                                     </div>
                                     {p.disenos.map((d, j) => (
                                         <div key={j} style={{ display: "flex", gap: 10, alignItems: "center", borderTop: "1px dashed #e2e8f0", paddingTop: 8, marginTop: 8, fontSize: 13, color: C.muted }}>
-                                            {d.imagen && <img src={d.imagen} alt="Diseño" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />}
+                                            {d.imagen && <img loading="lazy" decoding="async" src={d.imagen} alt="Diseño" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />}
                                             <span><b style={{ color: C.navy }}>Diseño {j + 1}:</b> {d.tecnica || "Técnica"} en {d.parte || "parte"}{d.subparte ? ` (${d.subparte})` : ""}{d.observacion ? ` · ${d.observacion}` : ""}</span>
                                         </div>
                                     ))}
@@ -760,7 +759,7 @@ const CotizacionLanding = () => {
                     {productosFiltrados.map(prod => (
                         <div key={prod.ProductoID} className="prod-card" style={{ borderRadius: 14, border: `1.5px solid ${C.border}`, overflow: "hidden", cursor: "pointer", background: C.white }}
                             onClick={() => { setProductoSeleccionado(prod); setMostrarModalProductos(false); setBusquedaProducto(""); Swal.fire({ icon: "success", title: prod.Nombre, timer: 1400, showConfirmButton: false }); }}>
-                            <img src={prod.ImagenProducto || "https://via.placeholder.com/200?text=Producto"} alt={prod.Nombre} style={{ width: "100%", height: 140, objectFit: "cover" }} onError={e => { e.target.src = "https://via.placeholder.com/200?text=Producto"; }} />
+                            <img loading="lazy" decoding="async" src={prod.ImagenProducto || "/placeholder-producto.svg"} alt={prod.Nombre} style={{ width: "100%", height: 140, objectFit: "cover" }} onError={e => { e.target.onerror = null; e.target.src = "/placeholder-producto.svg"; }} />
                             <div style={{ padding: "10px 12px" }}>
                                 <p style={{ margin: "0 0 3px", fontWeight: 700, fontSize: 13, color: C.navy, fontFamily: "'Outfit',sans-serif" }}>{prod.Nombre}</p>
                                 <p style={{ margin: 0, fontSize: 11, color: C.muted, fontFamily: "'Outfit',sans-serif", lineHeight: 1.4 }}>{prod.Descripcion?.slice(0, 60) || "Sin descripción"}</p>

@@ -46,16 +46,25 @@ const ventaDelCliente = (req, res, next) => {
 const preciosDelCliente = async (req, res, next) => {
     try {
         if (esAdmin(req)) return next();
+        const detalles = req.body.detalles || [];
+        // Todo producto del cliente sale de una variante (color y talla): así siempre se valida y descuenta stock
+        if (detalles.some((d) => !d.ColorID || !d.TallaID)) {
+            return res.status(400).json({ message: 'Cada producto del pedido debe indicar color y talla' });
+        }
+        // Una consulta por tabla para todo el pedido (antes eran dos por línea)
+        const ids = (campo) => [...new Set(detalles.map((d) => d[campo]).filter((v) => v != null))];
+        const [productos, tallas] = !detalles.length ? [[], []] : await Promise.all([
+            Producto.findAll({ where: { ProductoID: ids('ProductoID') }, attributes: ['ProductoID', 'PrecioBase'], raw: true }),
+            Talla.findAll({ where: { TallaID: ids('TallaID') }, attributes: ['TallaID', 'Precio'], raw: true }),
+        ]);
+        const productoPorId = new Map(productos.map((p) => [String(p.ProductoID), p]));
+        const tallaPorId = new Map(tallas.map((t) => [String(t.TallaID), t]));
         let suma = 0;
-        for (const d of req.body.detalles || []) {
-            // Todo producto del cliente sale de una variante (color y talla): así siempre se valida y descuenta stock
-            if (!d.ColorID || !d.TallaID) {
-                return res.status(400).json({ message: 'Cada producto del pedido debe indicar color y talla' });
-            }
+        for (const d of detalles) {
             delete d.TraePrenda; // el cliente no puede marcar líneas como "prenda propia" para saltarse el inventario
-            const producto = await Producto.findByPk(d.ProductoID, { attributes: ['ProductoID', 'PrecioBase'] });
+            const producto = productoPorId.get(String(d.ProductoID));
             if (!producto) return res.status(404).json({ message: `Producto ${d.ProductoID} no encontrado` });
-            const talla = d.TallaID ? await Talla.findByPk(d.TallaID, { attributes: ['Precio'] }) : null;
+            const talla = tallaPorId.get(String(d.TallaID));
             const minimo = (parseFloat(producto.PrecioBase) || 0) + (parseFloat(talla?.Precio) || 0);
             const unitario = Number(d.PrecioUnitario);
             if (!Number.isFinite(unitario) || unitario + 0.5 < minimo) {
@@ -109,3 +118,4 @@ router.patch('/:id/cancelar', verificarToken, ventaPropiaOAdmin, soloPendienteSi
 
 
 module.exports = router;
+module.exports.preciosDelCliente = preciosDelCliente;

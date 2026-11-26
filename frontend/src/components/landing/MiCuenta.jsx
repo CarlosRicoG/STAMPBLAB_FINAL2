@@ -129,7 +129,7 @@ const MiCuenta = () => {
                                         <>
                                             <div className="mcu-order">
                                                 <div className="mcu-order-img">
-                                                    {primerDetalle?.producto?.ImagenProducto ? <img src={primerDetalle.producto.ImagenProducto} alt="" /> : <FaBoxOpen size={24} />}
+                                                    {primerDetalle?.producto?.ImagenProducto ? <img loading="lazy" decoding="async" src={primerDetalle.producto.ImagenProducto} alt="" /> : <FaBoxOpen size={24} />}
                                                 </div>
                                                 <div style={{ minWidth: 0 }}>
                                                     <div style={{ fontWeight: 900, color: C.navy, fontSize: 16 }}>Pedido #{enCurso.VentaID}</div>

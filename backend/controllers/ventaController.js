@@ -25,7 +25,16 @@ const log = require('../utils/log');
 const { errorDeComprobante } = require('../utils/comprobante');
 const { Op } = require('sequelize');
 
-// Obtener todas las ventas
+// El comprobante de transferencia (base64, hasta ~7 MB) solo viaja en GET /api/ventas/:id, que es donde se mira.
+// Las demás lecturas lo omiten y traen en su lugar TieneComprobante (0/1); así una escritura no lee ni devuelve megas sin necesidad.
+const TIENE_COMPROBANTE_SQL = "(`Venta`.`ComprobanteTransferencia` IS NOT NULL AND `Venta`.`ComprobanteTransferencia` <> '')";
+const sinComprobante = () => ({ exclude: ['ComprobanteTransferencia'], include: [[sequelize.literal(TIENE_COMPROBANTE_SQL), 'TieneComprobante']] });
+const tieneComprobante = (venta) => Boolean(typeof venta?.get === 'function' ? venta.get('TieneComprobante') : venta?.TieneComprobante);
+// Venta recién creada para la respuesta: sin el comprobante que se acaba de guardar, con TieneComprobante
+const respuestaSinComprobante = (venta) => {
+    const { ComprobanteTransferencia, ...datos } = typeof venta?.toJSON === 'function' ? venta.toJSON() : { ...venta };
+    return { ...datos, TieneComprobante: Boolean(ComprobanteTransferencia) };
+};
 
 // Errores de negocio (stock, datos) -> respuesta 4xx; el resto -> 500
 const responderError = (res, error, mensaje) => {
@@ -90,12 +99,9 @@ exports.getAllVentas = async (req, res) => {
         // no sobre las filas del JOIN con DetalleVenta.
         const rows = await Venta.findAll({
             where: whereVenta,
-            // El comprobante (imagen base64) puede pesar MB: en el listado solo se indica si existe;
-            // la imagen completa se obtiene con GET /api/ventas/:id
-            attributes: {
-                exclude: ['ComprobanteTransferencia'],
-                include: [[sequelize.literal('(`Venta`.`ComprobanteTransferencia` IS NOT NULL)'), 'TieneComprobante']]
-            },
+            // El comprobante (imagen base64) puede pesar MB: en el listado solo se indica si existe, con la misma regla
+            // que el resto (NULL o '' = sin comprobante); la imagen completa se obtiene con GET /api/ventas/:id
+            attributes: sinComprobante(),
             include: [
                 {
                     model: Usuario,
@@ -250,7 +256,7 @@ exports.crearVenta = async (req, res) => {
         await historial.registrar({ tipo: 'venta', refId: nuevaVenta.VentaID, estadoId: nuevaVenta.EstadoID, nota: 'Pedido recibido', documentoId: req.usuario?.id }, t);
         await t.commit();
         notificaciones.pedidoRecibido(nuevaVenta.VentaID); // correo al cliente (sin esperar; un fallo no afecta la venta)
-        return res.status(201).json({ message: "Venta creada correctamente", venta: nuevaVenta });
+        return res.status(201).json({ message: "Venta creada correctamente", venta: respuestaSinComprobante(nuevaVenta) });
     } catch (error) {
         await t.rollback();
         return responderError(res, error, 'Error al crear venta');
@@ -282,7 +288,7 @@ exports.updateEstadoVenta = async (req, res) => {
     const t = await sequelize.transaction();
     try {
         // Se bloquea la fila de la venta: peticiones simultáneas sobre la misma venta se ejecutan de a una
-        const venta = await Venta.findByPk(ventaId, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(ventaId, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
 
         const estadoAnterior = venta.EstadoID;
@@ -327,7 +333,7 @@ exports.updateEstadoVenta = async (req, res) => {
         const reembolsoPendiente = cancela && [ESTADO_VENTA.PAGADA, ESTADO_VENTA.EN_PRODUCCION, ESTADO_VENTA.LISTA_ENTREGA].includes(estadoAnterior);
         // Pendiente con un comprobante que nadie alcanzó a revisar: puede que el cliente sí haya transferido
         const pagoPorVerificar = cancela && estadoAnterior === ESTADO_VENTA.PENDIENTE && venta.MetodoPago === 'transferencia'
-            && Boolean(venta.ComprobanteTransferencia) && !venta.ComprobanteMotivoRechazo;
+            && tieneComprobante(venta) && !venta.ComprobanteMotivoRechazo;
 
         await venta.update({
             EstadoID: estadoNuevo,
@@ -354,7 +360,7 @@ exports.updateEstadoVenta = async (req, res) => {
 exports.marcarReembolsado = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
         if (!venta.ReembolsoPendiente) { await t.rollback(); return res.status(400).json({ message: 'Este pedido no tiene un reembolso pendiente' }); }
         await venta.update({ ReembolsoPendiente: false }, { transaction: t });
@@ -377,7 +383,7 @@ exports.updateVenta = async (req, res) => {
 
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(ventaId, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(ventaId, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
         if (venta.EstadoID === ESTADO_VENTA.CANCELADA) {
             await t.rollback();
@@ -441,9 +447,9 @@ exports.rechazarComprobante = async (req, res) => {
     const revisado = req.body.FechaTransferencia ? new Date(req.body.FechaTransferencia) : null;
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
-        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !venta.ComprobanteTransferencia) {
+        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !tieneComprobante(venta)) {
             await t.rollback();
             return res.status(400).json({ message: 'Solo se puede rechazar el comprobante de un pedido pendiente pagado por transferencia' });
         }
@@ -473,7 +479,7 @@ exports.subirComprobante = async (req, res) => {
     if (errorComprobante) return res.status(400).json({ message: errorComprobante });
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
         if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE) { await t.rollback(); return res.status(400).json({ message: 'Solo se puede subir el comprobante de un pedido pendiente' }); }
         if (venta.MetodoPago && venta.MetodoPago !== 'transferencia') { await t.rollback(); return res.status(400).json({ message: 'Este pedido no se paga por transferencia' }); }
@@ -500,7 +506,7 @@ exports.historial = async (req, res) => {
 exports.deleteVenta = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
 
         // Un pedido pagado, en producción o entregado es historial contable: no se borra, se cancela

@@ -8,7 +8,7 @@ jest.mock('../models', () => ({
     Carrito: { destroy: jest.fn() },
     DetalleCompra: {}, Compra: {}, Producto: {}, Tecnica: {}, Insumo: {}, InventarioProducto: {}, Color: {}, Talla: {},
     Estado: { findByPk: jest.fn() },
-    sequelize: { transaction: jest.fn(() => Promise.resolve(mockTx)) },
+    sequelize: { literal: jest.fn(), transaction: jest.fn(() => Promise.resolve(mockTx)) },
 }));
 jest.mock('../services/inventario', () => ({ reservar: jest.fn(), devolver: jest.fn() }));
 jest.mock('../services/historial', () => ({ registrar: jest.fn() }));
@@ -85,7 +85,7 @@ describe('deleteVenta: un cancelado con reembolso pendiente no se borra', () => 
 describe('rechazarComprobante: con bloqueo y sin pisar un comprobante nuevo', () => {
     const FECHA = '2026-11-20T15:00:00.000Z';
     const pendiente = (extra = {}) => ({
-        VentaID: 7, EstadoID: ESTADO_VENTA.PENDIENTE, MetodoPago: 'transferencia', ComprobanteTransferencia: comprobante,
+        VentaID: 7, EstadoID: ESTADO_VENTA.PENDIENTE, MetodoPago: 'transferencia', TieneComprobante: 1, // la fila bloqueada se lee sin el comprobante (base64)
         FechaTransferencia: new Date(FECHA), update: jest.fn(), ...extra,
     });
 

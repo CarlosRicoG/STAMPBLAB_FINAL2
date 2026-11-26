@@ -204,7 +204,7 @@ const ModalDetalle = ({ venta, onClose, config, onRecargar, onVolverAPedir }) =>
                         <div className="mc-item-h">
                             <div className="mc-item-img">
                                 {det.producto?.ImagenProducto
-                                    ? <img src={det.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
+                                    ? <img loading="lazy" decoding="async" src={det.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
                                     : <FaBoxOpen style={{ opacity: .5 }} />}
                             </div>
                             <div style={{ minWidth: 0 }}>
@@ -428,7 +428,7 @@ const MisCompras = () => {
                                                 <div className="mc-prod">
                                                     <div className="mc-thumb">
                                                         {primerDetalle.producto?.ImagenProducto
-                                                            ? <img src={primerDetalle.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
+                                                            ? <img loading="lazy" decoding="async" src={primerDetalle.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
                                                             : <FaBoxOpen style={{ opacity: .5 }} />}
                                                         {n > 1 && <span className="mc-more">+{n - 1}</span>}
                                                     </div>

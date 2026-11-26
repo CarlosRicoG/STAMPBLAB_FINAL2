@@ -9,7 +9,6 @@ import { C } from "../config/tokens";
 const MAX = 99999999;
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 .cf-p-tar, .cf-p-tar * { box-sizing: border-box; }
 .cf-p-tar { font-family: 'Outfit', sans-serif; background: ${C.bg}; min-height: 100%; padding: 28px 32px; }
 .cf-p-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }

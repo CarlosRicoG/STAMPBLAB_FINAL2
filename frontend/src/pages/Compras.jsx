@@ -12,7 +12,6 @@ const totalCompra = c => (c.detalles || []).reduce((s, d) => s + subtotalDet(d),
 
 /* Estilos compartidos del módulo (prefijo .cp-) */
 const CP_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 @keyframes cpFadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
 @keyframes cpFade { from{opacity:0} to{opacity:1} }
 @keyframes cpPop { from{opacity:0;transform:translateY(14px) scale(.97)} to{opacity:1;transform:none} }

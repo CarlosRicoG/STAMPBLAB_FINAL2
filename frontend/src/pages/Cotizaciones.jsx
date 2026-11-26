@@ -76,7 +76,6 @@ const swalTop = (opts) => Swal.fire({ ...opts, didOpen: () => { const c = docume
 
 /* ── CSS propio del módulo (prefijo cz-) ── */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 .cz-page, .cz-page *, .cz-modal, .cz-modal * { box-sizing: border-box; font-family: 'Outfit', sans-serif; }
 @keyframes cz-fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 @keyframes cz-pop { from { opacity: 0; transform: translateY(18px) scale(.97); } to { opacity: 1; transform: none; } }
@@ -362,7 +361,7 @@ const DisenoCard = ({ tec, editable, onGuardar, onVerImagen }) => {
     <div className={`cz-design ${falta ? "missing" : ""}`}>
       <div className="cz-dimg" onClick={() => img && onVerImagen(img)} style={{ cursor: img ? "zoom-in" : "default" }}>
         {img
-          ? <><img src={img} alt="Diseño" onError={e => { e.currentTarget.style.display = "none"; }} /><span className="cz-zoomhint">Ampliar</span></>
+          ? <><img loading="lazy" decoding="async" src={img} alt="Diseño" onError={e => { e.currentTarget.style.display = "none"; }} /><span className="cz-zoomhint">Ampliar</span></>
           : <div style={{ textAlign: "center", color: C.violet, opacity: .45 }}><FaImage size={34} /><p style={{ margin: "6px 0 0", fontSize: 11, fontWeight: 700 }}>Sin imagen</p></div>}
       </div>
       <div className="cz-dinfo">
@@ -565,7 +564,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onRecargar, onAprobar, on
               <div key={detalle.DetalleCotizacionID} className="cz-prod" style={{ animationDelay: `${index * 0.06}s` }}>
                 <div className="cz-prod-head">
                   {info.imagen ? (
-                    <img className="cz-prod-img" src={info.imagen} alt={info.nombre} onClick={() => setImagenModal(info.imagen)} />
+                    <img loading="lazy" decoding="async" className="cz-prod-img" src={info.imagen} alt={info.nombre} onClick={() => setImagenModal(info.imagen)} />
                   ) : (
                     <div className="cz-prod-img" style={{ cursor: "default", background: info.tipo === "personalizado" ? C.purpleSoft : C.warningSoft }}>
                       {info.tipo === "personalizado" ? <FaMagic size={24} color={C.violet} /> : <FaTshirt size={24} color={C.warning} />}
@@ -887,7 +886,7 @@ const Cotizaciones = () => {
                         <td><Badge type="navy">#{cot.CotizacionID}</Badge></td>
                         <td>
                           {producto.Imagen ? (
-                            <img className="cz-thumb" src={producto.Imagen} alt={producto.Nombre} onClick={() => setImagenModal(producto.Imagen)} />
+                            <img loading="lazy" decoding="async" className="cz-thumb" src={producto.Imagen} alt={producto.Nombre} onClick={() => setImagenModal(producto.Imagen)} />
                           ) : (
                             <div className="cz-thumb" style={{ cursor: "default" }}>
                               {producto.tipo === "personalizado" ? <FaMagic style={{ color: C.violet, opacity: .6 }} /> : <FaBoxOpen style={{ color: C.muted, opacity: 0.45, fontSize: 18 }} />}

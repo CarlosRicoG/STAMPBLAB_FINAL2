@@ -8,7 +8,6 @@ import { C } from "../config/tokens";
 
 /* ── Estilos .cf-p- (pulido visual; sin dependencias) ── */
 const CF_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 .cf-p-page, .cf-p-page *, .cf-p-overlay, .cf-p-overlay * { box-sizing: border-box; }
 .cf-p-page { font-family: 'Outfit', sans-serif; min-height: 100%; background: #f8fafc; padding: 28px 32px; color: #0f172a; }
 .cf-p-overlay { font-family: 'Outfit', sans-serif; }
@@ -244,7 +243,7 @@ const ImageModal = ({ show, onClose, tecnica }) => {
                 </div>
                 <div className="cf-p-mbody" style={{ background: C.white, textAlign: "center" }}>
                     {tecnica.imagenTecnica
-                        ? <img src={tecnica.imagenTecnica} alt={tecnica.Nombre} style={{ maxHeight: 480, maxWidth: "100%", borderRadius: 12, objectFit: "contain", margin: "0 auto" }} onError={e => { e.target.src = "https://via.placeholder.com/500x400?text=Error+al+cargar"; }} />
+                        ? <img src={tecnica.imagenTecnica} alt={tecnica.Nombre} style={{ maxHeight: 480, maxWidth: "100%", borderRadius: 12, objectFit: "contain", margin: "0 auto" }} onError={e => { e.target.onerror = null; e.target.src = "/placeholder-error.svg"; }} />
                         : <p style={{ color: C.muted }}>No hay imagen disponible</p>
                     }
                 </div>
@@ -284,7 +283,7 @@ const DetailModal = ({ show, onClose, tecnica, onEdit }) => {
                             <small>Imagen</small>
                             <div className="cf-p-img-frame" style={{ marginTop: 8 }}>
                                 <img src={tecnica.imagenTecnica} alt={tecnica.Nombre}
-                                    onError={e => { e.target.src = "https://via.placeholder.com/400x300?text=Error"; }} />
+                                    onError={e => { e.target.onerror = null; e.target.src = "/placeholder-error.svg"; }} />
                             </div>
                         </div>
                     )}
@@ -536,7 +535,7 @@ const Tecnicas = () => {
                                             </td>
                                             <td data-label="Imagen">
                                                 {t.imagenTecnica
-                                                    ? <img className="cf-p-thumb" src={t.imagenTecnica} alt={`Imagen de ${t.Nombre}`}
+                                                    ? <img loading="lazy" decoding="async" className="cf-p-thumb" src={t.imagenTecnica} alt={`Imagen de ${t.Nombre}`}
                                                         title="Ver imagen ampliada"
                                                         onClick={() => { setSelectedTecnica(t); setShowImageModal(true); }}
                                                         onError={e => { e.target.style.display = "none"; }}

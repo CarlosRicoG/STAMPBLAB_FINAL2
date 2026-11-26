@@ -42,7 +42,6 @@ const money = (n) => "$" + (Number(n) || 0).toLocaleString("es-CO");
    CSS (prefijo cat-)
 ══════════════════════════════════ */
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 .cat-page, .cat-page *, .cat-layer, .cat-layer * { box-sizing: border-box; font-family: 'Outfit', sans-serif; }
 .cat-page { background: linear-gradient(180deg, #f8fafc, #eef2f9 70%); min-height: 100vh; }
 .cat-layer button { font-family: 'Outfit', sans-serif; }
@@ -1170,7 +1169,7 @@ const ProductosLanding = () => {
                                             <article className="sx-card cat-card">
                                                 <div className="cat-media sx-zoom" onClick={() => openProductModal(p)}>
                                                     {p.ImagenProducto
-                                                        ? <img src={p.ImagenProducto} alt={p.Nombre} onError={e => { e.target.style.display = "none"; }} />
+                                                        ? <img loading="lazy" decoding="async" src={p.ImagenProducto} alt={p.Nombre} onError={e => { e.target.style.display = "none"; }} />
                                                         : <div className="cat-empty-img"><FaBoxOpen size={38} style={{ opacity: .4 }} />Sin imagen</div>}
                                                     <span className="cat-badge"><i /> Disponible</span>
                                                     <button className="cat-eye" onClick={(e) => { e.stopPropagation(); openProductModal(p); }} title="Ver detalle" aria-label="Ver detalle"><FaEye size={15} /></button>

@@ -277,7 +277,6 @@ const VentasPendientes = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
                 * { box-sizing: border-box; }
                 @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
                 @keyframes spin { to{transform:rotate(360deg)} }

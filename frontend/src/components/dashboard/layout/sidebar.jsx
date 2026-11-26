@@ -304,7 +304,6 @@ const Sidebar = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
                 ${CF_SHARED_CSS}
 
                 /* La columna del layout se adapta al ancho real de la barra (colapsar libera espacio) */

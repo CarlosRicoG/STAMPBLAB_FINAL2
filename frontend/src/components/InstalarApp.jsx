@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { FaDownload } from "react-icons/fa6";
 import { C } from "../config/tokens";
 
 const esStandalone = () =>
@@ -47,7 +48,7 @@ export default function InstalarApp() {
           background: "linear-gradient(135deg, #4f8ef7, #7c3aed)", boxShadow: "0 8px 20px rgba(124,58,237,.35)", cursor: "pointer",
         }}
       >
-        <i className="fa-solid fa-download" /> Cómo instalar
+        <FaDownload aria-hidden="true" /> Cómo instalar
       </button>
 
       {ayuda && (

@@ -306,7 +306,7 @@ const Servicios = () => {
                                     {tecnicasFiltradas.map((tecnica, index) => (
                                         <div key={tecnica.TecnicaID || index} className="sx-card sx-reveal svc-card" style={{ "--sx-i": index % 4 }}>
                                             <div className="svc-img sx-zoom">
-                                                <img
+                                                <img decoding="async"
                                                     src={obtenerImagenTecnica(tecnica)}
                                                     alt={tecnica.Nombre}
                                                     loading="lazy"

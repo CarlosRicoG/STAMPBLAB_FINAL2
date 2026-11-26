@@ -4,7 +4,6 @@
    violeta #7c3aed · verde #16a34a · texto #0f172a · muted #64748b
    Todas las clases llevan prefijo sx-
    ═══════════════════════════════════════════════════════════ */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
 
 :root {
   --sx-navy: #1a2540; --sx-navy-deep: #0f1824; --sx-accent: #4f8ef7; --sx-violet: #7c3aed;

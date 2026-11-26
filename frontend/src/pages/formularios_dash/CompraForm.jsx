@@ -29,7 +29,6 @@ const fechaLocalDe = (valor) => {
 };
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
 @keyframes cpPop { from{opacity:0;transform:translateY(14px) scale(.97)} to{opacity:1;transform:none} }
 @keyframes cpFade { from{opacity:0} to{opacity:1} }

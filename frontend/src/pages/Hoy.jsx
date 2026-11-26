@@ -15,7 +15,6 @@ import { EstadoBadge, fmtCOP, fmtFecha, fmtHora } from "./ModalDetalleVenta";
 import { C } from "../config/tokens";
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
 .cf-p-hoy, .cf-p-hoy * { box-sizing: border-box; }
 .cf-p-hoy { font-family: 'Outfit', sans-serif; background: ${C.bg}; min-height: 100%; padding: 28px 32px; }
 .cf-p-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }

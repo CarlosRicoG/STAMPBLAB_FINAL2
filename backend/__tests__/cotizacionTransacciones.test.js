@@ -9,8 +9,8 @@ jest.mock('../models', () => ({
     CotizacionColor: { bulkCreate: jest.fn() },
     CotizacionInsumo: { bulkCreate: jest.fn() },
     Talla: { findAll: jest.fn(), findByPk: jest.fn() },
-    Insumo: { findByPk: jest.fn() },
-    Producto: { findByPk: jest.fn() },
+    Insumo: { findAll: jest.fn(), findByPk: jest.fn() },
+    Producto: { findAll: jest.fn(), findByPk: jest.fn() },
     Venta: { create: jest.fn() },
     DetalleVenta: { create: jest.fn() },
     InventarioProducto: {},
@@ -48,8 +48,8 @@ beforeEach(() => {
 
 describe('Pedido directo (sin diseños): precios de talla con una sola consulta', () => {
     test('carga todas las tallas con un findAll y calcula el subtotal', async () => {
-        m.Producto.findByPk.mockResolvedValue({ ProductoID: 1, Nombre: 'Camiseta', PrecioBase: 10 });
-        m.Insumo.findByPk.mockResolvedValue(null);
+        m.Producto.findAll.mockResolvedValue([{ ProductoID: 1, Nombre: 'Camiseta', PrecioBase: 10 }]);
+        m.Insumo.findAll.mockResolvedValue([]);
         m.Talla.findAll.mockResolvedValue([{ TallaID: 1, Precio: 2 }, { TallaID: 2, Precio: 3 }]);
         m.Venta.create.mockResolvedValue({ VentaID: 9 });
         const res = mockRes();
@@ -67,7 +67,7 @@ describe('createCotizacionCompleta: todo o nada', () => {
     const cuerpo = { DocumentoID: 10, detalles: [{ ProductoID: 1, Cantidad: 2, tallas: [{ TallaID: 1 }], tecnicas: [{ TecnicaID: 1, ParteID: 1 }] }] };
 
     test('cada escritura va dentro de la transacción', async () => {
-        m.Producto.findByPk.mockResolvedValue({ ProductoID: 1 });
+        m.Producto.findAll.mockResolvedValue([{ ProductoID: 1 }]);
         m.Cotizacion.create.mockResolvedValue({ CotizacionID: 5 });
         m.DetalleCotizacion.create.mockResolvedValue({ DetalleCotizacionID: 7 });
         m.Cotizacion.findByPk.mockResolvedValue({ CotizacionID: 5, EstadoID: ESTADO_COTIZACION.PENDIENTE, detalles: [], update: jest.fn() });
@@ -84,7 +84,7 @@ describe('createCotizacionCompleta: todo o nada', () => {
     });
 
     test('si falla a mitad de camino se deshace y responde 500', async () => {
-        m.Producto.findByPk.mockResolvedValue({ ProductoID: 1 });
+        m.Producto.findAll.mockResolvedValue([{ ProductoID: 1 }]);
         m.Cotizacion.create.mockResolvedValue({ CotizacionID: 5 });
         m.DetalleCotizacion.create.mockResolvedValue({ DetalleCotizacionID: 7 });
         m.CotizacionTecnica.bulkCreate.mockRejectedValueOnce(new Error('falla'));
@@ -110,7 +110,7 @@ describe('calcularValorTotalCotizacion', () => {
     });
 
     test('createCotizacionCompleta: si falla el recálculo del total, se deshace todo', async () => {
-        m.Producto.findByPk.mockResolvedValue({ ProductoID: 1 });
+        m.Producto.findAll.mockResolvedValue([{ ProductoID: 1 }]);
         m.Cotizacion.create.mockResolvedValue({ CotizacionID: 5 });
         m.DetalleCotizacion.create.mockResolvedValue({ DetalleCotizacionID: 7 });
         m.Cotizacion.findByPk.mockRejectedValueOnce(new Error('falla'));
