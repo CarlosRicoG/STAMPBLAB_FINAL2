@@ -191,7 +191,7 @@ const Hoy = () => {
         if (!r.isConfirmed) return;
         setOcupado(`comp-${v.VentaID}`);
         try {
-            await rechazarComprobante(v.VentaID, r.value.trim());
+            await rechazarComprobante(v.VentaID, r.value.trim(), v.fecha);
             Swal.fire({ icon: "success", title: "Comprobante rechazado", text: "Se avisó al cliente por correo.", toast: true, position: "top-end", timer: 2600, showConfirmButton: false });
             await tras();
         } catch (e) { swalTop({ icon: "error", title: "No se pudo rechazar el comprobante", text: errMsg(e, "Intenta de nuevo.") }); }

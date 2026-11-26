@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { actualizarPreciosCarrito, plazoDePagoAplica,
     precioUnitarioPrenda, estimarProducto, estimarCotizacion, desgloseCotizacion, fechaLimitePago,
     textoTiempoRestante, textoCostoEnvio, fusionarCarritos, itemsParaVolverAPedir, urlWhatsApp,
-    validarComprobante, resumenAtencion, ultimoPedidoEnCurso, formatoFechaCO,
+    validarComprobante, resumenAtencion, ultimoPedidoEnCurso, formatoFechaCO, referenciaPlazoPago,
 } from "./clienteUtils";
 
 describe("estimado de cotización", () => {
@@ -42,6 +42,17 @@ describe("plazos", () => {
         expect(l.toISOString()).toBe("2026-01-03T10:00:00.000Z");
         expect(fechaLimitePago("x", 48)).toBeNull();
         expect(fechaLimitePago("2026-01-01", 0)).toBeNull();
+    });
+    it("comprobante rechazado: el plazo corre desde el rechazo (misma regla que el servidor)", () => {
+        const base = { MetodoPago: "transferencia", FechaVenta: "2026-01-01T10:00:00.000Z" };
+        const rechazado = { ...base, ComprobanteMotivoRechazo: "borroso", ComprobanteFechaRechazo: "2026-01-05T10:00:00.000Z" };
+        expect(referenciaPlazoPago(rechazado)).toBe("2026-01-05T10:00:00.000Z");
+        expect(fechaLimitePago(referenciaPlazoPago(rechazado), 48).toISOString()).toBe("2026-01-07T10:00:00.000Z");
+        // Sin rechazo, o rechazo antiguo sin fecha guardada: desde el pedido
+        expect(referenciaPlazoPago(base)).toBe(base.FechaVenta);
+        expect(referenciaPlazoPago({ ...base, ComprobanteMotivoRechazo: "borroso", ComprobanteFechaRechazo: null })).toBe(base.FechaVenta);
+        // Fecha de rechazo sin motivo (comprobante ya reemplazado): desde el pedido
+        expect(referenciaPlazoPago({ ...base, ComprobanteMotivoRechazo: null, ComprobanteFechaRechazo: "2026-01-05T10:00:00.000Z" })).toBe(base.FechaVenta);
     });
     it("texto de tiempo restante", () => {
         const ahora = new Date("2026-01-01T00:00:00Z");

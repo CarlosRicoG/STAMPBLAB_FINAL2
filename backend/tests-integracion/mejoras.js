@@ -217,6 +217,13 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     si('y queda como transferencia con el comprobante en revisión', (await call('GET', '/ventas/' + VSMP, undefined, adm)).j.MetodoPago === 'transferencia');
     if (VSP) await db.Venta.update({ ComprobanteTransferencia: null, FechaVenta: hace3dias }, { where: { VentaID: VSP } });
     await db.Venta.update({ FechaVenta: hace3dias }, { where: { VentaID: [VRV, VCE, VRECH].filter(Boolean) } });
+    // El plazo de un comprobante rechazado corre desde el rechazo: se mueve también esa fecha
+    if (VRECH) await db.Venta.update({ ComprobanteFechaRechazo: hace3dias }, { where: { VentaID: VRECH } });
+    // Pedido viejo con el comprobante rechazado hace un momento: todavía tiene el plazo completo
+    const VRECHN = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VRECHN);
+    r = await call('PATCH', `/ventas/${VRECHN}/rechazar-comprobante`, { motivo: 'Ilegible, súbelo otra vez' }, adm);
+    si('se rechaza el comprobante del pedido viejo (caso de plazo desde el rechazo)', !!VRECHN && r.s === 200, r.s);
+    if (VRECHN) await db.Venta.update({ FechaVenta: hace3dias }, { where: { VentaID: VRECHN } });
     const stockAntes = await stock();
     r = await call('POST', '/resumen/mantenimiento', {}, cli); si('el cliente no dispara el mantenimiento', r.s === 403, r.s);
     r = await call('POST', '/resumen/mantenimiento', {}, adm); si('el mantenimiento corre', r.s === 200 && r.j.pedidosCancelados >= 3, JSON.stringify(r.j));
@@ -224,6 +231,7 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     si('el pedido sin pago a tiempo se canceló solo', (await est(VSP)) === 12);
     si('el que tenía el comprobante rechazado y sin corregir también', (await est(VRECH)) === 12);
     si('el que tiene el comprobante en revisión NO se cancela', (await est(VRV)) === 8);
+    si('un pedido viejo con el comprobante rechazado hace poco NO se cancela (el plazo corre desde el rechazo)', (await est(VRECHN)) === 8);
     si('el pedido de cotización sin pago a tiempo también se cancela solo', (await est(VSM)) === 12);
     si('el pedido de cotización que subió su comprobante NO se cancela', (await est(VSMP)) === 8);
     si('el de contra entrega NO se cancela', (await est(VCE)) === 8);
@@ -297,7 +305,7 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     si('el contra entrega reciente no se toca ni se avisa', (await est(CEN)) === 8 && !(await hay(cli, new RegExp(`pedido #${CEN} se cancelará`))));
 
     console.log('--- limpieza');
-    for (const id of limpiar.ventas.filter(Boolean)) { await call('PATCH', `/ventas/${id}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${id}`, undefined, adm); }
+    for (const id of limpiar.ventas.filter(Boolean)) { await call('PATCH', `/ventas/${id}/estado`, { EstadoID: 12 }, adm); await call('PATCH', `/ventas/${id}/reembolsado`, undefined, adm); await call('DELETE', `/ventas/${id}`, undefined, adm); }
     for (const id of limpiar.cots.filter(Boolean)) { await call('PUT', `/cotizaciones/${id}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${id}`, undefined, adm); }
     await db.Notificacion.destroy({ where: { DocumentoID: 1888888881 } });
     await call('DELETE', '/usuarios/1888888881', undefined, adm);

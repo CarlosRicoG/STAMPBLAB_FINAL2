@@ -83,6 +83,16 @@ export function fechaLimitePago(fechaVenta, plazoPagoHoras) {
 }
 
 /**
+ * Fecha desde la que corre el plazo de pago (misma regla que referenciaPlazo del servidor): la del pedido, salvo un
+ * comprobante rechazado con fecha de rechazo, que cuenta desde el rechazo.
+ */
+export function referenciaPlazoPago(venta) {
+    if (!venta) return null;
+    const rechazado = venta.MetodoPago !== "contraentrega" && venta.ComprobanteMotivoRechazo != null && venta.ComprobanteFechaRechazo;
+    return rechazado ? venta.ComprobanteFechaRechazo : venta.FechaVenta;
+}
+
+/**
  * ¿Corre un plazo para pagar este pedido? Solo si está pendiente, es por transferencia (o aún no tiene método de pago:
  * los pedidos que nacen de una cotización aceptada se pagan por transferencia) y todavía no hay un comprobante
  * válido (sin comprobante, o rechazado). Los de contra entrega y los que tienen el comprobante en revisión no se
@@ -249,7 +259,7 @@ export function resumenAtencion(cotizaciones = [], ventas = [], plazoPagoHoras =
     const esPendiente = (v) => Number(v.EstadoID) === 8 || nombreEstado(v) === "Pendiente";
     const rechazados = ventas.filter((v) => esPendiente(v) && v.ComprobanteMotivoRechazo);
     const pendientesPago = ventas.filter((v) => plazoDePagoAplica(v) && !v.ComprobanteMotivoRechazo).map((v) => {
-        const limite = fechaLimitePago(v.FechaVenta, plazoPagoHoras);
+        const limite = fechaLimitePago(referenciaPlazoPago(v), plazoPagoHoras);
         return { venta: v, limite, restante: textoTiempoRestante(limite, ahora) };
     });
     return {

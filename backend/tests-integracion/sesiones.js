@@ -56,7 +56,15 @@ const si = (n, c, d = '') => { if (!c) bad++; console.log((c ? 'OK   ' : 'FALLA'
         if (nuevo) {
             si('el token nuevo vive ~2 h y es otro distinto', jwt.decode(nuevo).exp - jwt.decode(nuevo).iat >= 7000 && jwt.decode(nuevo).jti !== 'prueba-' + doc);
             exp('el token nuevo funciona', await call('GET', '/usuarios/' + doc, null, nuevo), 200);
+            si('el token nuevo sigue siendo la misma sesión (hereda el sid)', jwt.decode(nuevo).sid === 'prueba-' + doc, JSON.stringify(jwt.decode(nuevo)));
+            exp('cerrar sesión con el token renovado', await call('POST', '/logout', null, nuevo), 200);
+            exp('el token ANTERIOR de esa sesión (copiado) ya no sirve ni se renueva', await call('GET', '/usuarios/' + doc, null, porVencer), 401);
         }
+        // Tope absoluto (SESION_VIDA_MAXIMA_HORAS, 24 por defecto): una sesión iniciada hace 25 h ya no se renueva
+        const ahoraS = Math.floor(Date.now() / 1000);
+        const vieja = jwt.sign({ id: Number(doc), rol: 2, jti: 'vieja-' + doc, sid: 'vieja-' + doc, ini: ahoraS - 25 * 3600, sv: 1 }, SECRETO, { expiresIn: 600 });
+        const r2 = await call('GET', '/usuarios/' + doc, null, vieja);
+        si('pasada la vida máxima de la sesión ya no se renueva', r2.s === 200 && !r2.h.get('x-token-renovado'), 'estado ' + r2.s);
 
         console.log('--- compatibilidad y robustez');
         // formato anterior (sin jti ni sv) de un usuario que NO ha cambiado su clave: sigue valiendo

@@ -29,13 +29,28 @@ describe('Vencimiento de pedidos sin pago (pedidosConPlazo)', () => {
         expect(condiciones).toContainEqual({ [Op.is]: null });
     });
 
-    test('transferencia: vence pasadas las horas del plazo y solo sin comprobante válido', () => {
+    test('transferencia sin comprobante: vence pasadas las horas del plazo desde la fecha del pedido', () => {
         const [transferencia] = ramas(pedidosConPlazo({ ahora: AHORA, plazoPagoHoras: 48, plazoContraentregaDias: 0 }));
-        expect(transferencia.FechaVenta[Op.lt]).toEqual(horas(48));
-        const sinComprobante = transferencia[Op.or];
-        expect(sinComprobante).toContainEqual({ ComprobanteTransferencia: null });
-        expect(sinComprobante).toContainEqual({ ComprobanteTransferencia: '' });
-        expect(sinComprobante).toContainEqual({ ComprobanteMotivoRechazo: { [Op.ne]: null } }); // comprobante rechazado y sin corregir
+        const [sinComprobante] = transferencia[Op.or];
+        expect(sinComprobante[Op.or]).toContainEqual({ ComprobanteTransferencia: null });
+        expect(sinComprobante[Op.or]).toContainEqual({ ComprobanteTransferencia: '' });
+        expect(sinComprobante.FechaVenta[Op.lt]).toEqual(horas(48));
+    });
+
+    test('transferencia con comprobante rechazado: el plazo corre desde el rechazo, no desde el pedido', () => {
+        const [transferencia] = ramas(pedidosConPlazo({ ahora: AHORA, plazoPagoHoras: 48, plazoContraentregaDias: 0 }));
+        const [, rechazado, rechazadoAntiguo] = transferencia[Op.or];
+        expect(rechazado.ComprobanteMotivoRechazo).toEqual({ [Op.ne]: null });
+        expect(rechazado.ComprobanteFechaRechazo[Op.lt]).toEqual(horas(48));
+        expect(rechazado.FechaVenta).toBeUndefined();
+        // Rechazos sin fecha guardada (anteriores a la columna): se sigue contando desde el pedido
+        expect(rechazadoAntiguo).toEqual({ ComprobanteMotivoRechazo: { [Op.ne]: null }, ComprobanteFechaRechazo: null, FechaVenta: { [Op.lt]: horas(48) } });
+    });
+
+    test('transferencia con comprobante en revisión (sin rechazo): ninguna rama lo incluye', () => {
+        const [transferencia] = ramas(pedidosConPlazo({ ahora: AHORA, plazoPagoHoras: 48, plazoContraentregaDias: 0 }));
+        expect(transferencia[Op.or]).toHaveLength(3);
+        expect(transferencia.FechaVenta).toBeUndefined();
     });
 
     test('contra entrega: el plazo es en días y no depende del comprobante', () => {
@@ -47,8 +62,10 @@ describe('Vencimiento de pedidos sin pago (pedidosConPlazo)', () => {
 
     test('con margen (aviso previo): ventana entre "plazo - margen" y el plazo, sin cancelar aún', () => {
         const [transferencia] = ramas(pedidosConPlazo({ ahora: AHORA, plazoPagoHoras: 48, plazoContraentregaDias: 0, margenHoras: 24, desde: true }));
-        const [desde, hasta] = transferencia.FechaVenta[Op.between];
-        expect(hasta).toEqual(horas(48 - 24));   // ya pasaron 24 h
-        expect(desde).toEqual(horas(48));         // pero todavía no se cumplen las 48 h
+        const [sinComprobante, rechazado] = transferencia[Op.or];
+        for (const [desde, hasta] of [sinComprobante.FechaVenta[Op.between], rechazado.ComprobanteFechaRechazo[Op.between]]) {
+            expect(hasta).toEqual(horas(48 - 24));   // ya pasaron 24 h
+            expect(desde).toEqual(horas(48));         // pero todavía no se cumplen las 48 h
+        }
     });
 });

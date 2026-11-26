@@ -116,7 +116,8 @@ export const marcarReembolsado = async (id) => {
     return response.data;
 };
 
-export const rechazarComprobante = async (id, motivo) => {
-    const response = await axios.patch(`${API_URL}/${id}/rechazar-comprobante`, { motivo });
+// fechaTransferencia: la del comprobante que se revisó; si el cliente subió otro mientras tanto, el servidor responde 409
+export const rechazarComprobante = async (id, motivo, fechaTransferencia) => {
+    const response = await axios.patch(`${API_URL}/${id}/rechazar-comprobante`, { motivo, ...(fechaTransferencia ? { FechaTransferencia: fechaTransferencia } : {}) });
     return response.data;
 };

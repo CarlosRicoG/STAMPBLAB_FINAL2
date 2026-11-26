@@ -11,6 +11,7 @@ const {
     Color,
     Talla,
     Estado,
+    Carrito,
     sequelize
 } = require('../models');
 
@@ -242,6 +243,10 @@ exports.crearVenta = async (req, res) => {
             }, { transaction: t });
         }
 
+        // Compra del cliente: compra todo su carrito, así que el guardado en el servidor se vacía en la misma transacción
+        // (si no, al entrar desde otro equipo reaparecerían productos ya comprados)
+        if (req.usuario && !esAdmin(req)) await Carrito.destroy({ where: { DocumentoID }, transaction: t });
+
         await historial.registrar({ tipo: 'venta', refId: nuevaVenta.VentaID, estadoId: nuevaVenta.EstadoID, nota: 'Pedido recibido', documentoId: req.usuario?.id }, t);
         await t.commit();
         notificaciones.pedidoRecibido(nuevaVenta.VentaID); // correo al cliente (sin esperar; un fallo no afecta la venta)
@@ -364,7 +369,7 @@ exports.marcarReembolsado = async (req, res) => {
 
 // ACTUALIZAR VENTA COMPLETA (con detalles)
 exports.updateVenta = async (req, res) => {
-    const { EstadoID, Subtotal, Total, detalles } = req.body;
+    const { EstadoID, detalles } = req.body; // Subtotal y Total del cuerpo se ignoran: los calcula el servidor
     const ventaId = req.params.id;
 
     // Si solo se actualiza el estado: misma lógica (y devolución de stock) que PATCH /:id/estado
@@ -410,9 +415,11 @@ exports.updateVenta = async (req, res) => {
                     InventarioID: item.InventarioID || null
                 }, { transaction: t });
             }
+            // Totales calculados aquí con las líneas nuevas; el costo de envío del pedido se conserva
+            const subtotal = detalles.reduce((s, d) => s + Number(d.Cantidad) * Number(d.PrecioUnitario), 0);
             await venta.update({
-                Subtotal: Subtotal || venta.Subtotal,
-                Total: Total || venta.Total,
+                Subtotal: subtotal,
+                Total: subtotal + (Number(venta.CostoEnvio) || 0),
                 EstadoID: EstadoID || venta.EstadoID
             }, { transaction: t });
         }
@@ -425,43 +432,61 @@ exports.updateVenta = async (req, res) => {
     }
 };
 
-// El administrador rechaza el comprobante de transferencia con un motivo; el pedido sigue pendiente y el cliente puede subir otro
+// El administrador rechaza el comprobante de transferencia con un motivo; el pedido sigue pendiente y el cliente puede subir otro.
+// Con la fila bloqueada: no se cruza con una subida, un pago o la cancelación automática del mismo pedido.
+// Si el panel envía FechaTransferencia (la del comprobante que revisó) y ya no coincide con la actual -> 409.
 exports.rechazarComprobante = async (req, res) => {
     const motivo = typeof req.body.motivo === 'string' ? req.body.motivo.trim() : '';
     if (motivo.length < 5 || motivo.length > 300) return res.status(400).json({ message: 'Escribe el motivo del rechazo (entre 5 y 300 caracteres)' });
+    const revisado = req.body.FechaTransferencia ? new Date(req.body.FechaTransferencia) : null;
+    const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id);
-        if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
+        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
         if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !venta.ComprobanteTransferencia) {
+            await t.rollback();
             return res.status(400).json({ message: 'Solo se puede rechazar el comprobante de un pedido pendiente pagado por transferencia' });
         }
-        await venta.update({ ComprobanteMotivoRechazo: motivo });
-        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: `Comprobante rechazado: ${motivo}`, documentoId: req.usuario?.id });
+        // Se compara al segundo (la columna DATETIME no guarda milisegundos)
+        const segundo = (f) => Math.floor(new Date(f).getTime() / 1000);
+        if (revisado && !Number.isNaN(revisado.getTime()) && (!venta.FechaTransferencia || segundo(revisado) !== segundo(venta.FechaTransferencia))) {
+            await t.rollback();
+            const message = 'El cliente subió otro comprobante mientras lo revisabas. Vuelve a abrir el pedido y revisa el nuevo.';
+            return res.status(409).json({ message, mensaje: message });
+        }
+        // La fecha del rechazo reinicia el plazo de pago (PLAZO_PAGO_HORAS desde aquí) y habilita de nuevo el aviso previo
+        await venta.update({ ComprobanteMotivoRechazo: motivo, ComprobanteFechaRechazo: new Date(), AvisoVencimiento: false }, { transaction: t });
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: `Comprobante rechazado: ${motivo}`, documentoId: req.usuario?.id }, t);
+        await t.commit();
         notificaciones.comprobanteRechazado(venta.VentaID, motivo);
         return res.json({ message: 'Comprobante rechazado; se avisó al cliente', venta });
     } catch (error) {
+        await t.rollback().catch(() => {});
         return responderError(res, error, 'Error al rechazar el comprobante');
     }
 };
 
-// El cliente (o el administrador) sube o reemplaza el comprobante de un pedido pendiente
+// El cliente (o el administrador) sube o reemplaza el comprobante de un pedido pendiente (con la fila bloqueada)
 exports.subirComprobante = async (req, res) => {
     const { comprobanteTransferencia, fechaTransferencia } = req.body;
     const errorComprobante = errorDeComprobante(comprobanteTransferencia);
     if (errorComprobante) return res.status(400).json({ message: errorComprobante });
+    const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id);
-        if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
-        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE) return res.status(400).json({ message: 'Solo se puede subir el comprobante de un pedido pendiente' });
-        if (venta.MetodoPago && venta.MetodoPago !== 'transferencia') return res.status(400).json({ message: 'Este pedido no se paga por transferencia' });
+        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
+        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE) { await t.rollback(); return res.status(400).json({ message: 'Solo se puede subir el comprobante de un pedido pendiente' }); }
+        if (venta.MetodoPago && venta.MetodoPago !== 'transferencia') { await t.rollback(); return res.status(400).json({ message: 'Este pedido no se paga por transferencia' }); }
         await venta.update({
             MetodoPago: 'transferencia', ComprobanteTransferencia: comprobanteTransferencia.trim(),
-            FechaTransferencia: fechaTransferencia ? new Date(fechaTransferencia) : new Date(), ComprobanteMotivoRechazo: null,
-        });
-        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Comprobante de pago recibido', documentoId: req.usuario?.id });
+            FechaTransferencia: fechaTransferencia ? new Date(fechaTransferencia) : new Date(), ComprobanteMotivoRechazo: null, ComprobanteFechaRechazo: null,
+        }, { transaction: t });
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Comprobante de pago recibido', documentoId: req.usuario?.id }, t);
+        await t.commit();
         notificaciones.comprobanteSubido(venta.VentaID);
         return res.json({ message: 'Comprobante recibido. Lo revisaremos pronto.', venta: { VentaID: venta.VentaID } });
     } catch (error) {
+        await t.rollback().catch(() => {});
         return responderError(res, error, 'Error al subir el comprobante');
     }
 };
@@ -482,6 +507,13 @@ exports.deleteVenta = async (req, res) => {
         if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE && venta.EstadoID !== ESTADO_VENTA.CANCELADA) {
             await t.rollback();
             const message = 'No se puede eliminar un pedido ya pagado, en producción o entregado porque es historial. Si fue un error, cancélalo.';
+            return res.status(400).json({ message, mensaje: message });
+        }
+
+        // Cancelado con el dinero aún sin devolver: borrarlo haría desaparecer el reembolso pendiente
+        if (venta.ReembolsoPendiente) {
+            await t.rollback();
+            const message = 'No se puede eliminar: este pedido tiene un reembolso pendiente. Márcalo como reembolsado antes de eliminarlo.';
             return res.status(400).json({ message, mensaje: message });
         }
 

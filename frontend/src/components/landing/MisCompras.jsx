@@ -11,7 +11,7 @@ import { getTallas } from "../../Services/api-productos/atributos";
 import { getHistorialVenta, subirComprobanteVenta, archivoADataURL, mensajeError } from "../../Services/api-cliente/cliente";
 import { guardarCarritoServidor } from "../../Services/api-carrito/carrito";
 import { escapeHtml } from "../../utils/escapeHtml";
-import { plazoDePagoAplica, fechaLimitePago, textoTiempoRestante, formatoFechaHoraCO, formatoFechaCO, validarComprobante, itemsParaVolverAPedir, fusionarCarritos, textoCostoEnvio } from "../../utils/clienteUtils";
+import { plazoDePagoAplica, fechaLimitePago, referenciaPlazoPago, textoTiempoRestante, formatoFechaHoraCO, formatoFechaCO, validarComprobante, itemsParaVolverAPedir, fusionarCarritos, textoCostoEnvio } from "../../utils/clienteUtils";
 import { LineaTiempo, BotonWhatsApp, useConfigPublica, CLIENTE_CSS } from "./clienteKit";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
@@ -97,7 +97,7 @@ const BotonComprobante = ({ venta, etiqueta, onSubido }) => {
 /* Avisos del pedido pendiente: plazo para pagar, comprobante rechazado o faltante */
 const AvisosPago = ({ venta, config, onSubido }) => {
     if (!esPendiente(venta)) return null;
-    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras) : null;
+    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(referenciaPlazoPago(venta), config?.plazoPagoHoras) : null;
     const restante = textoTiempoRestante(limite);
     return (
         <>
@@ -449,7 +449,7 @@ const MisCompras = () => {
                                                 </div>
 
                                                 {estadoNombre === "Pendiente" && (() => {
-                                                    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras) : null;
+                                                    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(referenciaPlazoPago(venta), config?.plazoPagoHoras) : null;
                                                     return (
                                                         <>
                                                             {venta.ComprobanteMotivoRechazo && (

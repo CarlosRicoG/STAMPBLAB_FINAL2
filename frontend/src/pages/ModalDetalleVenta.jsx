@@ -2,6 +2,7 @@
 import { descargarComprobante, getHistorialVenta, rechazarComprobante, marcarReembolsado } from "../Services/api-ventas/ventas";
 import { getConfigPublica } from "../Services/api-resumen/resumen";
 import { siguientesEstados, NOMBRE_ESTADO_VENTA, ESTADOS_CON_FECHA, hoyISO, whatsappUrl, fechaLimitePago } from "../Services/api-ventas/flujo";
+import { referenciaPlazoPago } from "../utils/clienteUtils";
 import React, { useEffect, useState } from 'react';
 import Swal from "sweetalert2";
 import { FaCreditCard, FaTruck, FaInfoCircle, FaTimes, FaUser, FaReceipt, FaMapMarkerAlt, FaPhoneAlt, FaEnvelope, FaIdCard, FaCheck, FaBan, FaSearchPlus, FaDownload, FaBoxOpen, FaStore, FaWhatsapp, FaHistory, FaCalendarAlt, FaClock } from 'react-icons/fa';
@@ -533,7 +534,7 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
         setRechazando(true);
         try {
             const motivo = r.value.trim();
-            await rechazarComprobante(ventaID, motivo);
+            await rechazarComprobante(ventaID, motivo, venta?.FechaTransferencia);
             setMotivoLocal(motivo);
             Swal.fire({ icon: "success", title: "Comprobante rechazado", text: "Se avisó al cliente por correo.", timer: 2200, showConfirmButton: false,
                 didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; } });
@@ -573,7 +574,7 @@ const ModalDetalleVenta = ({ venta, onClose, footerExtra, onActualizado }) => {
     const costoEnvio = parseFloat(venta.CostoEnvio) || 0;
     const telefonoCliente = venta.ContactoTelefono || cliente.Telefono || venta.TelefonoEntrega;
     const waUrl = whatsappUrl(telefonoCliente, `Hola ${venta.ContactoNombre || cliente.Nombre || ""}, te escribimos de STAMPLAB sobre tu pedido #${venta.VentaID}.`.replace(/\s+,/, ","));
-    const limitePago = pendiente ? fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras) : null;
+    const limitePago = pendiente ? fechaLimitePago(referenciaPlazoPago(venta), config?.plazoPagoHoras) : null;
     // Las fechas "YYYY-MM-DD" se interpretan como día local (new Date() las toma como UTC y mostraría el día anterior)
     const fe = venta.FechaEstimadaEntrega ? String(venta.FechaEstimadaEntrega).slice(0, 10) : "";
     const fechaEstimada = /^\d{4}-\d{2}-\d{2}$/.test(fe) ? new Date(+fe.slice(0, 4), +fe.slice(5, 7) - 1, +fe.slice(8, 10)) : null;

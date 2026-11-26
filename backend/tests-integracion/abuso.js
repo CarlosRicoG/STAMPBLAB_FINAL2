@@ -248,12 +248,12 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
         if (id) await call('DELETE', x[1] + '/' + id, undefined, adm);
     }
     creadas.splice(0, creadas.length, ...creadas.filter((y) => !(Array.isArray(y) && y[0] === 'basura')));
-    if (VA) { await call('PATCH', `/ventas/${VA}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${VA}`, undefined, adm); }
+    if (VA) { await call('PATCH', `/ventas/${VA}/estado`, { EstadoID: 12 }, adm); await call('PATCH', `/ventas/${VA}/reembolsado`, undefined, adm); await call('DELETE', `/ventas/${VA}`, undefined, adm); }
     if (CA) { await call('PUT', `/cotizaciones/${CA}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${CA}`, undefined, adm); }
     await call('DELETE', '/usuarios/' + OTRO, undefined, adm);
     for (const x of creadas) {
         if (Array.isArray(x)) { await call('PUT', `/cotizaciones/${x[1]}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${x[1]}`, undefined, adm); }
-        else { await call('PATCH', `/ventas/${x}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${x}`, undefined, adm); }
+        else { await call('PATCH', `/ventas/${x}/estado`, { EstadoID: 12 }, adm); await call('PATCH', `/ventas/${x}/reembolsado`, undefined, adm); await call('DELETE', `/ventas/${x}`, undefined, adm); }
     }
     const despues = await stock();
     si('el stock quedó igual que al empezar', despues === stock0, `antes ${stock0} después ${despues}`);

@@ -131,3 +131,28 @@ Recorrido completo (pruebas, integración, E2E y lectura de código de los flujo
 - ✅ La cancelación del cliente se comprueba con la fila bloqueada; cancelar con comprobante sin revisar avisa al administrador.
 - ✅ Bandeja "Hoy": 702 KB → 2.7 KB, totales reales y mismo conteo que el menú. Indicadores por pedidos, año en curso y hora de Colombia.
 Sigue pendiente: A18 (clave de admin por defecto en el compose), contraentrega (decisión de negocio), un solo administrador (los permisos no se aplican en el backend), comprobantes en base64 dentro de la base, paginar compras/insumos/proveedores, y la cobertura unitaria del backend (≈35 %; la integración cubre el resto pero no se mide).
+
+## 9. Auditoría del 2026-11-25 (rama `ola-a-dinero-sesion`)
+
+Revisión de backend, frontend, infraestructura y CI. Solo hallazgos que no estaban registrados arriba. Estado al 2026-11-26.
+
+### Ola A: dinero y sesión (✅ corregida, con pruebas unitarias e integración 11/11)
+| # | Hallazgo | Corrección |
+|---|---|---|
+| S1 [V] | Logout solo revocaba el último token; un token anterior copiado se renovaba sin fin | `sid` estable heredado al renovar y revocado en el logout; tope `SESION_VIDA_MAXIMA_HORAS` (24 por defecto) |
+| S2 [V] | `updateVenta` guardaba el `Total` del cliente y perdía `CostoEnvio` | Subtotal y total se recalculan en el servidor |
+| S3 [V] | El carrito del servidor no se vaciaba al comprar (podía volver lo comprado) | Se vacía en la misma transacción de la compra del cliente |
+| S4 [V] | Se podía borrar un pedido cancelado con reembolso pendiente | 400 |
+| S5 [V] | Comprobante rechazado tras el plazo cancelaba el pedido en menos de 1 h | Columna `ComprobanteFechaRechazo` (migración 20261126000000); el plazo cuenta desde el rechazo, también en Mis compras y en el panel |
+| S6 [V] | Carreras al subir/rechazar comprobante y al vencer | Transacción y `FOR UPDATE`; el vencimiento reevalúa la regla con la fila bloqueada; 409 si el cliente subió otro comprobante |
+| S7 [V] | `POST /api/ventas` aceptaba cualquier `EstadoID` | Solo Pendiente o Pagada |
+
+Limitación: el 409 compara `FechaTransferencia`, que envía el cliente; quien la repita a propósito lo evita (protección completa: hash del comprobante).
+
+**Defecto previo encontrado durante la verificación (⏳):** al borrar un usuario se sube su versión de sesión en memoria; si se registra de nuevo con el mismo documento, sus tokens se rechazan hasta reiniciar la API (`services/sesion.js`, `versiones`). Una segunda corrida de la integración sin reiniciar la API falla por esto.
+
+### Pendiente por olas
+- **Ola B, seguridad y operación (⏳):** tope a `detalles[].tecnicas` y longitud de textos (DoS con cuenta de cliente); cuota y limpieza de `upload-diseno`; Joi en `PUT /usuarios/:id`; `authInterceptors.js` lee `VITE_API_URL` directo y puede enviar el token a URLs ajenas con `/api/`; CSP sin `script-src`/`connect-src`; `server.js` registra la URL completa (datos personales) en producción; sin manejo de SIGTERM (y `sh`/`npm` como PID 1); variables de entorno sin documentar ni pasar en el compose (`MAIL_HOST/PORT/SECURE/FROM`, `SESION_*`, `ZONA_HORARIA`, `JOBS_DESACTIVADOS`…); `/api/salud` y healthcheck; CI sin `permissions`, `concurrency`, `timeout-minutes`, E2E ni `docker compose build`; restos en `server.js` (limitador de `/api/usuarios/login`, mapa de endpoints en `/`, CORS por defecto con el dominio de Vercel); `deleteInventario` solo mira pedidos Pendiente; `createCotizacionCompleta` sin transacción.
+- **Ola C, Ley 1581 (⏳ ❓):** aviso de privacidad y autorización en el registro; exportar y suprimir datos del titular. Requiere el texto legal del negocio.
+- **Ola D, rendimiento (⏳):** el service worker precarga ≈3,4 MB de JS del admin; `DashboardLayout` no es diferido; JS de Bootstrap sin uso; Font Awesome por CDN; Google Fonts importado ≈20 veces; base64 del comprobante leído y devuelto sin necesidad; listados de cotizaciones con 5 `include` anidados; N+1 en ventas, cotizaciones y notificaciones; roles con todos sus usuarios; lectura de usuarios cada 30 s.
+- **Ola E, mantenibilidad (= Ola 4):** partir `Productos.jsx`, `CotizacionesL.jsx`, `FormularioCotizacion.jsx`, `CompraForm.jsx`, `ModalDetalleVenta.jsx` y `Cotizaciones.jsx`; extraer `formatPrecio`, `swalTop` y la subida de diseños; ≈1800 colores hex fuera de `tokens.js`; modales de la tienda sin accesibilidad; panel admin no adaptable a móvil; comprobante PDF mostrado con `<img>`; respuesta vieja de variantes en `CotizacionesL.jsx`; migración base con `sequelize.sync()`; umbral de cobertura.

@@ -132,7 +132,10 @@ const comprobanteRechazado = seguro(async (ventaId, motivo) => {
     const venta = await cargarVenta(ventaId);
     if (!venta) return;
     if (venta.usuario?.Correo) {
-        const { asunto, html } = plantillas.comprobanteRechazado({ usuario: venta.usuario, venta, motivo });
+        // El plazo de pago vuelve a correr desde el rechazo: se le dice al cliente hasta cuándo sigue reservado
+        const { plazoPagoHoras } = configuracion.leer();
+        const hasta = plazoPagoHoras && venta.ComprobanteFechaRechazo ? new Date(new Date(venta.ComprobanteFechaRechazo).getTime() + plazoPagoHoras * 3600 * 1000) : null;
+        const { asunto, html } = plantillas.comprobanteRechazado({ usuario: venta.usuario, venta, motivo, hasta });
         await correo.enviar({ para: venta.usuario.Correo, asunto, html });
     }
     await avisos.paraUsuario(venta.DocumentoID, { tipo: 'pago', enlace: '/miscompras', mensaje: `No pudimos validar el comprobante del pedido #${venta.VentaID}: ${motivo}. Sube uno nuevo desde "Mis compras".` });

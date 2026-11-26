@@ -118,6 +118,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(300),
       allowNull: true
     },
+    // Cuándo se rechazó el comprobante: desde aquí corre de nuevo el plazo de pago (PLAZO_PAGO_HORAS)
+    ComprobanteFechaRechazo: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     // Datos del cliente al momento de pedir (el perfil puede cambiar después sin alterar el pedido)
     ContactoNombre: { type: DataTypes.STRING(100), allowNull: true },
     ContactoTelefono: { type: DataTypes.STRING(20), allowNull: true },

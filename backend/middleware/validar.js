@@ -4,6 +4,7 @@
  * Responde 400 con { estado:false, mensaje, message, errores:[...] } si el cuerpo no cumple.
  */
 const Joi = require('joi');
+const { ESTADO_VENTA } = require('../config/estados');
 
 const mensajes = {
     'any.required': '{{#label}} es obligatorio',
@@ -69,6 +70,8 @@ const esquemas = {
         DocumentoID: documento,
         Subtotal: dinero('El subtotal'),
         Total: dinero('El total'),
+        // Un pedido nace Pendiente o, si el administrador ya cobró, Pagada; nunca en producción, entregado o cancelado
+        EstadoID: Joi.number().integer().valid(ESTADO_VENTA.PENDIENTE, ESTADO_VENTA.PAGADA).label('El estado inicial del pedido'),
         metodoPago: Joi.string().valid('transferencia', 'contraentrega').allow(null, ''),
         // Datos de entrega: los límites son los de las columnas (un teléfono de 21 caracteres daba un error 500 sin explicación)
         nombreReceptor: Joi.string().trim().max(100).allow('', null).label('El nombre de quien recibe'),
