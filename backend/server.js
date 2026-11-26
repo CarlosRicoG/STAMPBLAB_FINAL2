@@ -20,9 +20,8 @@ else if (trustProxy && !['false', 'no'].includes(trustProxy.toLowerCase())) app.
 
 
 // ==================== MIDDLEWARES ====================
-// Orígenes permitidos (CORS_ORIGIN, separados por coma)
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173,https://stamp-lab-proyecto.vercel.app')
-    .split(',').map(o => o.trim());
+// Orígenes permitidos (CORS_ORIGIN, separados por coma). En producción es obligatorio: sin él no se arranca.
+const allowedOrigins = require('./config/cors').origenesPermitidos();
 // Cabeceras de seguridad (las imagenes de diseños se sirven a otro origen: el frontend)
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(compression()); // JSON y textos pesan mucho menos; las imágenes y los PDF ya vienen comprimidos y se dejan igual
@@ -77,58 +76,23 @@ const uploadDir = path.join(__dirname, 'uploads', 'disenos');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 
-// Middleware para logging
+// Registro de peticiones (solo fuera de producción, ver utils/log): método, ruta sin query y con los documentos
+// enmascarados, estado y duración. Nunca la URL completa (podría llevar correos, documentos o tokens).
+const log = require('./utils/log');
 app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
+    if (req.path === '/api/salud') return next(); // el healthcheck llama cada pocos segundos
+    const inicio = process.hrtime.bigint();
+    const peticion = { method: req.method, path: req.path }; // ahora: dentro de un router req.path pierde el prefijo
+    res.on('finish', () => log(log.lineaPeticion(peticion, res.statusCode, Number(process.hrtime.bigint() - inicio) / 1e6)));
     next();
 });
 
 
 // ==================== RUTA PRINCIPAL ====================
-app.get('/', (req, res) => {
-    res.json({
-        message: 'API de STAMPLAB funcionando correctamente',
-        version: '1.0.0',
-        documentacion: 'https://tu-dominio.com/api-docs',
-        endpoints: {
-            // Gestión de Usuarios y Permisos
-            roles: '/api/roles',
-            permisos: '/api/permisos',
-            privilegios: '/api/privilegios',
-            usuarios: '/api/usuarios',
-            rolpermisos: '/api/rolpermisos',
-            permisoprivilegios: '/api/permisoprivilegios',
+app.get('/', (req, res) => res.json({ nombre: 'API de STAMPLAB', estado: 'ok' }));
 
-            // Catálogo de Productos
-            productos: '/api/productos',
-            colores: '/api/colores',
-            tallas: '/api/tallas',
-            insumos: '/api/insumos',
-            tecnicas: '/api/tecnicas',
-            partes: '/api/partes',
-
-            // Relaciones de Productos
-            inventarioproducto: '/api/inventarioproducto',
-
-            // Proveedores y Compras
-            proveedores: '/api/proveedores',
-            compras: '/api/compras',
-
-            // Cotizaciones
-            cotizaciones: '/api/cotizaciones',
-            detallecotizaciones: '/api/detallecotizaciones',
-            cotizaciontecnicas: '/api/cotizaciontecnicas',
-            cotizaciontallas: '/api/cotizaciontallas',
-            cotizacioncolores: '/api/cotizacioncolores',
-            cotizacioninsumos: '/api/cotizacioninsumos',
-
-
-            // Ventas
-            ventas: '/api/ventas',
-            estados: '/api/estados'
-        }
-    });
-});
+// Salud: 200 si la base responde, 503 si no (healthcheck de docker-compose)
+app.get('/api/salud', require('./routes/salud')(db.sequelize));
 
 // ==================== IMPORTAR RUTAS ====================
 
@@ -181,7 +145,7 @@ const limiteAuth = rateLimit({
     legacyHeaders: false,
     message: { mensaje: 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.', estado: false }
 });
-app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password', '/api/usuarios/login'], limiteAuth);
+app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password'], limiteAuth);
 
 // Estas dos rutas responden "bien" aunque se abuse de ellas (200 siempre / 400 por duplicado): se limitan TODAS las
 // peticiones por IP para frenar el envío masivo de correos de recuperación y la creación/enumeración masiva de cuentas.
@@ -251,11 +215,7 @@ if (require('./services/correo').modo() === 'archivo') {
 
 // Ruta no encontrada (404)
 app.use((req, res) => {
-    res.status(404).json({
-        message: 'Endpoint no encontrado',
-        path: req.url,
-        sugerencia: 'Revisa la documentación en http://localhost:3000/'
-    });
+    res.status(404).json({ message: 'Endpoint no encontrado' });
 });
 
 // Error interno del servidor (500)
@@ -275,50 +235,18 @@ app.use((err, req, res, next) => {
 // ==================== INICIAR SERVIDOR ====================
 db.sequelize.authenticate()
     .then(() => {
-        console.log('Conexión a la base de datos exitosa');
-
-        app.listen(PORT, () => {
-            require('./services/vencimientos').iniciar(); // cancela pedidos sin pago y vence cotizaciones cada hora
-            console.log('\n' + '='.repeat(60));
-            console.log('SERVIDOR STAMPLAB INICIADO CORRECTAMENTE');
-            console.log('='.repeat(60));
-            console.log(`URL: http://localhost:${PORT}`);
-            console.log(`Base de datos: ${db.sequelize.config.database}`);
-            console.log(`Dialect: ${db.sequelize.options.dialect}`);
-            console.log(`Entorno: ${process.env.NODE_ENV || 'development'}`);
-            console.log('='.repeat(60));
-            console.log('ENDPOINTS DISPONIBLES:');
-            console.log('');
-            console.log('Usuarios y Permisos:');
-            console.log('   • http://localhost:' + PORT + '/api/roles');
-            console.log('   • http://localhost:' + PORT + '/api/permisos');
-            console.log('   • http://localhost:' + PORT + '/api/privilegios');
-            console.log('   • http://localhost:' + PORT + '/api/usuarios');
-            console.log('');
-            console.log('Catálogo:');
-            console.log('   • http://localhost:' + PORT + '/api/productos');
-            console.log('   • http://localhost:' + PORT + '/api/colores');
-            console.log('   • http://localhost:' + PORT + '/api/tallas');
-            console.log('   • http://localhost:' + PORT + '/api/insumos');
-            console.log('   • http://localhost:' + PORT + '/api/tecnicas');
-            console.log('');
-            console.log('Compras y Proveedores:');
-            console.log('   • http://localhost:' + PORT + '/api/proveedores');
-            console.log('   • http://localhost:' + PORT + '/api/compras');
-            console.log('');
-            console.log('Cotizaciones:');
-            console.log('   • http://localhost:' + PORT + '/api/cotizaciones');
-            console.log('   • http://localhost:' + PORT + '/api/detallecotizaciones');
-            console.log('');
-            console.log('Ventas:');
-            console.log('   • http://localhost:' + PORT + '/api/ventas');
-            console.log('');
-            console.log('='.repeat(60));
-            console.log('Todo listo para recibir peticiones');
-            console.log('='.repeat(60) + '\n');
+        console.log(`Conexión a la base de datos ${db.sequelize.config.database} exitosa`);
+        const servidor = app.listen(PORT, () => {
+            const vencimientos = require('./services/vencimientos');
+            const limpiezaDisenos = require('./services/limpiezaDisenos');
+            vencimientos.iniciar(); // cancela pedidos sin pago y vence cotizaciones cada hora
+            limpiezaDisenos.iniciar(); // borra imágenes de diseño subidas y nunca usadas
+            require('./services/apagado').instalarApagado({
+                servidor, sequelize: db.sequelize, detener: [vencimientos.detener, limpiezaDisenos.detener],
+            });
+            console.log(`STAMPLAB API escuchando en el puerto ${PORT} (${process.env.NODE_ENV || 'development'})`);
         });
     }).catch(err => {
         console.error('Error al conectar con la base de datos:', err);
         process.exit(1);
     });
-

@@ -1,4 +1,4 @@
-import API_ROOT from "../../config/api";
+import { crearSubidorDisenos } from "../../utils/subidaDisenos";
 import React, { useState, useEffect, useRef } from "react";
 import {
     FaPlus, FaTrash, FaExclamationTriangle, FaCheckCircle, FaShoppingCart,
@@ -323,6 +323,8 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
     const [cargandoVariantes, setCargandoVariantes] = useState(false);
     const [validacionStock, setValidacionStock] = useState({ valido: false, mensaje: "", cargando: false });
     const [submitting, setSubmitting] = useState(false);
+    // Recuerda las imágenes ya subidas: un reintento tras un fallo no las vuelve a subir
+    const [subirDiseno] = useState(() => crearSubidorDisenos());
 
     useEffect(() => { cargarCatalogos(); }, []);
 
@@ -589,12 +591,8 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                         (prod.disenos || []).map(async (dis) => {
                             if (!dis.Archivo) return { ...dis, ImagenSubida: null };
                             try {
-                                const formData = new FormData();
-                                formData.append('imagen', dis.Archivo);
-                                const res = await fetch(`${API_ROOT}/api/cotizaciones/upload-diseno`, { method: 'POST', body: formData });
-                                const data = await res.json().catch(() => ({}));
-                                if (!res.ok || !data.filename) throw new Error(data.message || data.mensaje || `No se pudo subir el diseño "${dis.ImagenNombre}"`);
-                                return { ...dis, ImagenSubida: data.filename };
+                                // En un reintento, las imágenes que ya subieron no se vuelven a subir
+                                return { ...dis, ImagenSubida: await subirDiseno(dis.Archivo) };
                             } catch (e) { throw new Error(e.message || `No se pudo subir el diseño "${dis.ImagenNombre}"`); }
                         })
                     );

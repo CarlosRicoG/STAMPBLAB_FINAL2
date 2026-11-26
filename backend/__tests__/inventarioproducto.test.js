@@ -4,6 +4,8 @@ jest.mock('../models', () => ({
     Color: {},
     Talla: {},
     Insumo: {},
+    Venta: { count: jest.fn().mockResolvedValue(0) },
+    DetalleVenta: { findAll: jest.fn() },
 }));
 
 const { InventarioProducto } = require('../models');
@@ -102,6 +104,24 @@ describe('InventarioProductoController - Pruebas Unitarias', () => {
             await controller.deleteInventario(req, res);
             expect(destroyMock).toHaveBeenCalled();
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ estado: true, mensaje: 'Variante eliminada exitosamente' }));
+        });
+
+        test('no se borra si la usan pedidos Pendientes o Pagados (una sola consulta filtrada)', async () => {
+            const { Venta, DetalleVenta } = require('../models');
+            const { ESTADO_VENTA } = require('../config/estados');
+            const destroyMock = jest.fn();
+            InventarioProducto.findByPk.mockResolvedValue({ InventarioID: 7, destroy: destroyMock });
+            Venta.count.mockResolvedValueOnce(2);
+            const res = mockRes();
+            await controller.deleteInventario({ params: { id: '7' } }, res);
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ mensaje: expect.stringMatching(/2 pedido\(s\).*pagado/) }));
+            expect(destroyMock).not.toHaveBeenCalled();
+            // Cuenta con where (estado + variante) en vez de traer todos los detalles de la variante
+            const consulta = Venta.count.mock.calls.at(-1)[0];
+            expect(consulta.where.EstadoID).toEqual(expect.arrayContaining([ESTADO_VENTA.PENDIENTE, ESTADO_VENTA.PAGADA]));
+            expect(consulta.include[0].where).toEqual({ InventarioID: 7 });
+            expect(DetalleVenta.findAll).not.toHaveBeenCalled();
         });
     });
 

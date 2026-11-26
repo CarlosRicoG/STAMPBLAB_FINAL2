@@ -26,7 +26,7 @@ const mensajes = {
 
 const opciones = { abortEarly: false, allowUnknown: true, messages: mensajes, convert: true, errors: { wrap: { label: false } } };
 
-const validar = (esquema, origen = 'body') => (req, res, next) => {
+const validar = (esquema, origen = 'body') => function validarCuerpo(req, res, next) {
     const { error, value } = esquema.validate(req[origen], opciones);
     if (error) {
         const errores = error.details.map((d) => d.message);
@@ -44,9 +44,17 @@ const documento = Joi.alternatives().try(
 ).label('El documento (solo números, 5 a 15 dígitos)');
 const correo = Joi.string().trim().email({ minDomainSegments: 2, tlds: { allow: false } }).max(150).label('El correo');
 const telefono = Joi.string().trim().allow('', null).pattern(/^[0-9+\-\s()]{7,20}$/).label('El teléfono');
+const nombre = Joi.string().trim().min(2).max(100).pattern(/^[^<>]*$/).messages({ 'string.pattern.base': 'El nombre no puede contener los símbolos < o >' }).label('El nombre');
+const direccion = (max) => Joi.string().trim().allow('', null).max(max).pattern(/^[^<>]*$/).messages({ 'string.pattern.base': 'La dirección no puede contener los símbolos < o >' }).label('La dirección');
+// Misma política que utils/contrasenas.validarContrasena
+const contrasena = Joi.string().min(8).max(100).pattern(/[A-Za-z]/).pattern(/\d/)
+    .messages({ 'string.pattern.base': 'La contraseña debe incluir letras y números' }).label('La contraseña');
+const rol = Joi.number().integer().min(1).max(1000).label('El rol');
 const entero = (label, min = 1, max = 1000000) => Joi.number().integer().min(min).max(max).label(label);
 // Las columnas de dinero son DECIMAL(10,2): el máximo que caben es 99.999.999,99 (más daba error 500 de la base)
 const dinero = (label) => Joi.number().min(0).max(99999999.99).label(label);
+// Texto libre opcional con tope de longitud (evita cuerpos enormes guardados en columnas TEXT)
+const textoLibre = (label, max = 1000) => Joi.string().max(max).allow('', null).label(label);
 
 // ── Esquemas ──
 const esquemas = {
@@ -57,12 +65,33 @@ const esquemas = {
 
     registro: Joi.object({
         DocumentoID: documento.required(),
-        Nombre: Joi.string().trim().min(2).max(100).pattern(/^[^<>]*$/).required().messages({ 'string.pattern.base': 'El nombre no puede contener los símbolos < o >' }).label('El nombre'),
+        Nombre: nombre.required(),
         Correo: correo.required(),
         Telefono: telefono,
-        Direccion: Joi.string().trim().allow('', null).max(200).pattern(/^[^<>]*$/).messages({ 'string.pattern.base': 'La dirección no puede contener los símbolos < o >' }).label('La dirección'),
-        Contraseña: Joi.string().min(8).max(100).pattern(/[A-Za-z]/).pattern(/\d/).required()
-            .messages({ 'string.pattern.base': 'La contraseña debe incluir letras y números' }).label('La contraseña'),
+        Direccion: direccion(200),
+        Contraseña: contrasena.required(),
+    }),
+
+    // El administrador crea un usuario desde el panel (la dirección admite lo que cabe en la columna: 255)
+    usuarioCreacion: Joi.object({
+        DocumentoID: documento.required(),
+        Nombre: nombre.required(),
+        Correo: correo.required(),
+        Telefono: telefono,
+        Direccion: direccion(255),
+        Contraseña: contrasena.required(),
+        RolID: rol.required(),
+    }),
+
+    // Editar usuario (panel o "Mis datos"): todo opcional; contraseña vacía = no se cambia
+    usuarioEdicion: Joi.object({
+        DocumentoID: documento,
+        Nombre: nombre,
+        Correo: correo,
+        Telefono: telefono,
+        Direccion: direccion(255),
+        Contraseña: contrasena.allow('', null),
+        RolID: rol,
     }),
 
     // Cada producto de un pedido/venta: cantidades enteras positivas, precios no negativos
@@ -102,6 +131,13 @@ const esquemas = {
     cotizacion: Joi.object({
         detalles: Joi.array().min(1).max(100).items(Joi.object({
             Cantidad: entero('La cantidad', 1, 100000).required(),
+            PrendaDescripcion: textoLibre('La descripción de la prenda'),
+            // Diseños (técnica + parte + imagen): a lo sumo 20 por producto
+            tecnicas: Joi.array().max(20).items(Joi.object({
+                Observaciones: textoLibre('Las observaciones del diseño'),
+                ImagenDiseño: textoLibre('La imagen del diseño', 255),
+                ImagenDiseno: textoLibre('La imagen del diseño', 255),
+            }).unknown(true)).label('Los diseños del producto'),
             // Cantidades por talla y color: enteros positivos (una cantidad negativa restaría del precio de la cotización)
             tallas: Joi.array().max(50).items(Joi.object({
                 TallaID: entero('La talla').required(),

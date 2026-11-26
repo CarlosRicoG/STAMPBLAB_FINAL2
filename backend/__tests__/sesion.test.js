@@ -1,7 +1,7 @@
 // Sesiones: el cierre de sesión corta toda la cadena de renovaciones y la sesión tiene un tope absoluto de vida
 jest.mock('../models', () => ({
     SesionRevocada: { destroy: jest.fn().mockResolvedValue(0), findAll: jest.fn().mockResolvedValue([]), findOrCreate: jest.fn().mockResolvedValue([{}, true]) },
-    Usuario: { findAll: jest.fn().mockResolvedValue([]) },
+    Usuario: { findAll: jest.fn().mockResolvedValue([]), increment: jest.fn().mockResolvedValue([]), findByPk: jest.fn().mockResolvedValue({ SesionesVersion: 3 }) },
 }));
 
 const jwt = require('jsonwebtoken');
@@ -78,5 +78,99 @@ describe('Sesión: identificador estable (sid) y tope de vida', () => {
         } finally {
             if (antes === undefined) delete process.env.SESION_VIDA_MAXIMA_HORAS; else process.env.SESION_VIDA_MAXIMA_HORAS = antes;
         }
+    });
+});
+
+describe('Sesión: cuenta eliminada y vuelta a registrar con el mismo documento', () => {
+    const token = (id, extra = {}) => ({ id, rol: 2, sv: 0, jti: 'j-' + Math.random(), sid: 's-' + Math.random(), ini: ahora(), iat: ahora(), exp: ahora() + 3600, ...extra });
+    afterEach(() => { db.SesionRevocada.findAll.mockResolvedValue([]); db.Usuario.findAll.mockResolvedValue([]); });
+
+    test('tras eliminar la cuenta, sus tokens anteriores no valen pero los de la cuenta nueva sí (sv 0)', async () => {
+        await sesion.revocarTodas(901); // había cambiado la clave: versión 3 en memoria
+        await sesion.cerrarCuenta(901);
+        expect(await sesion.estaVigente(token(901, { ini: ahora() - 60, sv: 3 }))).toBe(false);
+        // La cuenta nueva empieza en SesionesVersion 0 y su sesión se abre después de la eliminación
+        expect(await sesion.estaVigente(token(901, { ini: ahora() + 1 }))).toBe(true);
+        // Se guarda en la base para que los demás servidores también corten
+        expect(db.SesionRevocada.findOrCreate).toHaveBeenCalledWith(expect.objectContaining({ defaults: expect.objectContaining({ DocumentoID: 901 }) }));
+    });
+
+    test('otro servidor: el corte por cuenta eliminada llega desde la base al refrescar', async () => {
+        const corte = ahora() - 100;
+        db.SesionRevocada.findAll.mockResolvedValue([{ Jti: `usuario:902:${corte}`, DocumentoID: 902, Expira: new Date(Date.now() + 3600e3) }]);
+        await sesion.refrescar(true);
+        expect(await sesion.estaVigente(token(902, { ini: corte - 10 }))).toBe(false);
+        expect(await sesion.estaVigente(token(902, { ini: corte + 10 }))).toBe(true);
+    });
+
+    test('refrescar reconstruye las versiones: un usuario que ya no tiene versión (borrado y nuevo) deja de arrastrar la anterior', async () => {
+        db.Usuario.findAll.mockResolvedValue([{ DocumentoID: 903, SesionesVersion: 2 }]);
+        await sesion.refrescar(true);
+        expect(await sesion.estaVigente(token(903))).toBe(false);
+        db.Usuario.findAll.mockResolvedValue([]); // la fila se borró y se volvió a registrar con SesionesVersion 0
+        await sesion.refrescar(true);
+        expect(await sesion.estaVigente(token(903))).toBe(true);
+    });
+
+    test('si la base falla al refrescar se conservan las versiones que ya había', async () => {
+        db.Usuario.findAll.mockResolvedValue([{ DocumentoID: 904, SesionesVersion: 1 }]);
+        await sesion.refrescar(true);
+        db.Usuario.findAll.mockRejectedValue(new Error('caída'));
+        const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+        await sesion.refrescar(true);
+        error.mockRestore();
+        expect(await sesion.estaVigente(token(904))).toBe(false);
+    });
+});
+
+describe('Sesión: cuenta borrada en un servidor y recreada en otro (antes del refresco de 30 s)', () => {
+    const token = (id, extra = {}) => ({ id, rol: 2, sv: 0, jti: 'j-' + Math.random(), sid: 's-' + Math.random(), ini: ahora(), iat: ahora(), exp: ahora() + 3600, ...extra });
+    afterEach(() => { jest.restoreAllMocks(); db.SesionRevocada.findAll.mockResolvedValue([]); db.Usuario.findAll.mockResolvedValue([]); });
+
+    test('un token rechazado por versión fuerza un refresco: la versión vieja de la cuenta borrada no tumba la sesión nueva', async () => {
+        db.Usuario.findAll.mockResolvedValue([{ DocumentoID: 910, SesionesVersion: 4 }]); // servidor B: cuenta vieja con clave cambiada
+        await sesion.refrescar(true);
+        // En el servidor A se borró la cuenta y se volvió a crear (versión 0)
+        const corte = ahora();
+        db.SesionRevocada.findAll.mockResolvedValue([{ Jti: `usuario:910:${corte}`, DocumentoID: 910, Expira: new Date(Date.now() + 3600e3) }]);
+        db.Usuario.findAll.mockResolvedValue([]);
+        const real = Date.now();
+        jest.spyOn(Date, 'now').mockReturnValue(real + 2000); // pasó más de 1 s desde el último refresco
+        expect(await sesion.estaVigente(token(910, { ini: corte + 1 }))).toBe(true);
+        expect(await sesion.estaVigente(token(910, { ini: corte - 30, sv: 4 }))).toBe(false); // sesión de la cuenta borrada
+    });
+
+    test('con el corte conocido, una versión leída antes del corte no se aplica a sesiones posteriores (aunque la base falle)', async () => {
+        db.Usuario.findAll.mockResolvedValue([{ DocumentoID: 911, SesionesVersion: 3 }]);
+        await sesion.refrescar(true);
+        const real = Date.now();
+        const corte = Math.floor(real / 1000) + 5; // la cuenta se borró 5 s después de leer la versión
+        db.SesionRevocada.findAll.mockResolvedValue([{ Jti: `usuario:911:${corte}`, DocumentoID: 911, Expira: new Date(real + 3600e3) }]);
+        db.Usuario.findAll.mockRejectedValue(new Error('caída')); // los cortes se leen, las versiones no
+        jest.spyOn(console, 'error').mockImplementation(() => {});
+        jest.spyOn(Date, 'now').mockReturnValue(real + 7000);
+        await sesion.refrescar(true);
+        expect(await sesion.estaVigente(token(911, { ini: corte + 1 }))).toBe(true);
+        expect(await sesion.estaVigente(token(911, { ini: corte - 10 }))).toBe(false);
+    });
+
+    test('pero si la versión se leyó DESPUÉS del corte (cuenta nueva que cambió su clave) sí se aplica', async () => {
+        const real = Date.now();
+        const corte = Math.floor(real / 1000) - 10;
+        db.SesionRevocada.findAll.mockResolvedValue([{ Jti: `usuario:912:${corte}`, DocumentoID: 912, Expira: new Date(real + 3600e3) }]);
+        db.Usuario.findAll.mockResolvedValue([{ DocumentoID: 912, SesionesVersion: 1 }]);
+        await sesion.refrescar(true);
+        expect(await sesion.estaVigente(token(912, { ini: corte + 2, sv: 0 }))).toBe(false);
+        expect(await sesion.estaVigente(token(912, { ini: corte + 2, sv: 1 }))).toBe(true);
+    });
+
+    test('cerrarCuenta con transacción: guarda dentro de ella y solo corta en memoria al llamar a aplicar (tras el commit)', async () => {
+        const tx = { id: 'tx' };
+        const aplicar = await sesion.cerrarCuenta(913, { transaction: tx });
+        expect(db.SesionRevocada.findOrCreate).toHaveBeenLastCalledWith(expect.objectContaining({ transaction: tx }));
+        const vieja = token(913, { ini: ahora() - 60 });
+        expect(await sesion.estaVigente(vieja)).toBe(true); // aún no se aplicó (p. ej. la transacción se deshizo)
+        aplicar();
+        expect(await sesion.estaVigente(vieja)).toBe(false);
     });
 });

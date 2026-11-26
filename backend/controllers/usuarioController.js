@@ -355,9 +355,15 @@ exports.deleteUsuario = async (req, res) => {
             }
         }
 
-        // Se invalidan sus sesiones ANTES de borrar (después ya no existe la fila donde se guarda la versión de sesión)
-        await sesion.revocarTodas(docID).catch(() => {});
-        await usuario.destroy();
+        // Corte de sesiones por documento (sesiones_revocadas: vale en todos los servidores y no afecta a una cuenta nueva con
+        // el mismo documento) y borrado en la MISMA transacción: si el borrado falla (p. ej. por una clave foránea), tampoco
+        // queda el corte. En memoria se aplica solo tras el commit.
+        const aplicarCorte = await db.sequelize.transaction(async (transaction) => {
+            const aplicar = await sesion.cerrarCuenta(docID, { transaction });
+            await usuario.destroy({ transaction });
+            return aplicar;
+        });
+        aplicarCorte();
 
         res.json({
             estado: true,

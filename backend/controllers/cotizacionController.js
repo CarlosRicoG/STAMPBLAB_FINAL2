@@ -64,6 +64,10 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
     // 1) Precios y líneas (solo lecturas)
     let subtotal = 0;
     const lineas = [];
+    // Precios de todas las tallas pedidas en una sola consulta (antes era una por talla)
+    const tallaIDs = [...new Set(detalles.flatMap((d) => (d?.TraePrenda ? [] : (d?.tallas || []).map((t) => t?.TallaID).filter(Boolean))))];
+    const precioTalla = new Map((tallaIDs.length ? await Talla.findAll({ where: { TallaID: tallaIDs }, attributes: ['TallaID', 'Precio'], raw: true }) : [])
+        .map((t) => [String(t.TallaID), parseFloat(t.Precio) || 0]));
     for (const detalle of detalles) {
         const cantidad = parseInt(detalle.Cantidad);
         if (detalle.TraePrenda) {
@@ -83,7 +87,7 @@ async function crearVentaDirecta(req, res, { DocumentoID, FechaCotizacion, detal
         const precioTela = parseFloat((await Insumo.findByPk(insumoID))?.PrecioTela) || 0;
         for (const { tallaID, cantidad: cantTalla } of porTalla) {
             const precioUnitario = (parseFloat(producto.PrecioBase) || 0)
-                + (parseFloat((await Talla.findByPk(tallaID))?.Precio) || 0)
+                + (precioTalla.get(String(tallaID)) || 0)
                 + precioTela;
             subtotal += precioUnitario * cantTalla;
             lineas.push({
@@ -318,6 +322,7 @@ exports.convertirCotizacionAVenta = async (req, res) => {
         const resultado = await sequelize.transaction(async (t) => {
             // La cotización se vuelve a leer BAJO BLOQUEO: dos clics simultáneos no pueden crear dos ventas
             const fresca = await Cotizacion.findByPk(cotizacion.CotizacionID, { transaction: t, lock: t.LOCK.UPDATE });
+            if (!fresca) throw new ErrorNegocio('Cotización no encontrada', 404); // se borró mientras tanto: se deshace todo
             if (fresca.EstadoID === ESTADO_COTIZACION.PROCESADA) throw new ErrorNegocio('Esta cotización ya fue convertida a venta');
             if (fresca.EstadoID !== ESTADO_COTIZACION.APROBADA) throw new ErrorNegocio('Solo se pueden convertir cotizaciones aprobadas');
 
@@ -398,39 +403,43 @@ exports.createCotizacionCompleta = async (req, res) => {
             if (d.ProductoID && !(await Producto.findByPk(d.ProductoID)))
                 return res.status(400).json({ message: `Producto ${i + 1}: el producto ${d.ProductoID} no existe` });
         }
-        const nuevaCotizacion = await Cotizacion.create({                               // 7
-            DocumentoID, FechaCotizacion: FechaCotizacion || new Date(),                // 8
-            ValorTotal: ValorTotal || 0, EstadoID: ESTADO_COTIZACION.PENDIENTE                                    // 9
-        });                                                                             // 10
-        for (const detalle of detalles) {                                               // 11
-            const nuevoDetalle = await DetalleCotizacion.create({                       // 12
-                CotizacionID: nuevaCotizacion.CotizacionID, ProductoID: detalle.ProductoID || null, // 13
-                Cantidad: detalle.Cantidad, TraePrenda: Boolean(detalle.TraePrenda),    // 14
-                PrendaDescripcion: detalle.PrendaDescripcion || null,                   // 15
-                // Producto personalizado (sin catálogo): guarda su precio para que el total no se pierda al recalcular
-                PrecioUnitario: !detalle.ProductoID && parseFloat(detalle.PrecioUnitario) > 0 ? parseFloat(detalle.PrecioUnitario) : null
-            });                                                                         // 16
-            if (detalle.tallas?.length > 0) await CotizacionTalla.bulkCreate(detalle.tallas.map(t =>
-            ({
-                DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID, TallaID: t.TallaID,
-                Cantidad: t.Cantidad || detalle.Cantidad, PrecioTalla: t.PrecioTalla || 0
-            }))); // 17
-            if (detalle.colores?.length > 0) await CotizacionColor.bulkCreate(detalle.colores.map(c => ({
-                DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID,
-                ColorID: c.ColorID, Cantidad: c.Cantidad || detalle.Cantidad
-            }))); // 18
-            if (detalle.insumos?.length > 0) await CotizacionInsumo.bulkCreate(detalle.insumos.map(i => ({
-                DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID,
-                InsumoID: i.InsumoID, CantidadRequerida: i.CantidadRequerida || detalle.Cantidad
-            }))); // 19
-            if (detalle.tecnicas?.length > 0) await CotizacionTecnica.bulkCreate(detalle.tecnicas.map(t => ({
-                DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID, TecnicaID: t.TecnicaID,
-                ParteID: t.ParteID, ImagenDiseño: t.ImagenDiseño || null,
-                Observaciones: t.Observaciones || null, CostoTecnica: t.CostoTecnica || 0
-            }))); // 20
-        }                                                                               // 21
-        // El total se calcula en el servidor con la misma regla que al asignar costos
-        await calcularValorTotalCotizacion(nuevaCotizacion.CotizacionID);
+        // Todo o nada: si falla un detalle no queda una cotización a medias
+        const nuevaCotizacion = await sequelize.transaction(async (tx) => {
+            const nuevaCotizacion = await Cotizacion.create({                               // 7
+                DocumentoID, FechaCotizacion: FechaCotizacion || new Date(),                // 8
+                ValorTotal: ValorTotal || 0, EstadoID: ESTADO_COTIZACION.PENDIENTE                                    // 9
+            }, { transaction: tx });                                                                             // 10
+            for (const detalle of detalles) {                                               // 11
+                const nuevoDetalle = await DetalleCotizacion.create({                       // 12
+                    CotizacionID: nuevaCotizacion.CotizacionID, ProductoID: detalle.ProductoID || null, // 13
+                    Cantidad: detalle.Cantidad, TraePrenda: Boolean(detalle.TraePrenda),    // 14
+                    PrendaDescripcion: detalle.PrendaDescripcion || null,                   // 15
+                    // Producto personalizado (sin catálogo): guarda su precio para que el total no se pierda al recalcular
+                    PrecioUnitario: !detalle.ProductoID && parseFloat(detalle.PrecioUnitario) > 0 ? parseFloat(detalle.PrecioUnitario) : null
+                }, { transaction: tx });                                                                         // 16
+                if (detalle.tallas?.length > 0) await CotizacionTalla.bulkCreate(detalle.tallas.map(t =>
+                ({
+                    DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID, TallaID: t.TallaID,
+                    Cantidad: t.Cantidad || detalle.Cantidad, PrecioTalla: t.PrecioTalla || 0
+                })), { transaction: tx }); // 17
+                if (detalle.colores?.length > 0) await CotizacionColor.bulkCreate(detalle.colores.map(c => ({
+                    DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID,
+                    ColorID: c.ColorID, Cantidad: c.Cantidad || detalle.Cantidad
+                })), { transaction: tx }); // 18
+                if (detalle.insumos?.length > 0) await CotizacionInsumo.bulkCreate(detalle.insumos.map(i => ({
+                    DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID,
+                    InsumoID: i.InsumoID, CantidadRequerida: i.CantidadRequerida || detalle.Cantidad
+                })), { transaction: tx }); // 19
+                if (detalle.tecnicas?.length > 0) await CotizacionTecnica.bulkCreate(detalle.tecnicas.map(t => ({
+                    DetalleCotizacionID: nuevoDetalle.DetalleCotizacionID, TecnicaID: t.TecnicaID,
+                    ParteID: t.ParteID, ImagenDiseño: t.ImagenDiseño || null,
+                    Observaciones: t.Observaciones || null, CostoTecnica: t.CostoTecnica || 0
+                })), { transaction: tx }); // 20
+            }                                                                               // 21
+            // El total se calcula en el servidor con la misma regla que al asignar costos
+            await calcularValorTotalCotizacion(nuevaCotizacion.CotizacionID, { transaction: tx });
+            return nuevaCotizacion;
+        });
         const cotizacionCompleta = await Cotizacion.findByPk(nuevaCotizacion.CotizacionID, { // 22
             include: [                                                                  // 23
                 { model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },     // 24
@@ -731,9 +740,10 @@ exports.cancelarCotizacion = async (req, res) => {
 };
 
 
-const calcularValorTotalCotizacion = async (cotizacionID, { forzar = false } = {}) => {
+const calcularValorTotalCotizacion = async (cotizacionID, { forzar = false, transaction } = {}) => {
     try {
         const cotizacion = await Cotizacion.findByPk(cotizacionID, {
+            transaction,
             include: [{
                 model: DetalleCotizacion, as: 'detalles',
                 include: [{ model: Producto, as: 'producto' }, { model: CotizacionTecnica, as: 'tecnicas' }, { model: CotizacionTalla, as: 'tallas', include: [{ model: Talla, as: 'talla' }] }, { model: CotizacionInsumo, as: 'insumos', include: [{ model: Insumo, as: 'insumo' }] }]
@@ -743,9 +753,11 @@ const calcularValorTotalCotizacion = async (cotizacionID, { forzar = false } = {
         // Una cotización ya aprobada o cerrada tiene el precio congelado: solo se recalcula al aprobarla (forzar)
         if (!forzar && ![ESTADO_COTIZACION.PENDIENTE, ESTADO_COTIZACION.EN_REVISION].includes(cotizacion.EstadoID)) return parseFloat(cotizacion.ValorTotal) || 0;
         const total = cotizacion.detalles.reduce((s, detalle) => s + subtotalDetalle(detalle), 0);
-        await cotizacion.update({ ValorTotal: total });
+        await cotizacion.update({ ValorTotal: total }, { transaction });
         return total;
     } catch (error) {
+        // Dentro de una transacción el error se relanza: así se deshace todo en vez de quedar con un total equivocado
+        if (transaction) throw error;
         console.error('Error recalculando valor total:', error);
         return 0;
     }

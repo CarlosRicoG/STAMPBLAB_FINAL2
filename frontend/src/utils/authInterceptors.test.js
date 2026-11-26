@@ -108,3 +108,53 @@ describe("authInterceptors (axios)", () => {
         expect(cfg.headers.Authorization).toBeUndefined();
     });
 });
+
+describe("authInterceptors (solo el origen exacto de la API recibe el token)", () => {
+    beforeEach(() => {
+        localStorage.setItem("token", "secreto");
+        Object.defineProperty(window, "location", {
+            value: { href: "http://tienda.test/productos", origin: "http://tienda.test", pathname: "/productos", search: "", assign: vi.fn() },
+            writable: true,
+        });
+    });
+    const ejecutarAxios = async (config) => {
+        let resultado = config;
+        for (const h of axios.interceptors.request.handlers) if (h && h.fulfilled) resultado = await h.fulfilled(resultado);
+        return resultado;
+    };
+
+    it("misma API (mismo origen que config/api.js): sí manda el token", async () => {
+        await window.fetch("http://api.test/api/ventas");
+        expect(cabecera(fetchSimulado.mock.calls[0])).toBe("Bearer secreto");
+        const cfg = await ejecutarAxios({ url: "http://api.test/api/compras", headers: {} });
+        expect(cfg.headers.Authorization).toBe("Bearer secreto");
+    });
+
+    it("otro dominio cuya ruta contiene /api/: no manda el token", async () => {
+        await window.fetch("https://terceros.com/api/datos");
+        expect(cabecera(fetchSimulado.mock.calls[0])).toBeNull();
+        const cfg = await ejecutarAxios({ url: "https://terceros.com/api/datos", headers: {} });
+        expect(cfg.headers.Authorization).toBeUndefined();
+    });
+
+    it("dominio con prefijo engañoso (api.test.evil.com, api.test@evil.com, otro puerto): no manda el token", async () => {
+        for (const url of ["http://api.test.evil.com/api/ventas", "http://api.test@evil.com/api/ventas", "http://api.test:8080/api/ventas", "https://api.test/api/ventas"]) {
+            fetchSimulado.mockClear();
+            await window.fetch(url);
+            expect(cabecera(fetchSimulado.mock.calls[0])).toBeNull();
+        }
+        const cfg = await ejecutarAxios({ url: "http://api.test.evil.com/api/ventas", headers: {} });
+        expect(cfg.headers.Authorization).toBeUndefined();
+    });
+
+    it("ruta relativa al propio sitio: sí manda el token; una URL absoluta en axios ignora baseURL", async () => {
+        await window.fetch("/api/ventas");
+        expect(cabecera(fetchSimulado.mock.calls[0])).toBe("Bearer secreto");
+        const relativa = await ejecutarAxios({ url: "/api/ventas", headers: {} });
+        expect(relativa.headers.Authorization).toBe("Bearer secreto");
+        const conBase = await ejecutarAxios({ baseURL: "http://api.test", url: "/api/ventas", headers: {} });
+        expect(conBase.headers.Authorization).toBe("Bearer secreto");
+        const absoluta = await ejecutarAxios({ baseURL: "http://api.test", url: "https://evil.com/api/x", headers: {} });
+        expect(absoluta.headers.Authorization).toBeUndefined();
+    });
+});

@@ -5,4 +5,5 @@ COPY package*.json ./
 RUN npm ci
 COPY . .
 EXPOSE 3000
-CMD ["npm", "start"]
+# node directamente (no "npm start"): así recibe SIGTERM y hace el apagado limpio
+CMD ["node", "server.js"]

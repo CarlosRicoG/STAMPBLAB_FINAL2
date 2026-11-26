@@ -13,8 +13,9 @@ Mejoras derivadas de la auditoría del 2026-11-04, en la rama `mejoras-auditoria
 
 ## Auditoría del 2026-11-25 y Ola A (rama `ola-a-dinero-sesion`, desde `correcciones-validacion`), sin commitear
 Hallazgos nuevos y plan por olas en `docs/AUDITORIA.md` §9. Ola A hecha (2026-11-26): logout revoca toda la sesión (`sid`) + tope `SESION_VIDA_MAXIMA_HORAS`; `updateVenta` recalcula totales con envío; el carrito del servidor se vacía al comprar; no se borra un pedido con reembolso pendiente; plazo del comprobante rechazado desde `ComprobanteFechaRechazo` (migración 20261126000000); subir/rechazar comprobante y vencimiento bajo bloqueo (409 si cambió el comprobante); `POST /ventas` solo Pendiente/Pagada.
-Siguientes: Ola B (seguridad y operación), Ola C (Ley 1581, necesita texto legal del negocio), Ola D (rendimiento del frontend), Ola E (= Ola 4, refactor; autorización aparte).
-Defecto previo encontrado: tras borrar un usuario, si se registra de nuevo con el mismo documento sus tokens se rechazan hasta reiniciar la API (`services/sesion.js`, mapa `versiones`). Sin corregir (fuera del alcance de la Ola A).
+Ola B hecha (2026-11-26, detalle en `docs/AUDITORIA.md` §9), incluido el defecto de sesión al re-registrar un documento borrado. **Cambio de despliegue:** con `NODE_ENV=production` la API no arranca sin `CORS_ORIGIN`.
+Variables nuevas para añadir a mano en `.env.example` (solo lectura en el entorno): `SESION_VIDA_MAXIMA_HORAS=24`, `DISENOS_MAX_HORA=30`, `DISENOS_HUERFANOS_HORAS=24`.
+Siguientes: Ola C (Ley 1581, necesita texto legal del negocio), Ola D (rendimiento del frontend), Ola E (= Ola 4, refactor; autorización aparte).
 
 ## Rama `correcciones-validacion` (2026-11-13), commiteada (5 commits sobre `main`), sin desplegar
 Validación completa (pruebas, integración, E2E y lectura de código del flujo cliente, admin y seguridad) y correcciones:
@@ -34,7 +35,7 @@ Validación completa (pruebas, integración, E2E y lectura de código del flujo 
 - Purgar historial de git de los 32 diseños de `backend/uploads/disenos`: no hacer sin petición expresa.
 
 ## Línea base de pruebas (2026-11-26, rama `ola-a-dinero-sesion`)
-jest 255/255 · vitest 56/56 · lint y build en verde · integración 11/11 (MariaDB 12.3 desechable). E2E no repetidos.
+jest 322/322 · vitest 66/66 · lint y build en verde · integración 11/11 dos corridas seguidas sin reiniciar la API (MariaDB 12.3 desechable). E2E no repetidos; CSP verificada con Puppeteer.
 
 ## Línea base anterior (2026-11-13, rama `correcciones-validacion`)
 jest 214/214 · vitest 55/55 · lint y build en verde · integración 11/11 · E2E 7/7 recorridos (Docker). Antes (2026-11-04): jest 193 · vitest 49.

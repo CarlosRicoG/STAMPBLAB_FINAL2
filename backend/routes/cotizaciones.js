@@ -19,11 +19,13 @@ const cotizacionPropiaOAdmin = async (req, res, next) => {
     } catch (e) { next(e); }
 };
 // Cliente: la cotizacion siempre queda a su nombre.
+const noExiste = 'La técnica o la parte del diseño no existe. Actualiza la página e inténtalo de nuevo.';
 const cotizacionDelCliente = async (req, res, next) => {
     try {
         if (esAdmin(req)) return next();
         req.body.DocumentoID = req.usuario.id;
         delete req.body.FechaCotizacion; // la fecha la pone el servidor (de ella dependen la vigencia y los plazos)
+        const tecnicasIDs = new Set(), partesIDs = new Set();
         for (const d of Array.isArray(req.body.detalles) ? req.body.detalles : []) {
             if (!d || typeof d !== 'object') continue;
             delete d.PrecioUnitario; // el cliente no fija precios
@@ -36,10 +38,18 @@ const cotizacionDelCliente = async (req, res, next) => {
                         return res.status(400).json({ message: 'La imagen del diseño no es válida. Vuelve a subirla e inténtalo de nuevo.' });
                     }
                 }
-                if (!(await Tecnica.findByPk(t.TecnicaID, { attributes: ['TecnicaID'] })) || !(await Parte.findByPk(t.ParteID, { attributes: ['ParteID'] }))) {
-                    return res.status(400).json({ message: 'La técnica o la parte del diseño no existe. Actualiza la página e inténtalo de nuevo.' });
-                }
+                if (t.TecnicaID == null || t.ParteID == null) return res.status(400).json({ message: noExiste });
+                tecnicasIDs.add(t.TecnicaID); partesIDs.add(t.ParteID);
             }
+        }
+        // Una consulta por tabla (antes eran dos por diseño): todas las técnicas y partes citadas deben existir
+        if (tecnicasIDs.size) {
+            const [tecnicas, partes] = await Promise.all([
+                Tecnica.findAll({ where: { TecnicaID: [...tecnicasIDs] }, attributes: ['TecnicaID'], raw: true }),
+                Parte.findAll({ where: { ParteID: [...partesIDs] }, attributes: ['ParteID'], raw: true }),
+            ]);
+            const hay = (filas, campo, ids) => { const s = new Set(filas.map((f) => String(f[campo]))); return [...ids].every((id) => s.has(String(id))); };
+            if (!hay(tecnicas, 'TecnicaID', tecnicasIDs) || !hay(partes, 'ParteID', partesIDs)) return res.status(400).json({ message: noExiste });
         }
         next();
     } catch (e) { next(e); }
@@ -79,8 +89,21 @@ const subirImagen = (req, res, next) => upload.single('imagen')(req, res, (err) 
     return res.status(400).json({ message: mensaje, mensaje });
 });
 
+// Límite de subidas de diseños por usuario (no por IP): DISENOS_MAX_HORA por hora (30 por defecto).
+// Cada subida ocupa disco hasta que la limpieza periódica borra las que no se usaron (services/limpiezaDisenos).
+const rateLimit = require('express-rate-limit');
+const crearLimiteDisenos = () => rateLimit({
+    windowMs: 60 * 60 * 1000,
+    limit: Number(process.env.DISENOS_MAX_HORA) > 0 ? Number(process.env.DISENOS_MAX_HORA) : 30,
+    keyGenerator: (req) => 'usuario:' + String(req.usuario?.id),
+    skip: (req) => esAdmin(req), // el administrador no tiene límite (carga diseños desde el panel)
+    standardHeaders: true, legacyHeaders: false,
+    message: { message: 'Has subido demasiadas imágenes en la última hora. Intenta de nuevo más tarde.', mensaje: 'Has subido demasiadas imágenes en la última hora. Intenta de nuevo más tarde.', estado: false },
+});
+const limiteDisenos = crearLimiteDisenos();
+
 // ── Subir imagen de diseño ──
-router.post('/upload-diseno', verificarToken, subirImagen, (req, res) => {
+router.post('/upload-diseno', verificarToken, limiteDisenos, subirImagen, (req, res) => {
     if (!req.file) return res.status(400).json({ message: 'No se recibió imagen' });
     res.json({ filename: req.file.filename });
 });
@@ -94,7 +117,8 @@ router.get('/:id/historial', verificarToken, cotizacionPropiaOAdmin, cotizacionC
 router.get('/:id', verificarToken, cotizacionPropiaOAdmin, cotizacionController.getCotizacionById);
 router.put('/:id', admin, cotizacionController.updateCotizacion);
 router.delete('/:id', admin, cotizacionController.deleteCotizacion);
-router.post('/inteligente', verificarToken, cotizacionDelCliente, validar(esquemas.cotizacion), cotizacionController.createCotizacionInteligente);
+// Se valida ANTES de cotizacionDelCliente: así las listas ya vienen acotadas (100 productos, 20 diseños) al consultar la base
+router.post('/inteligente', verificarToken, validar(esquemas.cotizacion), cotizacionDelCliente, cotizacionController.createCotizacionInteligente);
 router.post('/completa', admin, validar(esquemas.cotizacion), cotizacionController.createCotizacionCompleta);
 router.post('/:cotizacionID/convertir-a-venta', admin, cotizacionController.convertirCotizacionAVenta);
 // El administrador cancela cualquiera; el cliente solo la suya y mientras siga Pendiente
@@ -127,3 +151,5 @@ router.post('/:cotizacionID/rechazar', verificarToken, respuestaPropia, cotizaci
 router.post('/:cotizacionID/aplicar-tarifas', admin, cotizacionController.aplicarTarifas);
 
 module.exports = router;
+module.exports.cotizacionDelCliente = cotizacionDelCliente;
+module.exports.crearLimiteDisenos = crearLimiteDisenos;

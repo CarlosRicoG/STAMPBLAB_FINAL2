@@ -215,11 +215,18 @@ async function ejecutar() {
 }
 
 let temporizador = null;
+let primeraVez = null;
 function iniciar() {
     if (temporizador || process.env.JOBS_DESACTIVADOS === '1' || process.env.NODE_ENV === 'test') return;
-    setTimeout(() => ejecutar().catch(() => {}), 30 * 1000).unref();
+    primeraVez = setTimeout(() => ejecutar().catch(() => {}), 30 * 1000);
+    primeraVez.unref();
     temporizador = setInterval(() => ejecutar().catch(() => {}), 60 * 60 * 1000);
     temporizador.unref();
 }
+// Apagado limpio: no se lanzan más rondas
+function detener() {
+    clearTimeout(primeraVez); clearInterval(temporizador);
+    primeraVez = null; temporizador = null;
+}
 
-module.exports = { ejecutar, pedidosConPlazo, sigueVencido, referenciaPlazo, cancelarPedidosSinPago, vencerCotizaciones, avisarPedidosPorVencer, avisarCotizacionesPorVencer, purgarNotificaciones, iniciar };
+module.exports = { ejecutar, pedidosConPlazo, sigueVencido, referenciaPlazo, cancelarPedidosSinPago, vencerCotizaciones, avisarPedidosPorVencer, avisarCotizacionesPorVencer, purgarNotificaciones, iniciar, detener };

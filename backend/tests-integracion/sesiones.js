@@ -76,6 +76,15 @@ const si = (n, c, d = '') => { if (!c) bad++; console.log((c ? 'OK   ' : 'FALLA'
 
         console.log('--- el administrador no se ve afectado');
         exp('el administrador sigue operando', await call('GET', '/ventas?limit=1&page=1', null, adm), 200);
+
+        console.log('--- cuenta eliminada y vuelta a registrar con el mismo documento');
+        const deAntes = jwt.sign({ id: Number(doc), rol: 2, jti: 'antes-' + doc, sid: 'antes-' + doc, ini: Math.floor(Date.now() / 1000) - 60, sv: 5 }, SECRETO, { expiresIn: 600 });
+        exp('eliminar la cuenta', await call('DELETE', '/usuarios/' + doc, null, adm), 200);
+        exp('volver a registrarse con el mismo documento', await call('POST', '/registro', { DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' }), 201);
+        const renacida = await login();
+        si('la cuenta nueva empieza en versión 0', !!renacida && jwt.decode(renacida).sv === 0, String(renacida && jwt.decode(renacida).sv));
+        exp('la sesión de la cuenta nueva funciona (sin reiniciar el servidor)', await call('GET', '/usuarios/' + doc, null, renacida), 200);
+        exp('un token de la cuenta eliminada (sesión anterior) NO vale', await call('GET', '/usuarios/' + doc, null, deAntes), 401);
     } finally {
         await call('DELETE', '/usuarios/' + doc, null, adm);
     }

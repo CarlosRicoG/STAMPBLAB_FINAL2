@@ -16,6 +16,7 @@ import { getTarifasPublicas } from "../../Services/api-cliente/cliente";
 import { estimarProducto, estimarCotizacion } from "../../utils/clienteUtils";
 import "../../styles/plus.css";
 import { C } from "../../config/tokens";
+import { crearSubidorDisenos } from "../../utils/subidaDisenos";
 
 const dinero = (n) => "$" + (Number(n) || 0).toLocaleString("es-CO");
 const NOTA_ESTIMADO = "Precio final lo confirma StampLab al revisar tus diseños.";
@@ -235,6 +236,8 @@ const CotizacionLanding = () => {
     const [resumenExito, setResumenExito] = useState([]);
     const [enviando, setEnviando] = useState(false);
     const enviandoRef = useRef(false); // seguro contra doble clic (el estado tarda un ciclo en actualizarse)
+    // Recuerda las imágenes ya subidas: un reintento tras un fallo no las vuelve a subir
+    const [subirDiseno] = useState(() => crearSubidorDisenos());
     const [arrastrando, setArrastrando] = useState(false);
     usePlus();
     const previewUrl = useMemo(() => (disenoActual.ImagenDiseno ? URL.createObjectURL(disenoActual.ImagenDiseno) : null), [disenoActual.ImagenDiseno]);
@@ -512,11 +515,8 @@ const CotizacionLanding = () => {
                 const disenos = await Promise.all(prod.disenos.map(async (dis) => {
                     if (!dis.ImagenDiseno) return dis;
                     try {
-                        const fd = new FormData(); fd.append('imagen', dis.ImagenDiseno);
-                        const r = await fetch(`${API_ROOT}/api/cotizaciones/upload-diseno`, { method: 'POST', body: fd });
-                        const d = await r.json().catch(() => ({}));
-                        if (!r.ok || !d.filename) throw new Error(d.message || d.mensaje || "No se pudo subir la imagen de un diseño. Intenta de nuevo.");
-                        return { ...dis, ImagenNombre: d.filename };
+                        // En un reintento, las imágenes que ya subieron no se vuelven a subir
+                        return { ...dis, ImagenNombre: await subirDiseno(dis.ImagenDiseno) };
                     } catch (e) { throw new Error(e.message || "No se pudo subir la imagen de un diseño. Intenta de nuevo."); }
                 }));
                 return { ...prod, disenos };

@@ -13,6 +13,12 @@
  *  - Renovación deslizante: si al token le queda menos de 30 min, la respuesta trae uno nuevo (cabecera X-Token-Renovado),
  *    nunca con vencimiento posterior al tope de la sesión.
  *  - Los sid revocados se guardan en la tabla sesiones_revocadas (columna Jti) hasta que la sesión ya no podría seguir viva.
+ *  - Cuenta eliminada (cerrarCuenta): en vez de subir la versión (la fila se borra y otro servidor no lo vería) se guarda
+ *    en sesiones_revocadas un "corte" por documento (Jti = usuario:<DocumentoID>:<segundos>): toda sesión iniciada antes de
+ *    ese segundo deja de valer en todos los servidores. Si la persona se vuelve a registrar con el mismo documento, su cuenta
+ *    nueva empieza en SesionesVersion 0 y sus sesiones (iniciadas después del corte) valen con normalidad.
+ *  - El mapa de versiones se reconstruye entero en cada refresco: un documento que ya no tiene versión > 0 en la base
+ *    (cuenta borrada o vuelta a crear) deja de arrastrar la versión anterior.
  */
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
@@ -33,6 +39,16 @@ const ahoraS = () => Math.floor(Date.now() / 1000);
 const revocados = new Set();         // jti / sid cerrados
 const expiraRevocado = new Map();    // jti / sid -> ms de expiración (para purgar)
 const versiones = new Map();         // DocumentoID -> versión de sesión vigente (solo los que cambiaron de clave)
+const versionesLocales = new Map();  // DocumentoID -> { version, ms }: cambios hechos en este proceso (no se pierden en un refresco en curso)
+const versionVista = new Map();      // DocumentoID -> ms en que se leyó/fijó su versión (para compararla con un corte)
+const cortes = new Map();            // DocumentoID -> { corte (s), expira (ms) }: cuentas eliminadas
+const REFRESCO_FORZADO_MIN_MS = 1000; // un token rechazado por versión puede forzar un refresco, como mucho uno por segundo
+const PREFIJO_CORTE = 'usuario:';
+const leerCorte = (jti) => { const m = /^usuario:(\d+):(\d+)$/.exec(String(jti)); return m ? { doc: m[1], corte: Number(m[2]) } : null; };
+const anotarCorte = (doc, corte, expira) => {
+    const previo = cortes.get(doc);
+    if (!previo || previo.corte < corte) cortes.set(doc, { corte, expira });
+};
 let ultimoRefresco = 0;
 let refrescando = null;
 
@@ -45,14 +61,26 @@ async function refrescar(forzar = false) {
         try {
             await db.SesionRevocada.destroy({ where: { Expira: { [Op.lt]: new Date() } } });
             const filas = await db.SesionRevocada.findAll({ attributes: ['Jti', 'Expira'], raw: true });
-            for (const f of filas) { revocados.add(f.Jti); expiraRevocado.set(f.Jti, new Date(f.Expira).getTime()); }
+            for (const f of filas) {
+                const c = leerCorte(f.Jti);
+                if (c) { anotarCorte(c.doc, c.corte, new Date(f.Expira).getTime()); continue; }
+                revocados.add(f.Jti); expiraRevocado.set(f.Jti, new Date(f.Expira).getTime());
+            }
             const usuarios = await db.Usuario.findAll({ where: { SesionesVersion: { [Op.gt]: 0 } }, attributes: ['DocumentoID', 'SesionesVersion'], raw: true });
-            for (const u of usuarios) versiones.set(String(u.DocumentoID), u.SesionesVersion);
+            // Se reconstruye desde cero; solo se conservan los cambios de este proceso hechos mientras se consultaba
+            const nuevas = new Map(usuarios.map((u) => [String(u.DocumentoID), u.SesionesVersion]));
+            for (const [doc, { version, ms }] of versionesLocales) {
+                if (ms >= ahora) nuevas.set(doc, Math.max(version, nuevas.get(doc) || 0));
+                else versionesLocales.delete(doc);
+            }
+            versiones.clear(); versionVista.clear();
+            for (const [doc, v] of nuevas) { versiones.set(doc, v); versionVista.set(doc, ahora); }
         } catch (e) {
             // Si la base falla no se tumba la API: se sigue con lo que ya hay en memoria
             console.error('No se pudo refrescar el estado de sesiones:', e.message);
         }
         for (const [jti, exp] of expiraRevocado) if (exp < Date.now()) { revocados.delete(jti); expiraRevocado.delete(jti); }
+        for (const [doc, c] of cortes) if (c.expira < Date.now()) cortes.delete(doc);
     })();
     return refrescando;
 }
@@ -79,8 +107,28 @@ async function estaVigente(datos) {
     await refrescar();
     if (datos.jti && revocados.has(datos.jti)) return false;
     if (sidDe(datos) && revocados.has(sidDe(datos))) return false;
-    if ((datos.sv || 0) < (versiones.get(String(datos.id)) || 0)) return false;
+    const doc = String(datos.id);
+    if (!versionVigente(datos, doc)) {
+        // Puede que la versión en memoria sea de una cuenta ya borrada y recreada en otro servidor (dentro de los 30 s
+        // del refresco): se vuelve a leer la base (como mucho una vez por segundo) antes de rechazar.
+        if (Date.now() - ultimoRefresco < REFRESCO_FORZADO_MIN_MS) return false;
+        await refrescar(true);
+        if (!versionVigente(datos, doc)) return false;
+    }
+    const corte = cortes.get(doc);
+    // Sesión abierta antes de eliminar la cuenta. Estricto (<): una sesión de la cuenta nueva iniciada en el mismo segundo
+    // de la eliminación (registrarse y entrar enseguida) debe valer; los tokens solo guardan segundos.
+    if (corte && inicioDe(datos) < corte.corte) return false;
     return true;
+}
+
+// Versión del token frente a la conocida. Si la cuenta se eliminó (hay corte), el token es de una sesión posterior al
+// corte y la versión en memoria se conoció antes del corte, esa versión es de la cuenta borrada: no se aplica.
+function versionVigente(datos, doc) {
+    const conocida = versiones.get(doc) || 0;
+    if ((datos.sv || 0) >= conocida) return true;
+    const corte = cortes.get(doc);
+    return Boolean(corte && inicioDe(datos) >= corte.corte && (versionVista.get(doc) || 0) < (corte.corte + 1) * 1000);
 }
 
 /** Cierra una sesión (logout): revoca su sid, con lo que ningún token de esa sesión (ni anterior ni renovado) sirve. */
@@ -98,7 +146,34 @@ async function revocar(datos) {
 async function revocarTodas(documentoID, transaction) {
     await db.Usuario.increment('SesionesVersion', { by: 1, where: { DocumentoID: documentoID }, transaction });
     const u = await db.Usuario.findByPk(documentoID, { attributes: ['SesionesVersion'], transaction });
-    if (u) versiones.set(String(documentoID), u.SesionesVersion);
+    if (u) {
+        versiones.set(String(documentoID), u.SesionesVersion);
+        versionVista.set(String(documentoID), Date.now());
+        versionesLocales.set(String(documentoID), { version: u.SesionesVersion, ms: Date.now() });
+    }
+}
+
+/**
+ * Cuenta eliminada: corta todas sus sesiones (en todos los servidores) sin depender de la fila del usuario, que se va a
+ * borrar. Si alguien se registra después con el mismo documento, sus sesiones nuevas valen (empieza en versión 0).
+ * Con `transaction` el corte se guarda dentro de ella y NO se aplica en memoria: devuelve `aplicar`, que el llamador
+ * ejecuta tras el commit (si la transacción se deshace, las sesiones siguen como estaban). Sin transacción se aplica ya.
+ */
+async function cerrarCuenta(documentoID, { transaction } = {}) {
+    const doc = String(documentoID);
+    const corte = ahoraS();
+    // Ninguna sesión iniciada antes del corte puede seguir viva pasada la vida máxima: hasta ahí se guarda
+    const expira = new Date((corte + vidaMaximaS()) * 1000);
+    const jti = `${PREFIJO_CORTE}${doc}:${corte}`;
+    await db.SesionRevocada.findOrCreate({ where: { Jti: jti }, defaults: { Jti: jti, DocumentoID: documentoID, Expira: expira }, transaction });
+    const aplicar = () => {
+        anotarCorte(doc, corte, expira.getTime());
+        versiones.delete(doc);
+        versionVista.delete(doc);
+        versionesLocales.delete(doc);
+    };
+    if (!transaction) aplicar();
+    return aplicar;
 }
 
 /** Si al token le queda poco, devuelve uno nuevo de la misma sesión; si no (o si la sesión llegó a su tope), null. */
@@ -112,4 +187,4 @@ function renovacion(datos) {
     return emitir({ DocumentoID: datos.id, RolID: datos.rol, SesionesVersion: datos.sv }, { sid: sidDe(datos), ini });
 }
 
-module.exports = { emitir, estaVigente, revocar, revocarTodas, renovacion, refrescar };
+module.exports = { emitir, estaVigente, revocar, revocarTodas, cerrarCuenta, renovacion, refrescar };

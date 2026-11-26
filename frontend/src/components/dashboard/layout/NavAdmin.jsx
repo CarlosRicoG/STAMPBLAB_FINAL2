@@ -7,6 +7,7 @@ import { cerrarSesion } from "../../../Services/api-auth/auth";
 import BotonMenu from "./BotonMenu";
 import CampanaNotificaciones from "../../notificaciones/CampanaNotificaciones";
 import { C as TOKENS } from "../../../config/tokens";
+import { telefonoValido, MENSAJE_TELEFONO } from "../../../utils/validarTelefono";
 
 const API_URL = `${API_ROOT}/api/usuarios`;
 
@@ -165,6 +166,10 @@ const NavAdmin = () => {
             setMsgError("Nombre y correo son obligatorios.");
             return;
         }
+        if (!telefonoValido(form.Telefono)) {
+            setMsgError(MENSAJE_TELEFONO);
+            return;
+        }
 
         const payload = getTokenPayload();
         if (!payload?.id) { setMsgError("Sesión inválida."); return; }
@@ -211,7 +216,8 @@ const NavAdmin = () => {
 
         } catch (e) {
             console.error("Error al guardar:", e.response?.data || e.message);
-            setMsgError(e.response?.data?.mensaje || "Error al guardar los cambios.");
+            // Un 400 de validación trae la explicación en `mensaje` (y en `message`)
+            setMsgError(e.response?.data?.mensaje || e.response?.data?.message || "Error al guardar los cambios.");
         } finally {
             setGuardando(false);
         }

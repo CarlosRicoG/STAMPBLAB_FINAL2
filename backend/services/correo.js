@@ -7,6 +7,7 @@
  *  - consola: sin configuración -> no envía, solo deja una línea en el registro (la app funciona igual)
  */
 const nodemailer = require('nodemailer');
+const { enmascararCorreo } = require('../utils/log');
 
 const buzon = []; // modo archivo: últimos correos "enviados"
 let transporte = null;
@@ -42,7 +43,7 @@ async function enviar({ para, asunto, html }) {
             return { enviado: true, modo: m };
         }
         if (m === 'consola') {
-            console.log(`[correo] (sin configurar MAIL_USER/MAIL_PASS) no se envía "${asunto}" a ${para}`);
+            console.log(`[correo] (sin configurar MAIL_USER/MAIL_PASS) no se envía "${asunto}" a ${enmascararCorreo(para)}`);
             return { enviado: false, modo: m, motivo: 'sin configurar' };
         }
         await obtenerTransporte().sendMail({
@@ -51,7 +52,7 @@ async function enviar({ para, asunto, html }) {
         });
         return { enviado: true, modo: m };
     } catch (error) {
-        console.error(`[correo] no se pudo enviar "${asunto}" a ${para}:`, error.message);
+        console.error(`[correo] no se pudo enviar "${asunto}" a ${enmascararCorreo(para)}:`, error.message);
         return { enviado: false, error: error.message };
     }
 }

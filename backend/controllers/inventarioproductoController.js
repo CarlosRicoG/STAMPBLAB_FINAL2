@@ -274,17 +274,19 @@ exports.deleteInventario = async (req, res) => {
             });
         }
 
-        // Un pedido pendiente tiene stock reservado en esta variante: si se borra, al cancelarlo no habría a dónde devolverlo
+        // Un pedido Pendiente o Pagado tiene stock descontado de esta variante: si se borra, al cancelarlo no habría a dónde
+        // devolverlo. Una sola consulta filtrada (estado + variante, con índice en detalleventa.InventarioID).
         const { DetalleVenta, Venta } = require('../models');
-        if (DetalleVenta?.findAll && Venta?.count) {
-            const detalles = await DetalleVenta.findAll({ where: { InventarioID: inventario.InventarioID }, attributes: ['VentaID'], raw: true });
-            const pendientes = detalles.length
-                ? await Venta.count({ where: { VentaID: detalles.map((d) => d.VentaID), EstadoID: ESTADO_VENTA.PENDIENTE } })
-                : 0;
-            if (pendientes > 0) {
+        if (DetalleVenta && Venta?.count) {
+            const activos = await Venta.count({
+                where: { EstadoID: [ESTADO_VENTA.PENDIENTE, ESTADO_VENTA.PAGADA] },
+                include: [{ model: DetalleVenta, as: 'detalles', where: { InventarioID: inventario.InventarioID }, attributes: [], required: true }],
+                distinct: true, col: 'VentaID',
+            });
+            if (activos > 0) {
                 return res.status(400).json({
                     estado: false,
-                    mensaje: `No se puede eliminar: hay ${pendientes} pedido(s) pendiente(s) con stock reservado en esta variante.`
+                    mensaje: `No se puede eliminar: hay ${activos} pedido(s) pendiente(s) o pagado(s) con stock de esta variante.`
                 });
             }
         }

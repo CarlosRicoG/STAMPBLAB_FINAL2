@@ -5,9 +5,19 @@ on:
   push:
     branches: [main]
 
+# Mínimo privilegio para el GITHUB_TOKEN: los jobs solo leen el repositorio
+permissions:
+  contents: read
+
+# Un push nuevo a la misma PR cancela la corrida anterior; en main (push) no se cancela ninguna
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
@@ -19,10 +29,13 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
+      - name: Auditoría de dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
       - run: npm test
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
@@ -34,6 +47,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Auditoría de dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm test
       - run: npm run build
@@ -44,6 +59,7 @@ jobs:
   # concurrencia, abuso). Son las que más fallos reales atrapan: una rama que rompa el flujo no debería poder mezclarse.
   integracion:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     services:
       mysql:
         image: mysql:8.0
@@ -96,3 +112,20 @@ jobs:
       - name: Registro de la API (si algo falló)
         if: failure()
         run: tail -n 80 api.log
+
+  # Las imágenes de docker compose (backend y frontend) tienen que poder construirse; solo se construyen, no se levantan
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: .env mínimo para CI (valores falsos, solo para interpolar docker-compose.yml)
+        run: |
+          cp .env.example .env
+          {
+            echo "DB_ROOT_PASSWORD=ci_root_falso"
+            echo "DB_PASSWORD=ci_falso"
+            echo "JWT_SECRET=ci-secreto-falso-solo-para-build-0123456789abcdef"
+          } >> .env
+      - run: docker compose config --quiet
+      - run: docker compose build
