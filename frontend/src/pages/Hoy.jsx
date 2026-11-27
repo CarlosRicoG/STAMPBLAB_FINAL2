@@ -5,14 +5,17 @@ import {
     FaExclamationTriangle, FaSearchPlus, FaTimes, FaArrowRight, FaCheck, FaBan,
 } from "react-icons/fa";
 import Swal from "sweetalert2";
-import API_BASE from "../config/api";
 import { escapeHtml } from "../utils/escapeHtml";
+import { swalEncima } from "../utils/alertas";
 import { getResumenHoy } from "../Services/api-resumen/resumen";
 import { updateEstadoVenta, rechazarComprobante, getVentaById } from "../Services/api-ventas/ventas";
 import { SIGUIENTE_NORMAL, NOMBRE_ESTADO_VENTA, ESTADOS_CON_FECHA, hoyISO } from "../Services/api-ventas/flujo";
 import { ESTADO_VENTA } from "../config/estados";
-import { EstadoBadge, fmtCOP, fmtFecha, fmtHora } from "./ModalDetalleVenta";
+import { EstadoBadge } from "./ventas/componentesVenta";
+import { fmtFecha, fmtHora } from "./ventas/ventasUi";
+import { fmtCOP } from "../utils/formato";
 import { C } from "../config/tokens";
+import { LightboxComprobante } from "../components/VisorComprobante";
 
 const CSS = `
 .cf-p-hoy, .cf-p-hoy * { box-sizing: border-box; }
@@ -73,8 +76,6 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) { .cf-p-skel, .cf-p-spin { animation: none; } .cf-p-btn, .cf-p-kpi { transition: none; } }
 `;
 
-const urlComprobante = (c) => (c && c.startsWith("/") ? `${API_BASE}${c}` : c);
-const swalTop = (opts) => Swal.fire({ ...opts, didOpen: () => { const c = document.querySelector(".swal2-container"); if (c) c.style.zIndex = "99999"; } });
 const errMsg = (e, fallback) => e?.response?.data?.message || e?.response?.data?.error || fallback;
 const refrescarMenu = () => { try { window.dispatchEvent(new Event("stamplab:refrescar-resumen")); } catch { /* sin window */ } };
 
@@ -134,18 +135,17 @@ const Hoy = () => {
         return () => window.removeEventListener("keydown", onKey);
     }, [zoom]);
 
-    // El comprobante pesa varios MB: no viaja con la lista, se pide solo cuando el administrador lo quiere ver
+    // El comprobante pesa varios MB: no viaja con la lista, se pide solo cuando el administrador lo quiere ver.
+    // Imagen o PDF se muestran en LightboxComprobante: el PDF se abre con un clic del usuario (no tras un await,
+    // que el navegador bloquearía como ventana emergente) y el blob se libera solo.
     const verComprobante = async (v) => {
         setOcupado(`ver-${v.VentaID}`);
         try {
             const venta = await getVentaById(v.VentaID);
             const c = venta?.ComprobanteTransferencia;
-            if (!c) { swalTop({ icon: "info", title: "Este pedido no tiene comprobante" }); return; }
-            if (/^data:application\/pdf/i.test(c)) {
-                const bytes = Uint8Array.from(atob(c.split(",")[1] || ""), (ch) => ch.charCodeAt(0));
-                window.open(URL.createObjectURL(new Blob([bytes], { type: "application/pdf" })), "_blank", "noopener");
-            } else setZoom(urlComprobante(c));
-        } catch (e) { swalTop({ icon: "error", title: "No se pudo abrir el comprobante", text: errMsg(e, "Intenta de nuevo.") }); }
+            if (!c) { swalEncima({ icon: "info", title: "Este pedido no tiene comprobante" }); return; }
+            setZoom(c);
+        } catch (e) { swalEncima({ icon: "error", title: "No se pudo abrir el comprobante", text: errMsg(e, "Intenta de nuevo.") }); }
         finally { setOcupado(null); }
     };
 
@@ -155,7 +155,7 @@ const Hoy = () => {
 
     /* ── Acciones ── */
     const marcarPagada = async (v) => {
-        const r = await swalTop({
+        const r = await swalEncima({
             title: `¿Marcar el pedido #${v.VentaID} como pagado?`,
             html: `<p style="margin:0">Cliente: <b>${escapeHtml(v.cliente || "N/A")}</b></p><p style="margin:6px 0 0">Total: <b>${escapeHtml(fmtCOP(v.total))}</b></p><p style="margin:8px 0 0;font-size:13px;color:#64748b">Confirma que revisaste el comprobante.</p>`,
             icon: "question", showCancelButton: true, confirmButtonText: "Sí, marcar como pagada", cancelButtonText: "Cancelar",
@@ -167,12 +167,12 @@ const Hoy = () => {
             await updateEstadoVenta(v.VentaID, ESTADO_VENTA.PAGADA);
             Swal.fire({ icon: "success", title: `Pedido #${v.VentaID} marcado como pagado`, toast: true, position: "top-end", timer: 2200, showConfirmButton: false });
             await tras();
-        } catch (e) { swalTop({ icon: "error", title: "No se pudo marcar como pagada", text: errMsg(e, "Intenta de nuevo.") }); }
+        } catch (e) { swalEncima({ icon: "error", title: "No se pudo marcar como pagada", text: errMsg(e, "Intenta de nuevo.") }); }
         finally { setOcupado(null); }
     };
 
     const rechazar = async (v) => {
-        const r = await swalTop({
+        const r = await swalEncima({
             title: `Rechazar comprobante del pedido #${v.VentaID}`,
             text: "El pedido seguirá Pendiente y se avisará al cliente para que suba uno nuevo.",
             input: "textarea", inputLabel: "Motivo del rechazo (5 a 300 caracteres)",
@@ -193,7 +193,7 @@ const Hoy = () => {
             await rechazarComprobante(v.VentaID, r.value.trim(), v.fecha);
             Swal.fire({ icon: "success", title: "Comprobante rechazado", text: "Se avisó al cliente por correo.", toast: true, position: "top-end", timer: 2600, showConfirmButton: false });
             await tras();
-        } catch (e) { swalTop({ icon: "error", title: "No se pudo rechazar el comprobante", text: errMsg(e, "Intenta de nuevo.") }); }
+        } catch (e) { swalEncima({ icon: "error", title: "No se pudo rechazar el comprobante", text: errMsg(e, "Intenta de nuevo.") }); }
         finally { setOcupado(null); }
     };
 
@@ -201,7 +201,7 @@ const Hoy = () => {
         const sig = SIGUIENTE_NORMAL[v.estadoID];
         if (!sig) return;
         const pideFecha = ESTADOS_CON_FECHA.includes(sig);
-        const r = await swalTop({
+        const r = await swalEncima({
             title: `Pedido #${v.VentaID} → ${NOMBRE_ESTADO_VENTA[sig]}`,
             html: `<p style="margin:0 0 10px;font-size:13px;color:#64748b">Cliente: <b>${escapeHtml(v.cliente || "N/A")}</b></p>`
                 + (pideFecha ? `<label for="cf-p-fecha" style="display:block;text-align:left;font-size:12px;font-weight:700;margin:0 0 4px">Fecha estimada de entrega (opcional)</label><input id="cf-p-fecha" type="date" class="swal2-input" min="${hoyISO()}" style="margin:0 0 12px;width:100%">` : "")
@@ -222,7 +222,7 @@ const Hoy = () => {
             await updateEstadoVenta(v.VentaID, sig, { nota: r.value.nota || undefined, fechaEstimadaEntrega: r.value.fecha || undefined });
             Swal.fire({ icon: "success", title: `Pedido #${v.VentaID}: ${NOMBRE_ESTADO_VENTA[sig]}`, toast: true, position: "top-end", timer: 2200, showConfirmButton: false });
             await tras();
-        } catch (e) { swalTop({ icon: "error", title: "No se pudo cambiar el estado", text: errMsg(e, "Intenta de nuevo.") }); }
+        } catch (e) { swalEncima({ icon: "error", title: "No se pudo cambiar el estado", text: errMsg(e, "Intenta de nuevo.") }); }
         finally { setOcupado(null); }
     };
 
@@ -382,10 +382,10 @@ const Hoy = () => {
             </div>
 
             {zoom && (
-                <div className="cf-p-lightbox" role="dialog" aria-modal="true" aria-label="Comprobante ampliado" onClick={() => setZoom(null)}>
-                    <img src={zoom} alt="Comprobante ampliado" onClick={e => e.stopPropagation()} />
+                <LightboxComprobante comprobante={zoom} className="cf-p-lightbox" claseBoton="cf-p-btn ghost" onCerrar={() => setZoom(null)}
+                    role="dialog" aria-modal="true" aria-label="Comprobante ampliado">
                     <button className="cf-p-btn ghost" onClick={() => setZoom(null)}><FaTimes size={11} aria-hidden="true" /> Cerrar</button>
-                </div>
+                </LightboxComprobante>
             )}
         </>
     );

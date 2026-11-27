@@ -16,7 +16,11 @@ Hallazgos nuevos y plan por olas en `docs/AUDITORIA.md` §9. Ola A hecha (2026-1
 Ola B hecha (2026-11-26, detalle en `docs/AUDITORIA.md` §9), incluido el defecto de sesión al re-registrar un documento borrado. **Cambio de despliegue:** con `NODE_ENV=production` la API no arranca sin `CORS_ORIGIN`.
 Variables nuevas para añadir a mano en `.env.example` (solo lectura en el entorno): `SESION_VIDA_MAXIMA_HORAS=24`, `DISENOS_MAX_HORA=30`, `DISENOS_HUERFANOS_HORAS=24`.
 Ola D (rendimiento) hecha el 2026-11-26, con E2E 8/8 sobre el código final.
-Siguientes: Ola C (Ley 1581, necesita texto legal del negocio), Ola E (= Ola 4, refactor; autorización aparte).
+**Estado al 2026-11-27 (rama `ola-a-dinero-sesion`, NO integrada en `main`):** además de A, B y D hay, en el último commit de la rama: Ola C (habeas data: política `/privacidad` en BORRADOR, autorización en el registro, descargar y suprimir datos, `HistorialDesde` al re-registrar un documento suprimido), cierre del "pago por verificar" (backend y panel), Ola E (refactor de la tienda y del panel sin cambio de comportamiento, menú móvil del panel), migración base congelada + `comprobar-esquema`, cobertura mínima y E2E en CI.
+**Verificado:** jest 433, vitest 191, lint, migraciones desde cero (14) y esquema = 30 modelos, integración 11/11.
+**PENDIENTE antes de pasar a `main`:** los 8 recorridos E2E sobre este código no se completaron (el equipo se quedó sin memoria y el sistema detuvo los procesos; una corrida previa quedó invalidada por usar una compilación equivocada). Tampoco se comparó el panel en escritorio con capturas antes/después. `vacios.js` pendiente. Hacerlo uno por uno y con poca memoria libre.
+**Para el negocio:** completar los marcadores `[RAZÓN SOCIAL]`, `[NIT]`… de `frontend/src/config/privacidad.js` y pasar la política por un asesor legal; añadir las variables nuevas al `.env.example` de la raíz (solo lectura en el entorno): ver `backend/.env.example`; definir `CORS_ORIGIN` en producción.
+Siguientes: revisión legal de la política; decidir si se borra la tabla `cotizacionproducto` y se añaden las claves de `tarifas_tecnica` (desajustes viejos).
 
 ## Rama `correcciones-validacion` (2026-11-13), commiteada (5 commits sobre `main`), sin desplegar
 Validación completa (pruebas, integración, E2E y lectura de código del flujo cliente, admin y seguridad) y correcciones:

@@ -165,3 +165,123 @@ describe('POST /api/ventas (validación): EstadoID solo Pendiente o Pagada', () 
         expect(validar({ ...base, EstadoID })).toBeDefined();
     });
 });
+
+describe('pago por verificar: el administrador lo resuelve (pedido cancelado con comprobante sin revisar)', () => {
+    const historial = require('../services/historial');
+    const notificaciones = require('../services/notificaciones');
+    const { esPagoPorVerificar } = require('../utils/pagoPorVerificar');
+    // Fila bloqueada, leída sin el comprobante (TieneComprobante en su lugar)
+    const porVerificar = (extra = {}) => ({
+        VentaID: 7, EstadoID: ESTADO_VENTA.CANCELADA, MetodoPago: 'transferencia', TieneComprobante: 1, ReembolsoPendiente: false,
+        ReembolsoRealizadoEn: null, ComprobanteMotivoRechazo: null, FechaTransferencia: new Date('2026-11-20T15:00:00Z'), update: jest.fn(), ...extra,
+    });
+
+    test('la regla: cancelado, transferencia, con comprobante, sin motivo, sin reembolso pendiente ni realizado', () => {
+        expect(esPagoPorVerificar(porVerificar(), true)).toBe(true);
+        expect(esPagoPorVerificar(porVerificar(), false)).toBe(false);
+        expect(esPagoPorVerificar(porVerificar({ ReembolsoRealizadoEn: new Date() }), true)).toBe(false);
+        expect(esPagoPorVerificar(porVerificar({ ComprobanteMotivoRechazo: 'No llegó' }), true)).toBe(false);
+        expect(esPagoPorVerificar(porVerificar({ ReembolsoPendiente: true }), true)).toBe(false);
+        expect(esPagoPorVerificar(porVerificar({ EstadoID: ESTADO_VENTA.PENDIENTE }), true)).toBe(false);
+        expect(esPagoPorVerificar(porVerificar({ MetodoPago: 'contraentrega' }), true)).toBe(false);
+    });
+
+    test('(a) "reembolso realizado": con bloqueo, guarda ReembolsoRealizadoEn y deja nota; sale de la condición', async () => {
+        const venta = porVerificar();
+        Venta.findByPk.mockResolvedValue(venta);
+        const res = mockRes();
+        await controller.marcarReembolsado({ params: { id: '7' }, usuario: ADMIN }, res);
+        expect(Venta.findByPk).toHaveBeenCalledWith('7', expect.objectContaining({ transaction: mockTx, lock: 'UPDATE' }));
+        const [campos] = venta.update.mock.calls[0];
+        expect(campos).toEqual({ ReembolsoPendiente: false, ReembolsoRealizadoEn: expect.any(Date) });
+        expect(historial.registrar.mock.calls[0][0].nota).toMatch(/Reembolso realizado/);
+        expect(mockTx.commit).toHaveBeenCalled();
+        expect(res.status).not.toHaveBeenCalled();
+        expect(esPagoPorVerificar({ ...venta, ...campos }, true)).toBe(false);
+    });
+
+    test('el reembolso pendiente de siempre también guarda ReembolsoRealizadoEn', async () => {
+        const venta = porVerificar({ ReembolsoPendiente: true, TieneComprobante: 0 });
+        Venta.findByPk.mockResolvedValue(venta);
+        await controller.marcarReembolsado({ params: { id: '7' }, usuario: ADMIN }, mockRes());
+        expect(venta.update.mock.calls[0][0]).toEqual({ ReembolsoPendiente: false, ReembolsoRealizadoEn: expect.any(Date) });
+        expect(historial.registrar.mock.calls[0][0].nota).toBe('Reembolso realizado');
+    });
+
+    test('marcar reembolso sin reembolso pendiente ni pago por verificar: 400 y rollback', async () => {
+        const venta = porVerificar({ ReembolsoRealizadoEn: new Date() }); // ya resuelto
+        Venta.findByPk.mockResolvedValue(venta);
+        const res = mockRes();
+        await controller.marcarReembolsado({ params: { id: '7' }, usuario: ADMIN }, res);
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(venta.update).not.toHaveBeenCalled();
+        expect(mockTx.rollback).toHaveBeenCalled();
+    });
+
+    test('(b) "no hubo pago": rechazar-comprobante guarda el motivo con bloqueo, sin avisar al cliente ni reiniciar plazos', async () => {
+        const venta = porVerificar();
+        Venta.findByPk.mockResolvedValue(venta);
+        const res = mockRes();
+        await controller.rechazarComprobante({ params: { id: '7' }, usuario: ADMIN, body: { motivo: 'No llegó ningún pago a la cuenta' } }, res);
+        expect(Venta.findByPk).toHaveBeenCalledWith('7', expect.objectContaining({ transaction: mockTx, lock: 'UPDATE' }));
+        const [campos] = venta.update.mock.calls[0];
+        expect(campos).toEqual({ ComprobanteMotivoRechazo: 'No llegó ningún pago a la cuenta', ComprobanteFechaRechazo: expect.any(Date) });
+        expect(historial.registrar.mock.calls[0][0].nota).toMatch(/Pago por verificar cerrado.*No llegó ningún pago/);
+        expect(notificaciones.comprobanteRechazado).not.toHaveBeenCalled();
+        expect(res.json.mock.calls[0][0].pagoPorVerificarCerrado).toBe(true);
+        expect(mockTx.commit).toHaveBeenCalled();
+        expect(esPagoPorVerificar({ ...venta, ...campos }, true)).toBe(false);
+    });
+
+    test('(b) exige motivo (5 a 300 caracteres)', async () => {
+        Venta.findByPk.mockResolvedValue(porVerificar());
+        const res = mockRes();
+        await controller.rechazarComprobante({ params: { id: '7' }, usuario: ADMIN, body: { motivo: 'no' } }, res);
+        expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    test('un cancelado ya resuelto (con motivo) no se puede "rechazar" otra vez: 400', async () => {
+        const venta = porVerificar({ ComprobanteMotivoRechazo: 'No llegó' });
+        Venta.findByPk.mockResolvedValue(venta);
+        const res = mockRes();
+        await controller.rechazarComprobante({ params: { id: '7' }, usuario: ADMIN, body: { motivo: 'Otra vez el motivo' } }, res);
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(venta.update).not.toHaveBeenCalled();
+    });
+});
+
+describe('deleteVenta: un cancelado con pago por verificar no se borra', () => {
+    const cancelada = (extra = {}) => ({
+        VentaID: 7, EstadoID: ESTADO_VENTA.CANCELADA, MetodoPago: 'transferencia', TieneComprobante: 1, ReembolsoPendiente: false,
+        ReembolsoRealizadoEn: null, ComprobanteMotivoRechazo: null, destroy: jest.fn(), ...extra,
+    });
+
+    test('400 con message y mensaje, rollback, sin leer el comprobante en base64', async () => {
+        const venta = cancelada();
+        Venta.findByPk.mockResolvedValue(venta);
+        const res = mockRes();
+        await controller.deleteVenta({ params: { id: '7' } }, res);
+        expect(res.status).toHaveBeenCalledWith(400);
+        const cuerpo = res.json.mock.calls[0][0];
+        expect(cuerpo.message).toMatch(/pago por verificar/);
+        expect(cuerpo.mensaje).toBe(cuerpo.message);
+        expect(Venta.findByPk.mock.calls[0][1]).toEqual(expect.objectContaining({ lock: 'UPDATE', transaction: mockTx }));
+        expect(Venta.findByPk.mock.calls[0][1].attributes.exclude).toContain('ComprobanteTransferencia');
+        expect(DetalleVenta.destroy).not.toHaveBeenCalled();
+        expect(venta.destroy).not.toHaveBeenCalled();
+        expect(mockTx.rollback).toHaveBeenCalled();
+    });
+
+    test.each([
+        ['resuelto con reembolso', { ReembolsoRealizadoEn: new Date() }],
+        ['resuelto como "no hubo pago"', { ComprobanteMotivoRechazo: 'No llegó ningún pago' }],
+        ['sin comprobante', { TieneComprobante: 0 }],
+    ])('cancelado %s: sí se puede eliminar', async (_, extra) => {
+        const venta = cancelada(extra);
+        Venta.findByPk.mockResolvedValue(venta);
+        const res = mockRes();
+        await controller.deleteVenta({ params: { id: '7' } }, res);
+        expect(res.status).not.toHaveBeenCalledWith(400);
+        expect(DetalleVenta.destroy).toHaveBeenCalled();
+    });
+});

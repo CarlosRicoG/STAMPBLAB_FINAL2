@@ -68,6 +68,8 @@ const setVal = (pg, sel, v) => pg.evaluate((s, v) => { const el = document.query
         await pc.goto(BASE + '/signup', { waitUntil: 'networkidle2' }); await sleep(1000);
         const v = ['Cliente Vacio', doc, `vacio_${doc}@test.com`, '3105550000', 'Calle 1 # 2-3', 'Vacio12345*', 'Vacio12345*'];
         for (let i = 0; i < v.length; i++) await pc.evaluate((n, x) => { const el = document.querySelectorAll('form input')[n]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, x); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }, i, v[i]);
+        // Casillas obligatorias del formulario (autorización de tratamiento de datos personales, #reg-privacidad)
+        await pc.evaluate(() => document.querySelectorAll('form input[type=checkbox][required]').forEach((c) => { if (!c.checked) c.click(); }));
         await pc.evaluate(() => document.querySelector('form').requestSubmit()); await sleep(3000);
         for (const ruta of ['/miscompras', '/miscotizaciones', '/editarperfil']) {
             await pc.goto(BASE + ruta, { waitUntil: 'networkidle2' }); await sleep(900);

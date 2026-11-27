@@ -146,6 +146,11 @@ async function login(pg, c, p) {
         for (const id of limpiar.cots) { await api('PUT', `/cotizaciones/${id}/cancelar`, null, adm); await api('DELETE', `/cotizaciones/${id}`, null, adm); }
         await api('POST', '/notificaciones/archivar-todas', {}, cli);
         await br.close();
+        // "Volver a pedir" y la cotización dejan productos en el carrito guardado del cliente demo: se vacía después de
+        // cerrar el navegador (así no queda un guardado diferido de la página que lo vuelva a llenar) para que run.js
+        // u otra prueba que compre después no herede esas unidades.
+        const vacio = await api('PUT', '/carrito', { items: [] }, cli);
+        if (vacio.s !== 200) console.log(`  (aviso) no se pudo vaciar el carrito del cliente demo: HTTP ${vacio.s}`);
     }
     console.log(fallos ? `\n✘ ${fallos} comprobaciones fallaron` : '\n✔ Las pantallas del cliente funcionan');
     process.exit(fallos ? 1 : 0);

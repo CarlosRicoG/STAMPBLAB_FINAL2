@@ -23,6 +23,7 @@ const configuracion = require('../services/config');
 const { esAdmin } = require('../middleware/authMiddleware');
 const log = require('../utils/log');
 const { errorDeComprobante } = require('../utils/comprobante');
+const { esPagoPorVerificar } = require('../utils/pagoPorVerificar');
 const { Op } = require('sequelize');
 
 // El comprobante de transferencia (base64, hasta ~7 MB) solo viaja en GET /api/ventas/:id, que es donde se mira.
@@ -57,6 +58,8 @@ exports.getAllVentas = async (req, res) => {
         const whereVenta = {};
         const documentoFiltro = req.documentoForzado || req.query.documentoID;
         if (documentoFiltro) whereVenta.DocumentoID = documentoFiltro; // ventas de un cliente
+        // Cliente que volvió a registrarse con el documento de una cuenta suprimida: solo sus pedidos nuevos
+        if (req.historialDesde) whereVenta.FechaVenta = { [Op.gt]: req.historialDesde };
         if (estado === "pendientes") {
             whereVenta.EstadoID = ESTADO_VENTA.PENDIENTE;
         } else if (estado === "procesadas") {
@@ -356,15 +359,21 @@ exports.updateEstadoVenta = async (req, res) => {
     }
 };
 
-// MARCAR EL REEMBOLSO COMO REALIZADO (pedido pagado que se canceló)
+// MARCAR EL REEMBOLSO COMO REALIZADO: pedido pagado que se canceló (ReembolsoPendiente) o pedido cancelado con un
+// comprobante sin revisar ("pago por verificar", utils/pagoPorVerificar) cuyo pago sí llegó y se devolvió.
 exports.marcarReembolsado = async (req, res) => {
     const t = await sequelize.transaction();
     try {
         const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
-        if (!venta.ReembolsoPendiente) { await t.rollback(); return res.status(400).json({ message: 'Este pedido no tiene un reembolso pendiente' }); }
-        await venta.update({ ReembolsoPendiente: false }, { transaction: t });
-        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Reembolso realizado', documentoId: req.usuario?.id }, t);
+        const porVerificar = esPagoPorVerificar(venta, tieneComprobante(venta));
+        if (!venta.ReembolsoPendiente && !porVerificar) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Este pedido no tiene un reembolso pendiente ni un pago por verificar' });
+        }
+        await venta.update({ ReembolsoPendiente: false, ReembolsoRealizadoEn: new Date() }, { transaction: t });
+        const nota = porVerificar ? 'Reembolso realizado: el pago del comprobante sin revisar sí llegó y se devolvió' : 'Reembolso realizado';
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota, documentoId: req.usuario?.id }, t);
         await t.commit();
         return res.json({ message: 'Reembolso marcado como realizado', venta });
     } catch (error) {
@@ -449,9 +458,11 @@ exports.rechazarComprobante = async (req, res) => {
     try {
         const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
-        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !tieneComprobante(venta)) {
+        // También sirve para cerrar un "pago por verificar" (pedido ya cancelado): no hubo pago o el comprobante no es válido
+        const porVerificar = esPagoPorVerificar(venta, tieneComprobante(venta));
+        if (!porVerificar && (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !tieneComprobante(venta))) {
             await t.rollback();
-            return res.status(400).json({ message: 'Solo se puede rechazar el comprobante de un pedido pendiente pagado por transferencia' });
+            return res.status(400).json({ message: 'Solo se puede rechazar el comprobante de un pedido pendiente pagado por transferencia, o el de un pedido cancelado con el pago por verificar' });
         }
         // Se compara al segundo (la columna DATETIME no guarda milisegundos)
         const segundo = (f) => Math.floor(new Date(f).getTime() / 1000);
@@ -459,6 +470,13 @@ exports.rechazarComprobante = async (req, res) => {
             await t.rollback();
             const message = 'El cliente subió otro comprobante mientras lo revisabas. Vuelve a abrir el pedido y revisa el nuevo.';
             return res.status(409).json({ message, mensaje: message });
+        }
+        if (porVerificar) {
+            // Pedido ya cancelado: solo queda constancia (no hay plazo que reiniciar ni se pide al cliente otro comprobante)
+            await venta.update({ ComprobanteMotivoRechazo: motivo, ComprobanteFechaRechazo: new Date() }, { transaction: t });
+            await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: `Pago por verificar cerrado: no hubo pago o el comprobante no es válido (${motivo})`, documentoId: req.usuario?.id }, t);
+            await t.commit();
+            return res.json({ message: 'Pago por verificar cerrado: se registró que no hubo pago', venta, pagoPorVerificarCerrado: true });
         }
         // La fecha del rechazo reinicia el plazo de pago (PLAZO_PAGO_HORAS desde aquí) y habilita de nuevo el aviso previo
         await venta.update({ ComprobanteMotivoRechazo: motivo, ComprobanteFechaRechazo: new Date(), AvisoVencimiento: false }, { transaction: t });
@@ -520,6 +538,14 @@ exports.deleteVenta = async (req, res) => {
         if (venta.ReembolsoPendiente) {
             await t.rollback();
             const message = 'No se puede eliminar: este pedido tiene un reembolso pendiente. Márcalo como reembolsado antes de eliminarlo.';
+            return res.status(400).json({ message, mensaje: message });
+        }
+
+        // Cancelado con un comprobante sin revisar: puede haber un pago sin devolver (la fila se leyó con TieneComprobante, sin el base64)
+        if (esPagoPorVerificar(venta, tieneComprobante(venta))) {
+            await t.rollback();
+            const message = 'No se puede eliminar: este pedido tiene un pago por verificar (se canceló con un comprobante sin revisar). '
+                + 'Márcalo como reembolsado si el pago llegó y se devolvió, o registra que no hubo pago, antes de eliminarlo.';
             return res.status(400).json({ message, mensaje: message });
         }
 

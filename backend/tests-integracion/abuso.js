@@ -1,3 +1,5 @@
+// Autorización de tratamiento de datos que exige el registro (Ley 1581 de 2012)
+const PRIVACIDAD = { AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
 /**
  * Pruebas "a propósito para dañarlo": entradas maliciosas o absurdas desde el cliente y el administrador.
  * Regla: el servidor nunca debe responder 5xx, ni aceptar precios/estados/datos ajenos, ni dejar el stock descuadrado.
@@ -56,7 +58,7 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     r = await call('DELETE', `/ventas/${V}`, undefined, cli); si('el cliente no puede borrar ventas', r.s === 403, r.s);
     // Otro cliente (temporal) con su propio pedido: el cliente de la prueba no debe poder tocarlo
     const OTRO = 1987654321;
-    await call('POST', '/registro', { Nombre: 'Otro Cliente', Correo: 'otro.cliente@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: OTRO, Telefono: '3001234567' });
+    await call('POST', '/registro', { ...PRIVACIDAD, Nombre: 'Otro Cliente', Correo: 'otro.cliente@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: OTRO, Telefono: '3001234567' });
     const otroTok = await login('otro.cliente@stamplab.com', 'Otro12345*');
     const ajena = await call('POST', '/ventas', pedido(), otroTok);
     const VA = ajena.j?.venta?.VentaID;
@@ -128,7 +130,7 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     r = await call('GET', '/usuarios/1000000001', undefined, cli); si('el cliente no ve el perfil de otro', r.s === 403, r.s);
     r = await call('PUT', '/usuarios/1000000001', { Nombre: 'hack' }, cli); si('el cliente no edita a otro', r.s === 403, r.s);
     r = await call('PUT', '/usuarios/1000000002', { IDRol: 1 }, cli); si('el cliente no se hace administrador', r.s === 403 || r.s === 400 || (await call('GET', '/usuarios', undefined, cli)).s === 403, r.s);
-    r = await call('POST', '/registro', { Nombre: 'Hack', Correo: 'hack@x.com', 'Contraseña': 'Abc12345*', DocumentoID: 1234567890, IDRol: 1 });
+    r = await call('POST', '/registro', { ...PRIVACIDAD, Nombre: 'Hack', Correo: 'hack@x.com', 'Contraseña': 'Abc12345*', DocumentoID: 1234567890, IDRol: 1 });
     if (r.s === 201 || r.s === 200) { const lt = await login('hack@x.com', 'Abc12345*'); si('registrarse mandando IDRol=1 NO da rol de admin', (await call('GET', '/usuarios', undefined, lt)).s === 403); await call('DELETE', '/usuarios/1234567890', undefined, adm); }
     else si('registro con IDRol=1 no crea admin', true);
     for (const c of ["admin@stamplab.com'--", "' OR '1'='1", 'a'.repeat(5000) + '@x.com']) {
@@ -136,7 +138,7 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     }
     r = await call('POST', '/login', { Correo: { $ne: null }, 'Contraseña': { $ne: null } }); si('login con objetos no entra', [400, 401].includes(r.s), r.s);
     r = await call('POST', '/login', {}); si('login vacío: 400', r.s === 400 || r.s === 401, r.s);
-    r = await call('POST', '/registro', { Nombre: '<img src=x onerror=alert(1)>', Correo: 'x@y.com', 'Contraseña': '123', DocumentoID: 'abc' }); si('registro con datos basura se rechaza', rechazado(r), r.s);
+    r = await call('POST', '/registro', { ...PRIVACIDAD, Nombre: '<img src=x onerror=alert(1)>', Correo: 'x@y.com', 'Contraseña': '123', DocumentoID: 'abc' }); si('registro con datos basura se rechaza', rechazado(r), r.s);
 
     console.log('--- ADMINISTRADOR: abusos y errores humanos');
     r = await call('PATCH', `/ventas/${V}/estado`, { EstadoID: 999 }, adm); si('estado inexistente se rechaza', r.s === 400, r.s);

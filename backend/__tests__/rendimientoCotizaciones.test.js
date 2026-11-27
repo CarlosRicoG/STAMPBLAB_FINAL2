@@ -98,6 +98,17 @@ describe('Árbol de la cotización: hasMany con separate', () => {
 });
 
 describe('getCotizacionesByUsuario: paginación opcional', () => {
+    test('cliente re-registrado sobre una cuenta suprimida (req.historialDesde): solo sus cotizaciones nuevas', async () => {
+        const { Op } = require('sequelize');
+        const desde = new Date('2026-12-01T00:00:00Z');
+        m.Cotizacion.findAll.mockResolvedValue([]);
+        m.Cotizacion.count.mockResolvedValue(0);
+        await controller.getCotizacionesByUsuario({ params: { documentoID: '10' }, query: {}, historialDesde: desde }, mockRes());
+        expect(m.Cotizacion.findAll.mock.calls[0][0].where).toEqual({ DocumentoID: '10', FechaCotizacion: { [Op.gt]: desde } });
+        await controller.getCotizacionesByUsuario({ params: { documentoID: '10' }, query: { page: '1' }, historialDesde: desde }, mockRes());
+        expect(m.Cotizacion.count).toHaveBeenCalledWith({ where: { DocumentoID: '10', FechaCotizacion: { [Op.gt]: desde } } });
+    });
+
     test('sin page ni limit: responde el arreglo de siempre, sin límite', async () => {
         const filas = [{ CotizacionID: 2 }, { CotizacionID: 1 }];
         m.Cotizacion.findAll.mockResolvedValue(filas);

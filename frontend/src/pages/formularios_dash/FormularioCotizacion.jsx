@@ -1,4 +1,4 @@
-import { crearSubidorDisenos } from "../../utils/subidaDisenos";
+import { crearSubidorDisenos, TIPOS_IMAGEN_DISENO, MAX_MB_DISENO } from "../../utils/subidaDisenos";
 import React, { useState, useEffect, useRef } from "react";
 import {
     FaPlus, FaTrash, FaExclamationTriangle, FaCheckCircle, FaShoppingCart,
@@ -7,6 +7,7 @@ import {
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../../utils/escapeHtml";
+import { swalEncima } from "../../utils/alertas";
 import {
     createCotizacionCompleta, getColores, getTallas, getTelas, getTecnicas, getPartes
 } from "../../Services/api-cotizacion-landing/cotizacion-landing";
@@ -444,9 +445,8 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
         if (!tecnicaID) { Swal.fire("Atención", "Selecciona una técnica", "warning"); return false; }
         if (!parteID) { Swal.fire("Atención", "Selecciona una parte de la prenda", "warning"); return false; }
         if (!archivoDiseno) { Swal.fire("Atención", "Debes subir un archivo de diseño", "warning"); return false; }
-        const tiposPermitidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        if (!tiposPermitidos.includes(archivoDiseno.type)) { Swal.fire("Atención", "El archivo debe ser una imagen válida", "warning"); return false; }
-        if (archivoDiseno.size > 5 * 1024 * 1024) { Swal.fire("Atención", "El archivo no puede pesar más de 5MB", "warning"); return false; }
+        if (!TIPOS_IMAGEN_DISENO.includes(archivoDiseno.type)) { Swal.fire("Atención", "El archivo debe ser una imagen válida", "warning"); return false; }
+        if (archivoDiseno.size > MAX_MB_DISENO * 1024 * 1024) { Swal.fire("Atención", "El archivo no puede pesar más de 5MB", "warning"); return false; }
         return true;
     };
 
@@ -559,15 +559,6 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
     };
 
     const calcularTotalCarrito = () => carritoProductos.reduce((total, p) => total + p.subtotal, 0);
-
-    const swalEncima = (opciones) =>
-        Swal.fire({
-            ...opciones,
-            didOpen: () => {
-                const container = document.querySelector(".swal2-container");
-                if (container) container.style.zIndex = "99999";
-            },
-        });
 
     const handleEnviarCotizacion = async () => {
         if (!documentoID) { await swalEncima({ title: "Atención", text: "Selecciona un cliente", icon: "warning" }); return; }

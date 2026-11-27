@@ -165,6 +165,59 @@ export function fusionarCarritos(local, remoto) {
 }
 
 /**
+ * Stock de la variante (color + talla por nombre) del producto; sin color ni talla no hay tope.
+ * Si el inventario del producto no está cargado (p. ej. un ítem que vino del carrito del servidor) tampoco hay
+ * tope: el servidor valida el stock al comprar.
+ */
+export function stockVariante(producto, color, talla) {
+    if (!color && !talla) return Infinity;
+    if (!Array.isArray(producto?.inventario)) return Infinity;
+    const vars = (producto?.inventario || []).filter((i) => i.Stock > 0 && i.Estado);
+    const v = vars.find((i) => (!color || i.color?.Nombre === color) && (!talla || i.talla?.Nombre === talla));
+    return Number(v?.Stock) || 0;
+}
+
+/** El producto ACTUAL del catálogo cargado para un ítem del carrito (por ProductoID), o null si no está. */
+export function productoDelCatalogo(item, productosCatalogo = []) {
+    const id = item?.producto?.ProductoID ?? item?.ProductoID;
+    if (id === undefined || id === null || !Array.isArray(productosCatalogo)) return null;
+    return productosCatalogo.find((p) => String(p.ProductoID) === String(id)) || null;
+}
+
+/**
+ * Agrega (o edita, con editIdx) un ítem del carrito sin pasar del stock de la variante.
+ * Si el producto+color+talla ya está, suma la cantidad y la limita al stock.
+ * @returns {{ carrito: Array, cantidad: number, limitado: boolean, stock: number }}
+ *   carrito: nuevo arreglo (o el mismo si no se pudo agregar nada); cantidad: la que quedó en el carrito;
+ *   limitado: true si se pidió más de lo que hay.
+ * @param {{ productoStock?: object|null }} [opciones]  producto con el que se calcula el tope (por defecto el del
+ *   ítem); null o sin inventario cargado = sin tope.
+ */
+export function agregarItemCarrito(carrito, { producto, color, talla, cantidad, precio }, editIdx = null, opciones = {}) {
+    const lista = Array.isArray(carrito) ? carrito : [];
+    const fuenteStock = opciones && "productoStock" in opciones ? opciones.productoStock : producto;
+    const stock = stockVariante(fuenteStock, color, talla);
+    const pedida = Number(cantidad) || 0;
+    if (editIdx !== null && editIdx !== undefined) {
+        const final = Math.min(pedida, stock);
+        if (final < 1) return { carrito: lista, cantidad: 0, limitado: true, stock };
+        return {
+            carrito: lista.map((item, i) => (i === editIdx ? { ...item, color, talla, cantidad: final, precio } : item)),
+            cantidad: final, limitado: final < pedida, stock,
+        };
+    }
+    const ex = lista.findIndex((i) => i.producto?.ProductoID === producto.ProductoID && i.color === color && i.talla === talla);
+    const previa = ex >= 0 ? Number(lista[ex].cantidad) || 0 : 0;
+    const total = previa + pedida;
+    const final = Math.min(total, stock);
+    if (final < 1 || final === previa) return { carrito: lista, cantidad: previa, limitado: total > stock, stock };
+    const nuevo = ex >= 0
+        ? lista.map((item, i) => (i === ex ? { ...item, cantidad: final } : item))
+        : [...lista, { producto, nombre: producto.Nombre, imagen: producto.ImagenProducto, color, talla, cantidad: final, precio }];
+    return { carrito: nuevo, cantidad: final, limitado: final < total, stock };
+}
+
+/**
  * Arma los ítems del carrito para "Volver a pedir" a partir de un pedido y el catálogo actual.
  * Usa el precio ACTUAL (PrecioBase + talla) y solo variantes existentes con stock.
  * @returns {{ items: Array, omitidos: Array<{nombre:string, motivo:string}> }}

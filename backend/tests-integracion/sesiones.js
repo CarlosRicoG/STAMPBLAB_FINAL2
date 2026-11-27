@@ -1,3 +1,5 @@
+// Autorización de tratamiento de datos que exige el registro (Ley 1581 de 2012)
+const PRIVACIDAD = { AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
 /**
  * Sesiones: cierre real (logout), invalidación al cambiar la contraseña, renovación deslizante y compatibilidad.
  * Requisitos: backend corriendo + base de demostración. Crea y borra su propio usuario de prueba.
@@ -20,7 +22,7 @@ const si = (n, c, d = '') => { if (!c) bad++; console.log((c ? 'OK   ' : 'FALLA'
     const adm = (await call('POST', '/login', { Correo: 'admin@stamplab.com', 'Contraseña': 'Admin123*' })).j.token;
     const doc = String(4400000000 + Math.floor(Math.random() * 99999999));
     const correo = `ses_${doc}@test.com`;
-    await call('POST', '/registro', { DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' });
+    await call('POST', '/registro', { ...PRIVACIDAD, DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' });
     const login = async (clave = 'Sesion12345') => (await call('POST', '/login', { Correo: correo, 'Contraseña': clave })).j?.token;
 
     try {
@@ -80,7 +82,7 @@ const si = (n, c, d = '') => { if (!c) bad++; console.log((c ? 'OK   ' : 'FALLA'
         console.log('--- cuenta eliminada y vuelta a registrar con el mismo documento');
         const deAntes = jwt.sign({ id: Number(doc), rol: 2, jti: 'antes-' + doc, sid: 'antes-' + doc, ini: Math.floor(Date.now() / 1000) - 60, sv: 5 }, SECRETO, { expiresIn: 600 });
         exp('eliminar la cuenta', await call('DELETE', '/usuarios/' + doc, null, adm), 200);
-        exp('volver a registrarse con el mismo documento', await call('POST', '/registro', { DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' }), 201);
+        exp('volver a registrarse con el mismo documento', await call('POST', '/registro', { ...PRIVACIDAD, DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' }), 201);
         const renacida = await login();
         si('la cuenta nueva empieza en versión 0', !!renacida && jwt.decode(renacida).sv === 0, String(renacida && jwt.decode(renacida).sv));
         exp('la sesión de la cuenta nueva funciona (sin reiniciar el servidor)', await call('GET', '/usuarios/' + doc, null, renacida), 200);

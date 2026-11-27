@@ -34,6 +34,7 @@ const VentasPendientes = lazy(() => import("../pages/VentasPendientes"));
 const Compras = lazy(() => import("../pages/Compras"));
 const Clientes = lazy(() => import("../pages/Clientes"));
 const MisCompras = lazy(() => import("../components/landing/MisCompras"));
+const Privacidad = lazy(() => import("../components/landing/Privacidad"));
 
 // Carga diferida: cada página se descarga al visitarla (bundle inicial mucho más liviano)
 const Cargando = () => (
@@ -80,6 +81,8 @@ const AppRoutes = () => {
             <Route path="/login" element={<LoginLanding />} />
             <Route path="/recuperarcontraseña" element={<RecuperarContraseña />} />
             <Route path="/restablecercontraseña" element={<RestablecerContraseña />} />
+            {/* Política de tratamiento de datos y aviso de privacidad (Ley 1581 de 2012): pública */}
+            <Route path="/privacidad" element={<Privacidad />} />
             <Route path="/editarperfil" element={<ProtectedRoute><EditarPerfil /></ProtectedRoute>} />
             <Route path="/micuenta" element={<ProtectedRoute><MiCuenta /></ProtectedRoute>} />
             <Route path="/miscompras" element={<ProtectedRoute><MisCompras /></ProtectedRoute>} />

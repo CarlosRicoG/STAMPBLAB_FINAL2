@@ -1,5 +1,9 @@
 import API_ROOT from "../config/api.js";
 
+/** Tipos y tamaño máximo (MB) aceptados para la imagen de un diseño (página "Cotizar" y formulario del panel). */
+export const TIPOS_IMAGEN_DISENO = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+export const MAX_MB_DISENO = 5;
+
 /**
  * Sube la imagen de un diseño a /api/cotizaciones/upload-diseno y devuelve el nombre que asignó el servidor.
  * Lanza un Error con el mensaje del backend si la subida falla (p. ej. el límite de subidas por hora).

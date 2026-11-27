@@ -70,6 +70,11 @@ const esquemas = {
         Telefono: telefono,
         Direccion: direccion(200),
         Contraseña: contrasena.required(),
+        // Autorización previa, expresa e informada (Ley 1581 de 2012, art. 9; Decreto 1377 de 2013, art. 5): la casilla
+        // del formulario debe venir marcada, junto con la versión de la política que se mostró (prueba de la autorización)
+        AceptaPrivacidad: Joi.boolean().valid(true).required()
+            .messages({ 'any.only': 'Debes autorizar el tratamiento de tus datos personales para registrarte', 'any.required': 'Debes autorizar el tratamiento de tus datos personales para registrarte' }),
+        VersionPolitica: Joi.string().trim().min(1).max(50).required().label('La versión de la política de tratamiento de datos'),
     }),
 
     // El administrador crea un usuario desde el panel (la dirección admite lo que cabe en la columna: 255)

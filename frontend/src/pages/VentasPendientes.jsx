@@ -5,8 +5,10 @@ import { getVentas, getVentaById, updateEstadoVenta } from "../Services/api-vent
 import { getEstadosVenta } from "../Services/api-ventas/estados";
 import { siguientesEstados } from "../Services/api-ventas/flujo";
 import { ESTADO_VENTA } from "../config/estados";
-import ModalDetalleVenta, { CamposNotaFecha } from "./ModalDetalleVenta";
+import ModalDetalleVenta from "./ModalDetalleVenta";
+import { CamposNotaFecha } from "./ventas/ModalCambioEstado";
 import { C } from "../config/tokens";
+import { formatPrecio } from "../utils/formato";
 
 /* ── Tokens ── */
 
@@ -31,13 +33,6 @@ const Badge = ({ type, children }) => {
 };
 
 
-const formatPrecio = (valor) => {
-    const num = parseFloat(valor) || 0;
-    return num.toLocaleString('es-CO', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-    });
-};
 
 
 /* ── Paginación ── */

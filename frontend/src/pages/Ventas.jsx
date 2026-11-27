@@ -4,7 +4,12 @@ import Swal from "sweetalert2";
 import NuevaVenta from "./formularios_dash/NuevaVenta";
 import { getVentas, getVentaById, updateEstadoVenta, deleteVenta } from "../Services/api-ventas/ventas";
 import { getEstadosVenta } from "../Services/api-ventas/estados";
-import ModalDetalleVenta, { VT, VT_CSS, EstadoBadge, EstadoVentaModal, Paginacion, SkeletonRows, MetodoPagoMini, fmtCOP, fmtFecha, fmtHora, iniciales } from "./ModalDetalleVenta";
+import ModalDetalleVenta from "./ModalDetalleVenta";
+import { VT, VT_CSS, fmtFecha, fmtHora, iniciales } from "./ventas/ventasUi";
+import { EstadoBadge, MetodoPagoMini } from "./ventas/componentesVenta";
+import { EstadoVentaModal } from "./ventas/ModalCambioEstado";
+import { Paginacion, SkeletonRows } from "./ventas/TablaVentas";
+import { fmtCOP } from "../utils/formato";
 import { ESTADO_VENTA } from "../config/estados";
 
 const C = VT;

@@ -174,3 +174,22 @@ describe('Sesión: cuenta borrada en un servidor y recreada en otro (antes del r
         expect(await sesion.estaVigente(vieja)).toBe(false);
     });
 });
+
+describe('Sesión: revocarTodas dentro de una transacción', () => {
+    const token = (id, extra = {}) => ({ id, rol: 2, sv: 0, jti: 'j-' + Math.random(), sid: 's-' + Math.random(), ini: ahora() - 60, iat: ahora() - 60, exp: ahora() + 3600, ...extra });
+
+    test('no toca la memoria hasta que el llamador aplica (tras el commit)', async () => {
+        db.Usuario.findByPk.mockResolvedValueOnce({ SesionesVersion: 1 });
+        const aplicar = await sesion.revocarTodas(9301, { id: 'tx' });
+        expect(db.Usuario.increment).toHaveBeenCalledWith('SesionesVersion', expect.objectContaining({ transaction: { id: 'tx' } }));
+        expect(await sesion.estaVigente(token(9301))).toBe(true); // si la transacción se deshiciera, la sesión seguiría
+        aplicar();
+        expect(await sesion.estaVigente(token(9301))).toBe(false);
+    });
+
+    test('sin transacción se aplica en el acto (cambio de contraseña)', async () => {
+        db.Usuario.findByPk.mockResolvedValueOnce({ SesionesVersion: 1 });
+        await sesion.revocarTodas(9302);
+        expect(await sesion.estaVigente(token(9302))).toBe(false);
+    });
+});

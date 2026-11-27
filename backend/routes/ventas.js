@@ -7,19 +7,25 @@ const { verificarToken, admin, esAdmin } = require('../middleware/authMiddleware
 const facturaController = require('../controllers/facturaController');
 const { Venta, Producto, Talla } = require('../models');
 
+const { historialDesde, visible, historialDelCliente, cuentaActiva } = require('../services/historialCliente');
+
 // Un cliente solo ve y crea SUS ventas; el administrador ve todo.
+// Si volvió a registrarse con el documento de una cuenta suprimida, solo ve las posteriores (req.historialDesde).
 const soloSuyas = (req, res, next) => {
-    if (!esAdmin(req)) req.documentoForzado = String(req.usuario.id); // (req.query es de solo lectura en Express 5)
-    next();
+    if (esAdmin(req)) return next();
+    req.documentoForzado = String(req.usuario.id); // (req.query es de solo lectura en Express 5)
+    return historialDelCliente(req, res, next);
 };
 const ventaPropiaOAdmin = async (req, res, next) => {
     try {
         if (esAdmin(req)) return next();
-        const venta = await Venta.findByPk(req.params.id, { attributes: ['VentaID', 'DocumentoID'] });
+        const venta = await Venta.findByPk(req.params.id, { attributes: ['VentaID', 'DocumentoID', 'FechaVenta'] });
         if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
         if (String(venta.DocumentoID) !== String(req.usuario.id)) {
             return res.status(403).json({ mensaje: 'No tienes permiso para ver esta venta' });
         }
+        // Pedido del titular anterior de una cuenta suprimida: para el cliente actual no existe
+        if (!visible(venta.FechaVenta, await historialDesde(req.usuario.id))) return res.status(404).json({ message: 'Venta no encontrada' });
         next();
     } catch (e) { next(e); }
 };
@@ -88,7 +94,7 @@ router.get('/', verificarToken, soloSuyas, ventaController.getAllVentas);
 router.get('/:id', verificarToken, ventaPropiaOAdmin, ventaController.getVentaById);
 
 // POST /api/ventas - Crear una nueva venta con detalles
-router.post('/', verificarToken, ventaDelCliente, validar(esquemas.venta), preciosDelCliente, ventaController.crearVenta);
+router.post('/', verificarToken, cuentaActiva, ventaDelCliente, validar(esquemas.venta), preciosDelCliente, ventaController.crearVenta);
 
 // PUT /api/ventas/:id - Actualizar una venta
 router.put('/:id', admin, validar(esquemas.ventaEdicion), ventaController.updateVenta);
@@ -119,3 +125,5 @@ router.patch('/:id/cancelar', verificarToken, ventaPropiaOAdmin, soloPendienteSi
 
 module.exports = router;
 module.exports.preciosDelCliente = preciosDelCliente;
+module.exports.ventaPropiaOAdmin = ventaPropiaOAdmin;
+module.exports.soloSuyas = soloSuyas;

@@ -4,9 +4,10 @@ import { getCompras, createCompra, updateCompra, deleteCompra } from "../Service
 import Swal from "sweetalert2";
 import NuevaCompra from "./formularios_dash/CompraForm";
 import { C } from "../config/tokens";
+import { formatDinero } from "../utils/formato";
 
 /* ── Tokens ── */
-const money = (n) => `$${(Number(n) || 0).toLocaleString("es-CO", { maximumFractionDigits: 2 })}`;
+const money = (n) => formatDinero(n, { maximumFractionDigits: 2 });
 const subtotalDet = d => (parseFloat(d.PrecioUnitario) || 0) * (Number(d.Cantidad) || 0);
 const totalCompra = c => (c.detalles || []).reduce((s, d) => s + subtotalDet(d), 0);
 

@@ -142,15 +142,22 @@ async function revocar(datos) {
     await db.SesionRevocada.findOrCreate({ where: { Jti: sid }, defaults: { Jti: sid, DocumentoID: datos.id, Expira: expira } });
 }
 
-/** Invalida todas las sesiones anteriores de un usuario (p. ej. al cambiar su contraseña). */
+/**
+ * Invalida todas las sesiones anteriores de un usuario (p. ej. al cambiar su contraseña).
+ * Como cerrarCuenta: con `transaction` la versión nueva se guarda dentro de ella y NO se aplica en memoria; devuelve
+ * `aplicar`, que el llamador ejecuta tras el commit (si se deshace, las sesiones siguen valiendo). Sin transacción se aplica ya.
+ */
 async function revocarTodas(documentoID, transaction) {
     await db.Usuario.increment('SesionesVersion', { by: 1, where: { DocumentoID: documentoID }, transaction });
     const u = await db.Usuario.findByPk(documentoID, { attributes: ['SesionesVersion'], transaction });
-    if (u) {
+    const aplicar = () => {
+        if (!u) return;
         versiones.set(String(documentoID), u.SesionesVersion);
         versionVista.set(String(documentoID), Date.now());
         versionesLocales.set(String(documentoID), { version: u.SesionesVersion, ms: Date.now() });
-    }
+    };
+    if (!transaction) aplicar();
+    return aplicar;
 }
 
 /**

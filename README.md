@@ -3,14 +3,14 @@
 Monorepo: tienda + panel administrativo para estampados.
 
 - `backend/`  API Node.js + Express + Sequelize (MySQL).
-- `frontend/` React + Vite + Tailwind.
+- `frontend/` React + Vite + Bootstrap.
 - `docker-compose.yml` levanta MySQL + backend + frontend.
 
 ## Puesta en marcha (sin Docker)
 ```
 # 1) Base de datos MySQL vacia (ej. stamplab_unificado) y credenciales en backend/.env
 cd backend && cp .env.example .env && npm install
-npm run db:setup                  # migraciones (crean las 30 tablas) + roles, estados y administrador
+npm run db:setup                  # migraciones (baseline congelado + posteriores) + roles, estados y administrador
 node scripts/seed-demo.js         # catalogos, productos con variantes y stock, cliente demo
 npm run dev                       # API en http://localhost:3000
 node scripts/seed-demo-flujo.js   # (opcional, con la API arriba) compras, ventas y cotizaciones de ejemplo
@@ -51,24 +51,31 @@ Cambiar estas contraseñas antes de publicar. El seed del admin acepta `ADMIN_EM
 - Máximo de intentos **fallidos** de login por IP cada 15 min: `AUTH_MAX_FALLOS` (por defecto 15) → respuesta 429.
 - El frontend adjunta el token automáticamente a todas las llamadas (`src/utils/authInterceptors.js`) y cierra la sesión si vence.
 - Cabeceras de seguridad con `helmet`. Los `console.log` de depuración se silencian con `NODE_ENV=production`.
+- **CORS:** `CORS_ORIGIN` (orígenes del frontend separados por coma) es **obligatorio en producción**: con `NODE_ENV=production` y sin él la API no arranca. Fuera de producción, sin definirlo, se aceptan los de desarrollo (`http://localhost:5173`, `http://127.0.0.1:5173` y el despliegue de Vercel).
+- **Salud:** `GET /api/salud` responde `200 { "estado": "ok" }` si la base de datos responde y `503 { "estado": "error" }` si no (o si tarda más de 3 s); nunca da detalles internos y no aparece en el registro de peticiones. Lo usa el healthcheck de docker-compose y sirve para un balanceador o monitor.
 
 ## Pruebas
 | Que | Como | Cuantas |
 |---|---|---|
-| Backend (unitarias, sin BD) | `cd backend && npm test` | 214 |
-| Backend (integracion: seguridad, validaciones, stock, cancelar, recuperacion, sesiones, correos, comprobante, **mejoras de flujo**, **abuso** (entradas hostiles), **concurrencia**) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba; con `MAIL_MODO=archivo` prueba los correos) | 10 conjuntos |
-| Frontend (token automatico, roles, estados, efectos, datos de pago, precios del carrito) | `cd frontend && npm test` | 55 |
-| E2E modulos (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` | 40 |
+| Backend (unitarias, sin BD) | `cd backend && npm test` (`npm run test:cov` con umbral de cobertura, el que usa CI) | 356 |
+| Backend (integracion: seguridad, validaciones, stock, cancelar, recuperacion, sesiones, correos, comprobante, **mejoras de flujo**, **abuso** (entradas hostiles), **concurrencia**) | `cd backend && npm run test:integracion` (con la API y la BD demo arriba; con `MAIL_MODO=archivo` prueba los correos) | 11 conjuntos |
+| Frontend (token automatico, roles, estados, efectos, datos de pago, precios del carrito) | `cd frontend && npm test` | 66 |
+| E2E modulos (tienda, roles, panel, compra, registro) | `cd e2e && npm install && npm test` (corre `run.js`; también en CI) | 35 |
 | E2E **recorrido completo** cliente -> administrador (registro, cotiza con diseno, precio, aprueba, convierte, compra con comprobante, estados, cancela) | `cd e2e && node journey.js` | 50 |
 | E2E **movil (390px) + accesibilidad** (sin scroll lateral, alt, nombres de botones, etiquetas, h1, idioma) | `cd e2e && node responsive-a11y.js` | 20 |
 | E2E **exportar PDF** del panel de indicadores | `cd e2e && node pdf-export.js` | 2 |
 | E2E **interfaz hostil** (formularios vacíos/basura, XSS, doble clic, cantidades absurdas, sesión borrada, rutas ajenas, botón atrás) | `cd e2e && node abuso-ui.js` | 35 |
 | E2E **mejoras de flujo** (campana de notificaciones, hamburguesa, "Hoy", aceptar cotización, Mi cuenta) | `cd e2e && node mejoras-ui.js` | 25 |
 | E2E **estados vacios** (todas las pantallas sin datos; requiere una instancia con BD vacia) | `cd e2e && BASE_URL=... API_URL=... node vacios.js` | 30 |
+| E2E **revision del cliente** (seguimiento, comprobante rechazado, volver a pedir, tipo de entrega, estimado, Mi cuenta) | `cd e2e && node revision-cliente.js` | 18 |
 
 Variables utiles al probar: `API_URL`, `BASE_URL`, y `JWT_SECRET` (la prueba de recuperacion firma el enlace con el secreto real del servidor; en Docker usa el de tu .env).
 
-Para dejar la BD en el estado que esperan las pruebas: `cd backend && npm run db:reset && node scripts/seed-demo-flujo.js`.
+Son 8 scripts E2E (los de la tabla). Para dejar la BD en el estado que esperan las pruebas: `cd backend && npm run db:reset && node scripts/seed-demo-flujo.js`.
+
+- **Carrito entre E2E:** el carrito del cliente demo (1000000002) se guarda en el servidor. `revision-cliente.js` lo vacía al terminar (`PUT /api/carrito` con `{ items: [] }`) y `run.js` lo vacía antes de comprar; sin eso, correr `run.js` después de otra prueba que dejó productos hacía que su compra llevara más de 1 unidad. Una prueba E2E nueva que use el carrito del cliente demo debe dejarlo vacío al salir.
+- **CI** (`.github/workflows/ci.yml`): backend con umbral de cobertura (`npm run test:cov`), frontend (lint, pruebas, build) y un job de integración que levanta MySQL, aplica las migraciones, comprueba que el esquema migrado coincide con los modelos (`node scripts/comprobar-esquema.js`), corre los 11 conjuntos de integración y después las E2E de `run.js` con Chrome contra el frontend compilado (`serve` + `serve.json`).
+- **Esquema:** `backend/migrations/20261015000000-baseline.js` es DDL congelado (no depende de los modelos). Todo cambio de modelo necesita su migración; `node scripts/comprobar-esquema.js` (con las variables `DB_*`) falla si la base migrada y los modelos no coinciden en columnas, tipos o nulabilidad.
 
 ## Sesiones, correos y comprobante
 

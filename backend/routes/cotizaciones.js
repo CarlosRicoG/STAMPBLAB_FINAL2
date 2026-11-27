@@ -6,15 +6,20 @@ const { verificarToken, admin, esAdmin, propioOAdmin } = require('../middleware/
 const { Cotizacion, Tecnica, Parte } = require('../models');
 const { ESTADO_COTIZACION } = require('../config/estados');
 
+const { historialDesde, visible, historialDelCliente, cuentaActiva } = require('../services/historialCliente');
+// Cotización del titular anterior de una cuenta suprimida (cliente que se volvió a registrar): para él no existe
+const delHistorialVisible = async (cot, req) => visible(cot.FechaCotizacion, await historialDesde(req.usuario.id));
+
 // Un cliente solo ve sus cotizaciones; el administrador ve todo.
 const cotizacionPropiaOAdmin = async (req, res, next) => {
     try {
         if (esAdmin(req)) return next();
-        const cot = await Cotizacion.findByPk(req.params.id, { attributes: ['CotizacionID', 'DocumentoID'] });
+        const cot = await Cotizacion.findByPk(req.params.id, { attributes: ['CotizacionID', 'DocumentoID', 'FechaCotizacion'] });
         if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
         if (String(cot.DocumentoID) !== String(req.usuario.id)) {
             return res.status(403).json({ mensaje: 'No tienes permiso para ver esta cotización' });
         }
+        if (!(await delHistorialVisible(cot, req))) return res.status(404).json({ message: 'Cotización no encontrada' });
         next();
     } catch (e) { next(e); }
 };
@@ -112,22 +117,23 @@ router.post('/upload-diseno', verificarToken, limiteDisenos, subirImagen, (req, 
 router.get('/imagen/:filename', cotizacionController.getImagenDiseno);
 
 router.get('/', admin, cotizacionController.getAllCotizaciones);
-router.get('/usuario/:documentoID', verificarToken, propioOAdmin('documentoID'), cotizacionController.getCotizacionesByUsuario);
+router.get('/usuario/:documentoID', verificarToken, propioOAdmin('documentoID'), historialDelCliente, cotizacionController.getCotizacionesByUsuario);
 router.get('/:id/historial', verificarToken, cotizacionPropiaOAdmin, cotizacionController.historialCotizacion);
 router.get('/:id', verificarToken, cotizacionPropiaOAdmin, cotizacionController.getCotizacionById);
 router.put('/:id', admin, cotizacionController.updateCotizacion);
 router.delete('/:id', admin, cotizacionController.deleteCotizacion);
 // Se valida ANTES de cotizacionDelCliente: así las listas ya vienen acotadas (100 productos, 20 diseños) al consultar la base
-router.post('/inteligente', verificarToken, validar(esquemas.cotizacion), cotizacionDelCliente, cotizacionController.createCotizacionInteligente);
+router.post('/inteligente', verificarToken, cuentaActiva, validar(esquemas.cotizacion), cotizacionDelCliente, cotizacionController.createCotizacionInteligente);
 router.post('/completa', admin, validar(esquemas.cotizacion), cotizacionController.createCotizacionCompleta);
 router.post('/:cotizacionID/convertir-a-venta', admin, cotizacionController.convertirCotizacionAVenta);
 // El administrador cancela cualquiera; el cliente solo la suya y mientras siga Pendiente
 const cancelarPropiaOAdmin = async (req, res, next) => {
     try {
         if (esAdmin(req)) return next();
-        const cot = await Cotizacion.findByPk(req.params.cotizacionID, { attributes: ['CotizacionID', 'DocumentoID', 'EstadoID'] });
+        const cot = await Cotizacion.findByPk(req.params.cotizacionID, { attributes: ['CotizacionID', 'DocumentoID', 'EstadoID', 'FechaCotizacion'] });
         if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
         if (String(cot.DocumentoID) !== String(req.usuario.id)) return res.status(403).json({ mensaje: 'No tienes permiso para modificar esta cotización' });
+        if (!(await delHistorialVisible(cot, req))) return res.status(404).json({ message: 'Cotización no encontrada' });
         if (cot.EstadoID !== ESTADO_COTIZACION.PENDIENTE) {
             return res.status(400).json({ message: 'Solo puedes cancelar cotizaciones que aún estén pendientes. Contáctanos si ya está en proceso.' });
         }
@@ -139,9 +145,10 @@ router.put('/:cotizacionID/cancelar', verificarToken, cancelarPropiaOAdmin, coti
 // El cliente responde a una cotización aprobada (acepta = se crea el pedido; rechaza); línea de tiempo; tarifas
 const respuestaPropia = async (req, res, next) => {
     try {
-        const cot = await Cotizacion.findByPk(req.params.cotizacionID, { attributes: ['CotizacionID', 'DocumentoID', 'EstadoID'] });
+        const cot = await Cotizacion.findByPk(req.params.cotizacionID, { attributes: ['CotizacionID', 'DocumentoID', 'EstadoID', 'FechaCotizacion'] });
         if (!cot) return res.status(404).json({ message: 'Cotización no encontrada' });
         if (String(cot.DocumentoID) !== String(req.usuario.id)) return res.status(403).json({ mensaje: 'No tienes permiso para responder esta cotización' });
+        if (!(await delHistorialVisible(cot, req))) return res.status(404).json({ message: 'Cotización no encontrada' });
         if (cot.EstadoID !== ESTADO_COTIZACION.APROBADA) return res.status(400).json({ message: 'Solo puedes responder cotizaciones que ya tienen precio (aprobadas)' });
         next();
     } catch (e) { next(e); }
@@ -153,3 +160,6 @@ router.post('/:cotizacionID/aplicar-tarifas', admin, cotizacionController.aplica
 module.exports = router;
 module.exports.cotizacionDelCliente = cotizacionDelCliente;
 module.exports.crearLimiteDisenos = crearLimiteDisenos;
+module.exports.cotizacionPropiaOAdmin = cotizacionPropiaOAdmin;
+module.exports.cancelarPropiaOAdmin = cancelarPropiaOAdmin;
+module.exports.respuestaPropia = respuestaPropia;

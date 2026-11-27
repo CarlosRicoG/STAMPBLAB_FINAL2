@@ -125,6 +125,16 @@ describe('Escrituras de ventas: leen la fila bloqueada sin el comprobante', () =
         expect(Venta.create.mock.calls[0][0].ComprobanteTransferencia).toBe(comprobante);
     });
 
+    test('listado del cliente re-registrado sobre una cuenta suprimida (req.historialDesde): solo sus pedidos nuevos', async () => {
+        const { Op } = require('sequelize');
+        const desde = new Date('2026-12-01T00:00:00Z');
+        Venta.count.mockResolvedValue(0);
+        Venta.findAll.mockResolvedValue([]);
+        await controller.getAllVentas({ query: {}, documentoForzado: '555', historialDesde: desde }, mockRes());
+        expect(Venta.findAll.mock.calls[0][0].where).toMatchObject({ DocumentoID: '555', FechaVenta: { [Op.gt]: desde } });
+        expect(Venta.count.mock.calls[0][0].where).toMatchObject({ DocumentoID: '555', FechaVenta: { [Op.gt]: desde } });
+    });
+
     test('listado: sin el comprobante y con la misma regla de TieneComprobante (NULL y vacío cuentan como "sin comprobante")', async () => {
         Venta.count.mockResolvedValue(1);
         Venta.findAll.mockResolvedValue([{ VentaID: 7, TieneComprobante: 0 }]);

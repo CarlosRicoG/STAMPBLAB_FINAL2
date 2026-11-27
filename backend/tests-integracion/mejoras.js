@@ -1,3 +1,5 @@
+// Autorización de tratamiento de datos que exige el registro (Ley 1581 de 2012)
+const PRIVACIDAD = { AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
 /**
  * Mejoras de flujo: avisos en la campana (cliente y administrador), aceptar/rechazar cotizaciones, línea de tiempo,
  * comprobante rechazado, vencimientos automáticos, tarifas, bandeja de hoy, carrito, datos de contacto y entrega.
@@ -26,7 +28,7 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     const limpiar = { ventas: [], cots: [] };
 
     // un segundo cliente (temporal)
-    await call('POST', '/registro', { Nombre: 'Otro Mejoras', Correo: 'otro.mejoras@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: 1888888881, Telefono: '3009998888' });
+    await call('POST', '/registro', { ...PRIVACIDAD, Nombre: 'Otro Mejoras', Correo: 'otro.mejoras@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: 1888888881, Telefono: '3009998888' });
     const otro = await login('otro.mejoras@stamplab.com', 'Otro12345*');
 
     const notifs = async (t, archivada = false) => (await call('GET', `/notificaciones?archivada=${archivada}`, undefined, t)).j;

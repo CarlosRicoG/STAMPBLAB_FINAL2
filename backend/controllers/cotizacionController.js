@@ -602,6 +602,8 @@ exports.getCotizacionesByUsuario = async (req, res) => {
     try {
         const { documentoID } = req.params;
         const where = { DocumentoID: documentoID };
+        // Cliente que volvió a registrarse con el documento de una cuenta suprimida: solo sus cotizaciones nuevas
+        if (req.historialDesde) where.FechaCotizacion = { [Op.gt]: req.historialDesde };
         const query = req.query || {};
         const pagina = query.page !== undefined || query.limit !== undefined;
         if (!pagina) {

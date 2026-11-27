@@ -108,6 +108,12 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: false
     },
+    // Cuándo el administrador marcó como devuelto el dinero de un pedido cancelado (reembolso pendiente o pago por
+    // verificar que sí llegó). Null = no se ha devuelto nada. Ver utils/pagoPorVerificar
+    ReembolsoRealizadoEn: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     // true cuando ya se avisó al cliente que el pedido está por cancelarse por falta de pago
     AvisoVencimiento: {
       type: DataTypes.BOOLEAN,

@@ -56,7 +56,7 @@ async function login(pg, c, p) {
         await pg.evaluate(() => document.querySelector('form').requestSubmit()); await sleep(800);
         ok('enviar el formulario vacío no llama al servidor', !pg.peticiones.some((p) => /registro|usuarios/.test(p)), pg.peticiones.join(','));
         ok('y muestra mensajes de error en la pantalla', /obligatori|requerid|inválid|campo/i.test(await texto(pg)));
-        const llenar = async (vals) => { for (let i = 0; i < vals.length; i++) await pg.evaluate((n, v) => { const el = document.querySelectorAll('form input')[n]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }, i, vals[i]); };
+        const llenar = async (vals) => { for (let i = 0; i < vals.length; i++) await pg.evaluate((n, v) => { const el = document.querySelectorAll('form input')[n]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }, i, vals[i]); await pg.evaluate(() => document.querySelectorAll('form input[type=checkbox][required]').forEach((c) => { if (!c.checked) c.click(); })); };
         const doc = String(4200000000 + Math.floor(Math.random() * 89999999));
         await llenar(['Ana', 'abc', 'no-es-correo', '12', '', '123', '456']); await pg.evaluate(() => document.querySelector('form').requestSubmit()); await sleep(900);
         ok('documento con letras, correo malo y claves distintas: no se registra', !pg.peticiones.some((p) => /POST \/registro/.test(p)), pg.peticiones.join(','));

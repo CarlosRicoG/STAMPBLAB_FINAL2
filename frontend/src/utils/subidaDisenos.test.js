@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { crearSubidorDisenos } from "./subidaDisenos.js";
+import { crearSubidorDisenos, TIPOS_IMAGEN_DISENO, MAX_MB_DISENO } from "./subidaDisenos.js";
 
 const archivo = (nombre) => new File(["x"], nombre, { type: "image/png" });
 
@@ -39,5 +39,13 @@ describe("crearSubidorDisenos (reintentos de cotización)", () => {
         const subir = vi.fn();
         expect(await crearSubidorDisenos(subir)(null)).toBeNull();
         expect(subir).not.toHaveBeenCalled();
+    });
+});
+
+describe("límites de la imagen de un diseño", () => {
+    it("acepta JPG, PNG, GIF y WEBP hasta 5 MB (los mismos que antes en Cotizar y en el panel)", () => {
+        expect(TIPOS_IMAGEN_DISENO).toEqual(["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"]);
+        expect(TIPOS_IMAGEN_DISENO).not.toContain("application/pdf");
+        expect(MAX_MB_DISENO).toBe(5);
     });
 });

@@ -145,7 +145,8 @@ const limiteAuth = rateLimit({
     legacyHeaders: false,
     message: { mensaje: 'Demasiados intentos fallidos. Intenta de nuevo en unos minutos.', estado: false }
 });
-app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password'], limiteAuth);
+// /api/mi-cuenta/suprimir pide la contraseña actual (403 si es incorrecta): también se frena por IP
+app.use(['/api/login', '/api/registro', '/api/recuperar-password', '/api/restablecer-password', '/api/mi-cuenta/suprimir'], limiteAuth);
 
 // Estas dos rutas responden "bien" aunque se abuse de ellas (200 siempre / 400 por duplicado): se limitan TODAS las
 // peticiones por IP para frenar el envío masivo de correos de recuperación y la creación/enumeración masiva de cuentas.
@@ -205,6 +206,8 @@ app.use('/api/notificaciones', require('./routes/notificaciones'));
 app.use('/api/resumen', admin, require('./routes/resumen'));
 app.use('/api/tarifas', require('./routes/tarifas'));
 app.use('/api/carrito', require('./routes/carrito'));
+// Derechos del titular de los datos (Ley 1581 de 2012): descargar mis datos y eliminar mi cuenta
+app.use('/api/mi-cuenta', require('./routes/miCuenta'));
 
 // Buzón de pruebas (solo con MAIL_MODO=archivo y fuera de producción): lista los últimos correos "enviados"
 if (require('./services/correo').modo() === 'archivo') {

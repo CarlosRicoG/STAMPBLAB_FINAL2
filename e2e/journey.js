@@ -60,6 +60,8 @@ async function login(pg, [c, p]) {
         await pg.goto(BASE + '/signup', { waitUntil: 'networkidle2' }); await sleep(1200);
         const vals = ['Cliente Recorrido', doc, correo, '3105559999', 'Carrera 5 # 6-7', clave, clave];
         for (let i = 0; i < vals.length; i++) await pg.evaluate((n, v) => { const el = document.querySelectorAll('form input')[n]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }, i, vals[i]);
+        // Casillas obligatorias del formulario (autorización de tratamiento de datos personales, #reg-privacidad)
+        await pg.evaluate(() => document.querySelectorAll('form input[type=checkbox][required]').forEach((c) => { if (!c.checked) c.click(); }));
         await pg.evaluate(() => document.querySelector('form').requestSubmit()); await pg.waitForFunction(() => /Registro exitoso/i.test(document.querySelector('.swal2-container')?.innerText || ''), { timeout: 12000 }).catch(() => {}); await sleep(300);
         ok('registro exitoso', /Registro exitoso/i.test(await swalText(pg)));
         limpiar.push(['usuario', doc]);

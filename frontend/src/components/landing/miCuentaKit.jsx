@@ -10,8 +10,8 @@ import { FaTimes, FaCheck, FaTimesCircle } from "react-icons/fa";
 export const prefersReduced = () =>
     typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-export const formatPrecio = (valor) =>
-    (parseFloat(valor) || 0).toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+// Se sigue exportando desde aquí para no tocar a quienes ya lo importan del kit
+export { formatPrecio } from "../../utils/formato";
 
 export const leerUsuario = () => {
     try { return JSON.parse(localStorage.getItem("usuario")) || {}; } catch { return {}; }

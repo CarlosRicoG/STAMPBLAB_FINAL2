@@ -5,6 +5,7 @@
  */
 import axios from "axios";
 import API_URL from "../config/api.js";
+import { guardarDesfaseToken, limpiarSesionLocal } from "./tokenSesion.js";
 
 // Origen de la API (p. ej. https://api.midominio.com). Se compara el ORIGEN completo (esquema+host+puerto), no un
 // prefijo de texto: así https://api.x.com.evil.com o un tercero con "/api/" en la ruta nunca reciben el token.
@@ -40,6 +41,7 @@ const obtenerToken = () => {
 function guardarRenovado(nuevo) {
     if (!nuevo || !obtenerToken()) return;
     try { localStorage.setItem("token", nuevo); } catch { /* sin storage */ }
+    guardarDesfaseToken(nuevo);
 }
 
 // Rutas donde un 401/403 NO significa "sesión vencida" (credenciales incorrectas, etc.)
@@ -48,12 +50,7 @@ const esRutaPublicaAuth = (url) => /\/api\/(login|registro|recuperar-password|re
 function cerrarSesionSiVencio(status, url) {
     if (status !== 401 || esRutaPublicaAuth(url)) return;
     if (!obtenerToken()) return;
-    try {
-        localStorage.removeItem("token");
-        localStorage.removeItem("usuario");
-        localStorage.removeItem("user");
-        // El carrito NO se borra aquí: solo en el cierre de sesión voluntario (cerrarSesion)
-    } catch { /* sin storage */ }
+    limpiarSesionLocal(); // El carrito NO se borra aquí: solo en el cierre de sesión voluntario (cerrarSesion)
     if (!/^\/(login|signup|recuperarcontrase|restablecercontrase)/i.test(window.location.pathname)) {
         const destino = window.location.pathname + window.location.search;
         if (destino.startsWith("/") && !destino.startsWith("//")) {
