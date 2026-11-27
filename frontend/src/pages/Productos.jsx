@@ -7,6 +7,7 @@ import { getVariantesByProducto } from "../Services/api-productos/variantes";
 import { getTallas, getColores, getTelas } from "../Services/api-productos/atributos";
 import { getConfigPublica } from "../Services/api-resumen/resumen";
 import { C } from "../config/tokens";
+import { formatPrecio } from "../utils/formato";
 
 /* Etiqueta "Stock bajo" para variantes por debajo del mínimo configurado */
 const StockBajo = ({ minimo }) => (
@@ -19,11 +20,6 @@ const StockBajo = ({ minimo }) => (
 /* ── Tokens ── */
 
 
-const formatPrecio = (valor) =>
-  (parseFloat(valor) || 0).toLocaleString('es-CO', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2
-  });
 
 
 const TH = { background: C.navyGrad, color: C.white, fontSize: 12, fontWeight: 700, padding: "13px 16px", whiteSpace: "nowrap", letterSpacing: "0.04em" };
@@ -223,7 +219,7 @@ const Productos = () => {
           const r = await getVariantesByProducto(p.ProductoID);
           const vs = r.datos || r;
           stockMap[p.ProductoID] = vs.reduce((a, v) => a + (v.Stock || 0), 0);
-          bajoMap[p.ProductoID] = minimo > 0 ? vs.filter(v => v.Estado !== false && (v.Stock || 0) < minimo).length : 0;
+          bajoMap[p.ProductoID] = minimo > 0 ? vs.filter(v => v.Estado !== false && (v.Stock || 0) <= minimo).length : 0;
         } catch { stockMap[p.ProductoID] = 0; }
       }));
       setStock(stockMap);
@@ -295,7 +291,6 @@ const Productos = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
         .prod-row:hover { background: #f0f4ff !important; }
         .prod-row:hover td { color: #0f172a; }
@@ -366,7 +361,7 @@ const Productos = () => {
                       <td style={{ padding: "12px 16px", color: C.muted, fontWeight: 600 }}>#{p.ProductoID}</td>
                       <td style={{ padding: "10px 16px" }}>
                         {p.ImagenProducto ? (
-                          <img src={p.ImagenProducto} alt={p.Nombre}
+                          <img loading="lazy" decoding="async" src={p.ImagenProducto} alt={p.Nombre}
                             onClick={() => setImagenModal(p.ImagenProducto)}
                             style={{ width: 52, height: 52, objectFit: "cover", borderRadius: 10, cursor: "pointer", border: `2px solid ${C.border}`, transition: "transform 0.2s" }}
                             onMouseEnter={e => e.target.style.transform = "scale(1.1)"}

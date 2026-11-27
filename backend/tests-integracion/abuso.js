@@ -1,3 +1,5 @@
+// Autorización de tratamiento de datos que exige el registro (Ley 1581 de 2012)
+const PRIVACIDAD = { AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
 /**
  * Pruebas "a propósito para dañarlo": entradas maliciosas o absurdas desde el cliente y el administrador.
  * Regla: el servidor nunca debe responder 5xx, ni aceptar precios/estados/datos ajenos, ni dejar el stock descuadrado.
@@ -56,7 +58,7 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     r = await call('DELETE', `/ventas/${V}`, undefined, cli); si('el cliente no puede borrar ventas', r.s === 403, r.s);
     // Otro cliente (temporal) con su propio pedido: el cliente de la prueba no debe poder tocarlo
     const OTRO = 1987654321;
-    await call('POST', '/registro', { Nombre: 'Otro Cliente', Correo: 'otro.cliente@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: OTRO, Telefono: '3001234567' });
+    await call('POST', '/registro', { ...PRIVACIDAD, Nombre: 'Otro Cliente', Correo: 'otro.cliente@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: OTRO, Telefono: '3001234567' });
     const otroTok = await login('otro.cliente@stamplab.com', 'Otro12345*');
     const ajena = await call('POST', '/ventas', pedido(), otroTok);
     const VA = ajena.j?.venta?.VentaID;
@@ -128,7 +130,7 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     r = await call('GET', '/usuarios/1000000001', undefined, cli); si('el cliente no ve el perfil de otro', r.s === 403, r.s);
     r = await call('PUT', '/usuarios/1000000001', { Nombre: 'hack' }, cli); si('el cliente no edita a otro', r.s === 403, r.s);
     r = await call('PUT', '/usuarios/1000000002', { IDRol: 1 }, cli); si('el cliente no se hace administrador', r.s === 403 || r.s === 400 || (await call('GET', '/usuarios', undefined, cli)).s === 403, r.s);
-    r = await call('POST', '/registro', { Nombre: 'Hack', Correo: 'hack@x.com', 'Contraseña': 'Abc12345*', DocumentoID: 1234567890, IDRol: 1 });
+    r = await call('POST', '/registro', { ...PRIVACIDAD, Nombre: 'Hack', Correo: 'hack@x.com', 'Contraseña': 'Abc12345*', DocumentoID: 1234567890, IDRol: 1 });
     if (r.s === 201 || r.s === 200) { const lt = await login('hack@x.com', 'Abc12345*'); si('registrarse mandando IDRol=1 NO da rol de admin', (await call('GET', '/usuarios', undefined, lt)).s === 403); await call('DELETE', '/usuarios/1234567890', undefined, adm); }
     else si('registro con IDRol=1 no crea admin', true);
     for (const c of ["admin@stamplab.com'--", "' OR '1'='1", 'a'.repeat(5000) + '@x.com']) {
@@ -136,7 +138,7 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     }
     r = await call('POST', '/login', { Correo: { $ne: null }, 'Contraseña': { $ne: null } }); si('login con objetos no entra', [400, 401].includes(r.s), r.s);
     r = await call('POST', '/login', {}); si('login vacío: 400', r.s === 400 || r.s === 401, r.s);
-    r = await call('POST', '/registro', { Nombre: '<img src=x onerror=alert(1)>', Correo: 'x@y.com', 'Contraseña': '123', DocumentoID: 'abc' }); si('registro con datos basura se rechaza', rechazado(r), r.s);
+    r = await call('POST', '/registro', { ...PRIVACIDAD, Nombre: '<img src=x onerror=alert(1)>', Correo: 'x@y.com', 'Contraseña': '123', DocumentoID: 'abc' }); si('registro con datos basura se rechaza', rechazado(r), r.s);
 
     console.log('--- ADMINISTRADOR: abusos y errores humanos');
     r = await call('PATCH', `/ventas/${V}/estado`, { EstadoID: 999 }, adm); si('estado inexistente se rechaza', r.s === 400, r.s);
@@ -224,18 +226,36 @@ const rechazado = (r) => r.s >= 400 && r.s < 500;
     r = await call('PUT', `/cotizaciones/${CP}/cancelar`, undefined, cli); si('no se puede cancelar dos veces', r.s === 400, r.s);
     if (C) { await call('PUT', '/cotizaciones/' + C, { EstadoID: 6 }, adm); r = await call('PUT', `/cotizaciones/${C}/cancelar`, undefined, cli); si('el cliente NO cancela una cotización que ya está en revisión', r.s === 400, r.s); }
 
+    console.log('--- VALIDACIÓN 2026-11: cotización y comprobante manipulados');
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det({ insumos: [{ InsumoID: 1, CantidadRequerida: -20 }] })] }, cli);
+    si('cantidad de tela negativa en la cotización se rechaza', r.s === 400, r.s); if (r.j?.cotizacion?.CotizacionID) creadas.push(['c', r.j.cotizacion.CotizacionID]);
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det({ tecnicas: [{ ...det().tecnicas[0], 'ImagenDiseño': 'http://127.0.0.1:3306/' }] })] }, cli);
+    si('una URL como imagen del diseño se rechaza', r.s === 400, r.s); if (r.j?.cotizacion?.CotizacionID) creadas.push(['c', r.j.cotizacion.CotizacionID]);
+    r = await call('POST', '/cotizaciones/inteligente', { detalles: [det({ tecnicas: [{ ...det().tecnicas[0], 'ImagenDiseño': '../../.env' }] })] }, cli);
+    si('una ruta como imagen del diseño se rechaza', r.s === 400, r.s); if (r.j?.cotizacion?.CotizacionID) creadas.push(['c', r.j.cotizacion.CotizacionID]);
+    r = await call('POST', '/cotizaciones/inteligente', { FechaCotizacion: '2099-01-01', detalles: [det()] }, cli);
+    const CF = r.j?.cotizacion?.CotizacionID; if (CF) creadas.push(['c', CF]);
+    const fechaCot = CF ? new Date((await call('GET', '/cotizaciones/' + CF, undefined, cli)).j.FechaCotizacion) : null;
+    si('el cliente no puede fijar la fecha de su cotización', !!fechaCot && Math.abs(fechaCot.getTime() - Date.now()) < 2 * 864e5, `${r.s} ${fechaCot}`);
+    for (const [nombre, valor] of [['una URL externa', 'https://ejemplo.invalid/recibo.png'], ['texto libre', 'ya pagué'], ['un HTML', 'data:text/html;base64,PHNjcmlwdD4='], ['un PNG falso', 'data:image/png;base64,' + Buffer.alloc(60, 1).toString('base64')]]) {
+        r = await call('POST', '/ventas', pedido({ metodoPago: 'transferencia', comprobanteTransferencia: valor }), cli);
+        si(`comprobante con ${nombre} se rechaza`, r.s === 400, r.s); if (r.s === 201) creadas.push(r.j.venta.VentaID);
+    }
+    r = await call('POST', '/login', 'Correo=' + 'a'.repeat(300 * 1024), undefined, { raw: true, headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+    si('un formulario de 300 kb en el login se rechaza', r.s === 413, r.s);
+
     console.log('--- limpieza');
     for (const x of creadas.filter((y) => Array.isArray(y) && y[0] === 'basura')) {
         const id = x[2].datos?.ColorID || x[2].datos?.TallaID || x[2].datos?.RolID || x[2].datos?.ProveedorID || x[2].insumo?.InsumoID || x[2].tecnica?.TecnicaID || x[2].datos?.TecnicaID;
         if (id) await call('DELETE', x[1] + '/' + id, undefined, adm);
     }
     creadas.splice(0, creadas.length, ...creadas.filter((y) => !(Array.isArray(y) && y[0] === 'basura')));
-    if (VA) { await call('PATCH', `/ventas/${VA}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${VA}`, undefined, adm); }
+    if (VA) { await call('PATCH', `/ventas/${VA}/estado`, { EstadoID: 12 }, adm); await call('PATCH', `/ventas/${VA}/reembolsado`, undefined, adm); await call('DELETE', `/ventas/${VA}`, undefined, adm); }
     if (CA) { await call('PUT', `/cotizaciones/${CA}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${CA}`, undefined, adm); }
     await call('DELETE', '/usuarios/' + OTRO, undefined, adm);
     for (const x of creadas) {
         if (Array.isArray(x)) { await call('PUT', `/cotizaciones/${x[1]}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${x[1]}`, undefined, adm); }
-        else { await call('PATCH', `/ventas/${x}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${x}`, undefined, adm); }
+        else { await call('PATCH', `/ventas/${x}/estado`, { EstadoID: 12 }, adm); await call('PATCH', `/ventas/${x}/reembolsado`, undefined, adm); await call('DELETE', `/ventas/${x}`, undefined, adm); }
     }
     const despues = await stock();
     si('el stock quedó igual que al empezar', despues === stock0, `antes ${stock0} después ${despues}`);

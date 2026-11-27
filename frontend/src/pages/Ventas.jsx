@@ -4,7 +4,12 @@ import Swal from "sweetalert2";
 import NuevaVenta from "./formularios_dash/NuevaVenta";
 import { getVentas, getVentaById, updateEstadoVenta, deleteVenta } from "../Services/api-ventas/ventas";
 import { getEstadosVenta } from "../Services/api-ventas/estados";
-import ModalDetalleVenta, { VT, VT_CSS, EstadoBadge, EstadoVentaModal, Paginacion, SkeletonRows, MetodoPagoMini, fmtCOP, fmtFecha, fmtHora, iniciales } from "./ModalDetalleVenta";
+import ModalDetalleVenta from "./ModalDetalleVenta";
+import { VT, VT_CSS, fmtFecha, fmtHora, iniciales } from "./ventas/ventasUi";
+import { EstadoBadge, MetodoPagoMini } from "./ventas/componentesVenta";
+import { EstadoVentaModal } from "./ventas/ModalCambioEstado";
+import { Paginacion, SkeletonRows } from "./ventas/TablaVentas";
+import { fmtCOP } from "../utils/formato";
 import { ESTADO_VENTA } from "../config/estados";
 
 const C = VT;
@@ -209,7 +214,6 @@ const Ventas = () => {
                                 ) : (
                                     ventas.map((venta, idx) => {
                                         const cancelada = venta.EstadoID === ESTADO_VENTA.CANCELADA;
-                                        const entregada = venta.EstadoID === ESTADO_VENTA.ENTREGADA;
                                         // Solo se pueden eliminar pedidos pendientes o cancelados; el resto es historial (se cancelan)
                                         const puedeEliminar = venta.EstadoID === ESTADO_VENTA.PENDIENTE || cancelada;
                                         return (
@@ -235,11 +239,12 @@ const Ventas = () => {
                                                                 ? <span style={{ width: 12, height: 12, border: "2px solid #c7d9ff", borderTopColor: C.accent, borderRadius: "50%", animation: "vtSpin .7s linear infinite" }} />
                                                                 : <FaEye size={13} />}
                                                         </button>
-                                                        <button className="vt-ibtn vt-ibtn-edit" onClick={() => handleEditar(venta)}
-                                                            title={cancelada ? "Una venta cancelada no se puede editar" : entregada ? "Una venta entregada no se puede editar" : "Editar"}
-                                                            disabled={cancelada || entregada}>
-                                                            <FaEdit size={12} />
-                                                        </button>
+                                                        {/* Los productos solo se editan mientras el pedido está pendiente (el servidor rechaza el resto) */}
+                                                        {venta.EstadoID === ESTADO_VENTA.PENDIENTE && (
+                                                            <button className="vt-ibtn vt-ibtn-edit" onClick={() => handleEditar(venta)} title="Editar">
+                                                                <FaEdit size={12} />
+                                                            </button>
+                                                        )}
                                                         <button className="vt-ibtn vt-ibtn-state" onClick={() => setVentaEstado(venta)}
                                                             title={cancelada ? "Una venta cancelada no puede cambiar de estado" : "Cambiar estado"}
                                                             disabled={cancelada}>

@@ -9,7 +9,6 @@ const FooterComponent = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
                 .sl-footer {
                     background: linear-gradient(135deg, #0f1824 0%, #1a2540 60%, #2d3f6e 100%);
@@ -221,6 +220,7 @@ const FooterComponent = () => {
                                     <Link to="/cotizacionesLanding" className="sl-footer-link">Cotizar</Link>
                                     <Link to="/productosLanding" className="sl-footer-link">Catálogo Productos</Link>
                                     <Link to="/servicios" className="sl-footer-link">Servicios</Link>
+                                    <Link to="/privacidad" className="sl-footer-link">Política de privacidad</Link>
                                 </div>
                             </div>
 
@@ -295,7 +295,8 @@ const FooterComponent = () => {
                 <div className="sl-footer-bottom">
                     <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 32px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                         <p style={{ margin: 0, fontSize: 12, color: "#ffff", fontFamily: "'Outfit', sans-serif" }}>
-                            © {year} StampLab. Todos los derechos reservados.
+                            © {year} StampLab. Todos los derechos reservados. ·{" "}
+                            <Link to="/privacidad" style={{ color: "inherit" }}>Tratamiento de datos personales</Link>
                         </p>
                         <p style={{ margin: 0, fontSize: 12, color: "#ffff", fontFamily: "'Outfit', sans-serif", display: "flex", alignItems: "center", gap: 5 }}>
                             Hecho con <FaHeart size={10} style={{ color: C.danger }} /> en Colombia

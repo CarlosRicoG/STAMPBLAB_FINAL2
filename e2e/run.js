@@ -48,7 +48,7 @@ async function login(pg, [correo, clave]) {
     await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
     await setVal(pg, 'input[type=email],input[placeholder*="orreo"]', correo);
     await setVal(pg, 'input[type=password]', clave);
-    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit());
+    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await pg.waitForFunction(() => !!localStorage.getItem('token'), { timeout: 30000 }).catch(() => {});
     await sleep(3500);
 }
 
@@ -104,6 +104,11 @@ async function api(metodo, ruta, cuerpo, token) {
         pg = await nuevaPagina(browser);
         await login(pg, CLIENTE);
         const token = await pg.evaluate(() => localStorage.getItem('token'));
+        // Carrito vacío antes de comprar: otra prueba (p. ej. revision-cliente.js) pudo dejar productos guardados en el
+        // servidor para este cliente y la compra llevaría más de 1 unidad. Se vacía el guardado y la copia local.
+        const vaciado = await api('PUT', '/carrito', { items: [] }, token);
+        ok('carrito del cliente vaciado antes de comprar', vaciado.s === 200, `HTTP ${vaciado.s}`);
+        await pg.evaluate(() => localStorage.removeItem('cart_productos_landing'));
         const stock = async () => { const a = (await api('GET', '/inventarioproducto/producto/1')).j; const l = a.datos || a.variantes || a; return (l.find((v) => v.InventarioID === 1) || {}).Stock; };
         const stock0 = await stock();
         const idsAntes = new Set((await api('GET', '/ventas?documentoID=1000000002&limit=500&page=1', null, token)).j.datos.map((v) => v.VentaID));
@@ -150,6 +155,8 @@ async function api(metodo, ruta, cuerpo, token) {
         for (let i = 0; i < valores.length; i++) {
             await pg.evaluate((n, v) => { const el = document.querySelectorAll('form input')[n]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }, i, valores[i]);
         }
+        // Casillas obligatorias del formulario (p. ej. la autorización de tratamiento de datos personales)
+        await pg.evaluate(() => document.querySelectorAll('form input[type=checkbox][required]').forEach((c) => { if (!c.checked) c.click(); }));
         await pg.evaluate(() => document.querySelector('form').requestSubmit()); await sleep(3500);
         const swalTexto = await pg.evaluate(() => document.querySelector('.swal2-popup')?.innerText || '');
         ok('el registro muestra exito', /Registro exitoso/i.test(swalTexto), swalTexto.slice(0, 80));

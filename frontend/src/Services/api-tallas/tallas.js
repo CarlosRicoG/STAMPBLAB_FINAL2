@@ -10,9 +10,7 @@ export const getTallas = async () => {
 };
 
 export const createTalla = async (talla) => {
-  console.log(" Enviando al backend:", talla);
   const res = await axios.post(API_URL, talla);
-  console.log(" Respuesta backend:", res.data);
   return res.data;
 };
 

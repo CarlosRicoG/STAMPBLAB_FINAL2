@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { esPantallaMovil } from "./useEsMovil";
 
 const CLAVE = "cf_sidebar_collapsed"; // misma clave que usa el menú lateral
 
@@ -8,6 +9,7 @@ const CLAVE = "cf_sidebar_collapsed"; // misma clave que usa el menú lateral
  */
 export default function BotonMenu() {
     const [abierto, setAbierto] = useState(() => {
+        if (esPantallaMovil()) return false; // en móvil el menú es un panel desplegable que empieza cerrado
         try { return localStorage.getItem(CLAVE) !== "1"; } catch { return true; }
     });
 
@@ -34,7 +36,7 @@ export default function BotonMenu() {
                 .hb-btn[aria-expanded="false"] .hb-lines { align-items: flex-end; }
                 @media (prefers-reduced-motion: reduce) { .hb-btn, .hb-lines i { transition: none; } }
             `}</style>
-            <button type="button" className="hb-btn" aria-label={abierto ? "Cerrar el menú lateral" : "Abrir el menú lateral"} aria-expanded={abierto}
+            <button type="button" className="hb-btn" aria-label={abierto ? "Cerrar el menú lateral" : "Abrir el menú lateral"} aria-expanded={abierto} aria-controls="panel-menu-lateral"
                 title={abierto ? "Ocultar menú" : "Mostrar menú"} onClick={() => window.dispatchEvent(new Event("stamplab:menu-toggle"))}>
                 <span className="hb-lines" aria-hidden="true"><i /><i /><i /></span>
             </button>

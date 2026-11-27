@@ -1,5 +1,4 @@
-import API_ROOT from "../../config/api";
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../../utils/escapeHtml";
 import {
@@ -16,38 +15,15 @@ import { getTarifasPublicas } from "../../Services/api-cliente/cliente";
 import { estimarProducto, estimarCotizacion } from "../../utils/clienteUtils";
 import "../../styles/plus.css";
 import { C } from "../../config/tokens";
+import { crearSubidorDisenos, TIPOS_IMAGEN_DISENO, MAX_MB_DISENO } from "../../utils/subidaDisenos";
+import { cargarListas } from "../../utils/pedirLista";
+import * as api from "../../Services/api-cotizacion-landing/cotizarPublico";
+import useVariantesProducto from "../../hooks/useVariantesProducto";
+import { formatDinero as dinero } from "../../utils/formato";
+import { Label, InputBase, SelectBase, TextareaBase, SectionCard, Btn, InfoBadge } from "../ui/FormularioTienda";
+import Modal from "../ui/ModalTienda";
 
-const dinero = (n) => "$" + (Number(n) || 0).toLocaleString("es-CO");
 const NOTA_ESTIMADO = "Precio final lo confirma StampLab al revisar tus diseños.";
-
-// ── Design tokens (mismo sistema) ──
-
-// ── APIs ──
-const API_BASE_URL = `${API_ROOT}/api`;
-const api = {
-    getProductos: async () => { const r = await fetch(`${API_BASE_URL}/productos`); const d = await r.json(); return d.datos || d; },
-    getTecnicas: async () => { const r = await fetch(`${API_BASE_URL}/tecnicas`); const d = await r.json(); return d.datos || d; },
-    getPartes: async () => { const r = await fetch(`${API_BASE_URL}/partes`); const d = await r.json(); return d.datos || d; },
-    getColores: async () => { const r = await fetch(`${API_BASE_URL}/colores`); const d = await r.json(); return d.datos || d; },
-    getTallas: async () => { const r = await fetch(`${API_BASE_URL}/tallas`); const d = await r.json(); return d.datos || d; },
-    getTelas: async () => {
-        const r = await fetch(`${API_BASE_URL}/insumos`); const d = await r.json();
-        return (d.datos || d).filter(i => i.Tipo?.toLowerCase() === "tela");
-    },
-    getVariantesByProducto: async (productoID) => {
-        const r = await fetch(`${API_BASE_URL}/inventarioproducto/producto/${productoID}`);
-        if (!r.ok) throw new Error(`Error ${r.status}`);
-        const d = await r.json(); return d.datos || d;
-    },
-    createCotizacionInteligente: async (data) => {
-        const r = await fetch(`${API_BASE_URL}/cotizaciones/inteligente`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-        });
-        const d = await r.json();
-        if (!r.ok) throw { response: { data: d } };
-        return d;
-    }
-};
 
 // ── Componentes UI ──
 const Counter = ({ value }) => {
@@ -81,126 +57,6 @@ const Confetti = () => (
     </div>
 );
 
-const Label = ({ children, required }) => (
-    <p style={{ margin: "0 0 6px", fontSize: 12, fontWeight: 700, color: C.navy, textTransform: "uppercase", letterSpacing: "0.06em", fontFamily: "'Outfit',sans-serif" }}>
-        {children}{required && <span style={{ color: C.danger, marginLeft: 3 }}>*</span>}
-    </p>
-);
-
-const InputBase = ({ style, ...props }) => (
-    <input {...props} style={{
-        width: "100%", padding: "10px 14px", border: `1.5px solid ${C.border}`,
-        borderRadius: 10, fontSize: 13, fontFamily: "'Outfit',sans-serif",
-        color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
-        background: C.white, ...style
-    }}
-        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 4px rgba(79,142,247,0.16), 0 8px 22px rgba(79,142,247,0.16)`; }}
-        onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
-    />
-);
-
-const SelectBase = ({ style, ...props }) => (
-    <select {...props} style={{
-        width: "100%", padding: "10px 14px", border: `1.5px solid ${C.border}`,
-        borderRadius: 10, fontSize: 13, fontFamily: "'Outfit',sans-serif",
-        color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
-        background: C.white, cursor: "pointer", ...style
-    }}
-        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 4px rgba(79,142,247,0.16), 0 8px 22px rgba(79,142,247,0.16)`; }}
-        onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
-    />
-);
-
-const TextareaBase = ({ style, ...props }) => (
-    <textarea {...props} style={{
-        width: "100%", padding: "10px 14px", border: `1.5px solid ${C.border}`,
-        borderRadius: 10, fontSize: 13, fontFamily: "'Outfit',sans-serif",
-        color: C.text, outline: "none", transition: "border-color 0.2s, box-shadow 0.2s",
-        background: C.white, resize: "vertical", ...style
-    }}
-        onFocus={e => { e.target.style.borderColor = C.accent; e.target.style.boxShadow = `0 0 0 4px rgba(79,142,247,0.16), 0 8px 22px rgba(79,142,247,0.16)`; }}
-        onBlur={e => { e.target.style.borderColor = C.border; e.target.style.boxShadow = "none"; }}
-    />
-);
-
-const SectionCard = ({ title, subtitle, icon, accentColor = C.accent, children, headerRight }) => (
-    <div className="cot-card sx-reveal" style={{ background: C.white, borderRadius: 18, border: `1.5px solid ${C.border}`, overflow: "hidden", marginBottom: 20 }}>
-        <div style={{ padding: "16px 22px", borderBottom: `1.5px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", background: `linear-gradient(90deg, ${accentColor}08 0%, transparent 100%)` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <div className="cot-ico" style={{ width: 36, height: 36, borderRadius: 10, background: `${accentColor}15`, display: "flex", alignItems: "center", justifyContent: "center", color: accentColor, fontSize: 15 }}>
-                    {icon}
-                </div>
-                <div>
-                    <p style={{ margin: 0, fontWeight: 800, fontSize: 15, color: C.navy, fontFamily: "'Outfit',sans-serif" }}>{title}</p>
-                    {subtitle && <p style={{ margin: 0, fontSize: 11, color: C.muted, fontFamily: "'Outfit',sans-serif" }}>{subtitle}</p>}
-                </div>
-            </div>
-            {headerRight}
-        </div>
-        <div style={{ padding: "20px 22px" }}>{children}</div>
-    </div>
-);
-
-const Btn = ({ children, onClick, variant = "primary", size = "md", disabled, style, className = "", ...rest }) => {
-    const variants = {
-        primary: { bg: C.navyGrad, color: C.white, border: "none" },
-        success: { bg: `linear-gradient(90deg, #16a34a, #15803d)`, color: C.white, border: "none" },
-        danger: { bg: C.dangerSoft, color: C.danger, border: `1.5px solid ${C.dangerBorder}` },
-        ghost: { bg: "transparent", color: C.muted, border: `1.5px solid ${C.border}` },
-        accent: { bg: `linear-gradient(90deg, #4f8ef7, #7c3aed)`, color: C.white, border: "none" },
-        warning: { bg: C.warningSoft, color: C.warning, border: `1.5px solid ${C.warningBorder}` },
-    };
-    const sizes = { sm: { padding: "6px 14px", fontSize: 12 }, md: { padding: "10px 20px", fontSize: 13 }, lg: { padding: "13px 28px", fontSize: 14 } };
-    const v = variants[variant]; const s = sizes[size];
-    return (
-        <button onClick={onClick} disabled={disabled} {...rest} className={`cot-btn ${className}`} style={{ position: "relative", overflow: "hidden",
-            ...v, ...s, borderRadius: 10, fontWeight: 700, fontFamily: "'Outfit',sans-serif",
-            cursor: disabled ? "not-allowed" : "pointer", display: "inline-flex", alignItems: "center",
-            gap: 7, transition: "all 0.2s", opacity: disabled ? 0.5 : 1, ...style
-        }}
-        >
-            {children}
-        </button>
-    );
-};
-
-const InfoBadge = ({ type, children }) => {
-    const map = {
-        success: { bg: C.successSoft, color: C.success, border: C.successBorder },
-        warning: { bg: C.warningSoft, color: C.warning, border: C.warningBorder },
-        danger: { bg: C.dangerSoft, color: C.danger, border: C.dangerBorder },
-        info: { bg: C.accentSoft, color: C.accent, border: C.accentBorder },
-        purple: { bg: C.purpleSoft, color: C.purple, border: C.purpleBorder },
-    };
-    const s = map[type] || map.info;
-    return (
-        <span style={{ background: s.bg, color: s.color, border: `1px solid ${s.border}`, borderRadius: 20, padding: "3px 11px", fontSize: 11, fontWeight: 700, fontFamily: "'Outfit',sans-serif" }}>
-            {children}
-        </span>
-    );
-};
-
-// ── Modal base ──
-const Modal = ({ open, onClose, title, subtitle, accentColor = C.navy, maxWidth = 680, children, footer }) => {
-    if (!open) return null;
-    return (
-        <div className="cot-overlay" style={{ position: "fixed", inset: 0, background: "rgba(10,16,30,0.62)", backdropFilter: "blur(6px)", zIndex: 9990, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-            onClick={onClose}>
-            <div style={{ background: C.white, borderRadius: 20, width: "100%", maxWidth, maxHeight: "92vh", overflow: "hidden", display: "flex", flexDirection: "column", animation: "cotModal 0.45s cubic-bezier(.34,1.56,.64,1)", boxShadow: "0 32px 80px rgba(0,0,0,0.4)" }}
-                onClick={e => e.stopPropagation()}>
-                <div style={{ background: accentColor, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                        <p style={{ margin: 0, fontWeight: 800, fontSize: 17, color: C.white, fontFamily: "'Outfit',sans-serif" }}>{title}</p>
-                        {subtitle && <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.65)", fontFamily: "'Outfit',sans-serif" }}>{subtitle}</p>}
-                    </div>
-                </div>
-                <div style={{ overflowY: "auto", flex: 1, padding: "22px 24px" }}>{children}</div>
-                {footer && <div style={{ padding: "14px 24px", borderTop: `1px solid ${C.border}`, display: "flex", gap: 10, justifyContent: "flex-end" }}>{footer}</div>}
-            </div>
-        </div>
-    );
-};
-
 // ─────────────────────────────────────────────────────
 // COMPONENTE PRINCIPAL
 // ─────────────────────────────────────────────────────
@@ -217,7 +73,6 @@ const CotizacionLanding = () => {
     const [cargando, setCargando] = useState(true);
     const [tarifas, setTarifas] = useState([]);
     const [productoSeleccionado, setProductoSeleccionado] = useState(null);
-    const [variantesProducto, setVariantesProducto] = useState([]);
     const [mostrarModalProductos, setMostrarModalProductos] = useState(false);
     const [busquedaProducto, setBusquedaProducto] = useState("");
     const [formProducto, setFormProducto] = useState({ ColorID: "", TallaID: "", TipoTela: "", Cantidad: 1, PrendaDescripcion: "" });
@@ -235,6 +90,8 @@ const CotizacionLanding = () => {
     const [resumenExito, setResumenExito] = useState([]);
     const [enviando, setEnviando] = useState(false);
     const enviandoRef = useRef(false); // seguro contra doble clic (el estado tarda un ciclo en actualizarse)
+    // Recuerda las imágenes ya subidas: un reintento tras un fallo no las vuelve a subir
+    const [subirDiseno] = useState(() => crearSubidorDisenos());
     const [arrastrando, setArrastrando] = useState(false);
     usePlus();
     const previewUrl = useMemo(() => (disenoActual.ImagenDiseno ? URL.createObjectURL(disenoActual.ImagenDiseno) : null), [disenoActual.ImagenDiseno]);
@@ -247,10 +104,16 @@ const CotizacionLanding = () => {
     // ── Efectos ──
     useEffect(() => { verificarAutenticacion(); cargarDatos(); }, []);
 
-    useEffect(() => {
-        if (productoSeleccionado && !traePrenda) cargarVariantesProducto(productoSeleccionado.ProductoID);
-        else { setVariantesProducto([]); setFormProducto(prev => ({ ...prev, ColorID: "", TallaID: "", TipoTela: "" })); }
-    }, [productoSeleccionado, traePrenda]);
+    // Variantes del producto elegido: cada cambio de producto invalida la petición anterior (una respuesta tardía
+    // no pisa las variantes del nuevo). Sin producto o con prenda propia se limpian y se borra color/talla/tela.
+    const [variantesProducto, setVariantesProducto] = useVariantesProducto(productoSeleccionado ? productoSeleccionado.ProductoID : null, {
+        activo: !traePrenda,
+        cargar: api.getVariantesByProducto,
+        filtrar: v => v.Estado && v.Stock > 0,
+        alCargar: (variantes) => { if (variantes.length === 0) Swal.fire({ icon: "warning", title: "Sin variantes disponibles", text: "Este producto no tiene variantes en stock.", confirmButtonText: "Entendido" }); },
+        alFallar: () => { Swal.fire({ icon: "error", title: "Error al cargar variantes", text: "No se pudieron cargar las opciones.", confirmButtonText: "Entendido" }); },
+        alLimpiar: () => { setFormProducto(prev => ({ ...prev, ColorID: "", TallaID: "", TipoTela: "" })); },
+    });
 
     useEffect(() => {
         if (!productoSeleccionado || traePrenda) return;
@@ -276,24 +139,17 @@ const CotizacionLanding = () => {
         getTarifasPublicas().then(setTarifas); // el estimado es opcional: si falla, queda "por cotizar"
         try {
             setCargando(true);
-            const [prodData, tecData, partData, colData, tallData, telData] = await Promise.all([
-                api.getProductos(), api.getTecnicas(), api.getPartes(), api.getColores(), api.getTallas(), api.getTelas()
-            ]);
-            setProductos(prodData || []); setTecnicas(tecData || []); setPartes(partData || []);
-            setColores(colData || []); setTallas(tallData || []); setTelas(telData || []);
+            // Si una ruta falla, esa lista queda vacía y se avisa; el resto de la página sigue funcionando
+            const { listas, fallidas } = await cargarListas({
+                productos: api.getProductos, técnicas: api.getTecnicas, partes: api.getPartes,
+                colores: api.getColores, tallas: api.getTallas, telas: api.getTelas,
+            });
+            setProductos(listas.productos); setTecnicas(listas["técnicas"]); setPartes(listas.partes);
+            setColores(listas.colores); setTallas(listas.tallas); setTelas(listas.telas);
+            if (fallidas.length) Swal.fire({ icon: "warning", title: "Algunos datos no cargaron", text: `No pudimos cargar: ${fallidas.join(", ")}. Recarga la página o inténtalo más tarde.`, confirmButtonText: "Entendido" });
         } catch (err) {
             Swal.fire("Error", err?.message || "Error cargando catálogos", "error");
         } finally { setCargando(false); }
-    };
-
-    const cargarVariantesProducto = async (productoID) => {
-        try {
-            const res = await api.getVariantesByProducto(productoID);
-            if (!Array.isArray(res)) { setVariantesProducto([]); return; }
-            const variantes = res.filter(v => v.Estado && v.Stock > 0);
-            setVariantesProducto(variantes);
-            if (variantes.length === 0) Swal.fire({ icon: "warning", title: "Sin variantes disponibles", text: "Este producto no tiene variantes en stock.", confirmButtonText: "Entendido" });
-        } catch { setVariantesProducto([]); Swal.fire({ icon: "error", title: "Error al cargar variantes", text: "No se pudieron cargar las opciones.", confirmButtonText: "Entendido" }); }
     };
 
     // ── Filtros de variantes ──
@@ -338,8 +194,8 @@ const CotizacionLanding = () => {
     // ─────────────────────────────────────────────────
     // VALIDACIONES DE DISEÑO (mejoradas)
     // ─────────────────────────────────────────────────
-    const TIPOS_IMAGEN_PERMITIDOS = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
-    const TAMAÑO_MAX_MB = 5;
+    const TIPOS_IMAGEN_PERMITIDOS = TIPOS_IMAGEN_DISENO;
+    const TAMAÑO_MAX_MB = MAX_MB_DISENO;
 
     const validarDiseño = (diseno, esEdicion = false) => {
         const errores = {};
@@ -512,11 +368,8 @@ const CotizacionLanding = () => {
                 const disenos = await Promise.all(prod.disenos.map(async (dis) => {
                     if (!dis.ImagenDiseno) return dis;
                     try {
-                        const fd = new FormData(); fd.append('imagen', dis.ImagenDiseno);
-                        const r = await fetch(`${API_ROOT}/api/cotizaciones/upload-diseno`, { method: 'POST', body: fd });
-                        const d = await r.json().catch(() => ({}));
-                        if (!r.ok || !d.filename) throw new Error(d.message || d.mensaje || "No se pudo subir la imagen de un diseño. Intenta de nuevo.");
-                        return { ...dis, ImagenNombre: d.filename };
+                        // En un reintento, las imágenes que ya subieron no se vuelven a subir
+                        return { ...dis, ImagenNombre: await subirDiseno(dis.ImagenDiseno) };
                     } catch (e) { throw new Error(e.message || "No se pudo subir la imagen de un diseño. Intenta de nuevo."); }
                 }));
                 return { ...prod, disenos };
@@ -586,7 +439,6 @@ const CotizacionLanding = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
                 * { box-sizing: border-box; }
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes modalIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
@@ -704,7 +556,7 @@ const CotizacionLanding = () => {
                                     </div>
                                     {p.disenos.map((d, j) => (
                                         <div key={j} style={{ display: "flex", gap: 10, alignItems: "center", borderTop: "1px dashed #e2e8f0", paddingTop: 8, marginTop: 8, fontSize: 13, color: C.muted }}>
-                                            {d.imagen && <img src={d.imagen} alt="Diseño" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />}
+                                            {d.imagen && <img loading="lazy" decoding="async" src={d.imagen} alt="Diseño" onError={(e) => { e.currentTarget.style.display = "none"; }} style={{ width: 44, height: 44, objectFit: "cover", borderRadius: 8, border: "1px solid #e2e8f0" }} />}
                                             <span><b style={{ color: C.navy }}>Diseño {j + 1}:</b> {d.tecnica || "Técnica"} en {d.parte || "parte"}{d.subparte ? ` (${d.subparte})` : ""}{d.observacion ? ` · ${d.observacion}` : ""}</span>
                                         </div>
                                     ))}
@@ -760,7 +612,7 @@ const CotizacionLanding = () => {
                     {productosFiltrados.map(prod => (
                         <div key={prod.ProductoID} className="prod-card" style={{ borderRadius: 14, border: `1.5px solid ${C.border}`, overflow: "hidden", cursor: "pointer", background: C.white }}
                             onClick={() => { setProductoSeleccionado(prod); setMostrarModalProductos(false); setBusquedaProducto(""); Swal.fire({ icon: "success", title: prod.Nombre, timer: 1400, showConfirmButton: false }); }}>
-                            <img src={prod.ImagenProducto || "https://via.placeholder.com/200?text=Producto"} alt={prod.Nombre} style={{ width: "100%", height: 140, objectFit: "cover" }} onError={e => { e.target.src = "https://via.placeholder.com/200?text=Producto"; }} />
+                            <img loading="lazy" decoding="async" src={prod.ImagenProducto || "/placeholder-producto.svg"} alt={prod.Nombre} style={{ width: "100%", height: 140, objectFit: "cover" }} onError={e => { e.target.onerror = null; e.target.src = "/placeholder-producto.svg"; }} />
                             <div style={{ padding: "10px 12px" }}>
                                 <p style={{ margin: "0 0 3px", fontWeight: 700, fontSize: 13, color: C.navy, fontFamily: "'Outfit',sans-serif" }}>{prod.Nombre}</p>
                                 <p style={{ margin: 0, fontSize: 11, color: C.muted, fontFamily: "'Outfit',sans-serif", lineHeight: 1.4 }}>{prod.Descripcion?.slice(0, 60) || "Sin descripción"}</p>

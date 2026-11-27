@@ -4,9 +4,10 @@ const router = express.Router();
 const usuarioController = require('../controllers/usuarioController');
 const verificarToken = require('../middleware/authMiddleware');
 const { admin, esAdmin, propioOAdmin } = require('../middleware/authMiddleware');
+const { validar, esquemas } = require('../middleware/validar');
 
 // Un cliente no puede cambiarse el rol ni el documento al editar su perfil.
-const sinCambiarRol = (req, res, next) => {
+const sinCambiarRol = function sinCambiarRol(req, res, next) {
     if (!esAdmin(req)) { delete req.body.RolID; delete req.body.DocumentoID; }
     next();
 };
@@ -39,10 +40,10 @@ router.get('/', admin, usuarioController.getAllUsuarios);
 router.get('/:id', verificarToken, propioOAdmin('id'), usuarioController.getUsuarioById);
 
 // POST /api/usuarios - Crear un nuevo usuario (sin token para permitir registro)
-router.post('/', admin, usuarioController.createUsuario);
+router.post('/', admin, validar(esquemas.usuarioCreacion), usuarioController.createUsuario);
 
 // PUT /api/usuarios/:id - Actualizar un usuario
-router.put('/:id', verificarToken, propioOAdmin('id'), sinCambiarRol, usuarioController.updateUsuario);
+router.put('/:id', verificarToken, propioOAdmin('id'), sinCambiarRol, validar(esquemas.usuarioEdicion), usuarioController.updateUsuario);
 
 // DELETE /api/usuarios/:id - Eliminar un usuario
 router.delete('/:id', admin, usuarioController.deleteUsuario);

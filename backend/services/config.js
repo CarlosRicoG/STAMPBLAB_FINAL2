@@ -6,11 +6,26 @@
  *   COSTO_ENVIO               costo del envío a domicilio en pesos                                           [0]
  *   STOCK_MINIMO              unidades por debajo de las cuales se avisa "stock bajo"                        [5]
  *   WHATSAPP                  número con indicativo, solo dígitos (ej. 573001234567) para los botones de WhatsApp
+ *   PAGO_BANCO, PAGO_TIPO_CUENTA, PAGO_CUENTA, PAGO_TITULAR, PAGO_DOCUMENTO, PAGO_NOTA
+ *                             datos de la cuenta a la que el cliente transfiere (se muestran en el pago y en el correo);
+ *                             si PAGO_CUENTA está vacío no se muestra nada
  *   ADMIN_NOTIFY_EMAIL        correo(s) separados por coma que reciben los avisos; si falta, se usa el de los administradores
  */
 const entero = (valor, porDefecto) => {
     const n = Number(valor);
     return Number.isFinite(n) && n >= 0 ? Math.floor(n) : porDefecto;
+};
+
+const texto = (valor, max = 120) => String(valor || '').trim().slice(0, max);
+
+// Cuenta para transferencias. Sin número de cuenta no hay datos que mostrar (null).
+const leerPago = () => {
+    const cuenta = texto(process.env.PAGO_CUENTA, 60);
+    if (!cuenta) return null;
+    return {
+        banco: texto(process.env.PAGO_BANCO, 60), tipoCuenta: texto(process.env.PAGO_TIPO_CUENTA, 40), cuenta,
+        titular: texto(process.env.PAGO_TITULAR, 100), documento: texto(process.env.PAGO_DOCUMENTO, 40), nota: texto(process.env.PAGO_NOTA, 200),
+    };
 };
 
 const leer = () => ({
@@ -20,6 +35,7 @@ const leer = () => ({
     costoEnvio: entero(process.env.COSTO_ENVIO, 0),
     stockMinimo: entero(process.env.STOCK_MINIMO, 5),
     whatsapp: String(process.env.WHATSAPP || '').replace(/\D/g, ''),
+    pago: leerPago(),
 });
 
 module.exports = { leer };

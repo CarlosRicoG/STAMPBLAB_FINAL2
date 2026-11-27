@@ -153,7 +153,6 @@ const ClientesForm = ({ onClose, onSave, cliente = null }) => {
 
     return (
         <>
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');`}</style>
 
             <div className="card shadow-sm border-0 p-4 mx-4" style={{ fontFamily: "'Outfit', sans-serif", background: C.bg }}>
                 <div className="position-relative mb-4 text-center">

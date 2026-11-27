@@ -5,37 +5,172 @@ on:
   push:
     branches: [main]
 
+# Mínimo privilegio para el GITHUB_TOKEN: los jobs solo leen el repositorio
+permissions:
+  contents: read
+
+# Un push nuevo a la misma PR cancela la corrida anterior; en main (push) no se cancela ninguna
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0 (v4)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 (v4)
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: backend/package-lock.json
       - run: npm ci
-      - run: npm test
+      - name: Auditoría de dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
+      # Pruebas con cobertura: falla si baja del umbral de package.json (jest.coverageThreshold)
+      - run: npm run test:cov
 
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0 (v4)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 (v4)
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - name: Auditoría de dependencias de producción
+        run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm test
       - run: npm run build
         env:
           VITE_API_URL: http://localhost:3000
+
+  # Pruebas de integración: levantan MySQL, la API real y corren los 11 conjuntos (stock, pagos, cancelaciones, sesiones,
+  # concurrencia, abuso). Son las que más fallos reales atrapan: una rama que rompa el flujo no debería poder mezclarse.
+  # Después, con la misma API y base, compila y sirve el frontend y corre las pruebas E2E (e2e/run.js) con Chrome.
+  integracion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci_root
+          MYSQL_DATABASE: stamplab_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci_root --silent"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_NAME: stamplab_ci
+      DB_USER: root
+      DB_PASSWORD: ci_root
+      JWT_SECRET: ci-secreto-solo-para-pruebas-0123456789abcdef0123456789
+      MAIL_MODO: archivo
+      JOBS_DESACTIVADOS: "1"
+      AUTH_MAX_FALLOS: "5000"
+      RECUPERAR_MAX_HORA: "5000"
+      REGISTRO_MAX_HORA: "5000"
+      API_URL: http://127.0.0.1:3000/api
+      # Origen del frontend servido para las E2E (la API rechaza por CORS cualquier otro)
+      CORS_ORIGIN: http://127.0.0.1:5173,http://localhost:5173
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0 (v4)
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0 (v4)
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+            e2e/package-lock.json
+      - run: npm ci
+      - run: npm run db:setup
+      # El esquema que dejan las migraciones (baseline congelado + posteriores) tiene que coincidir con los modelos
+      - name: Comprobar esquema migrado frente a los modelos
+        run: node scripts/comprobar-esquema.js
+      - run: node scripts/seed-demo.js
+      - name: Levantar la API
+        run: |
+          nohup node server.js > api.log 2>&1 &
+          for i in $(seq 1 40); do
+            curl -sf http://127.0.0.1:3000/api/productos > /dev/null && exit 0
+            sleep 2
+          done
+          echo "La API no arrancó:"; cat api.log; exit 1
+      - run: node scripts/seed-demo-flujo.js
+      - run: npm run test:integracion
+
+      # ---- E2E: frontend compilado contra esta API, servido como en producción (serve + serve.json) ----
+      - name: Compilar el frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+        env:
+          VITE_API_URL: http://127.0.0.1:3000
+      - name: Servir el frontend
+        working-directory: frontend
+        run: |
+          nohup npx --yes serve@14 -s dist -l 5173 -c "$PWD/serve.json" > serve.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:5173/login > /dev/null && exit 0
+            sleep 2
+          done
+          echo "El frontend no arrancó:"; cat serve.log; exit 1
+      - name: Pruebas E2E (Chrome)
+        working-directory: e2e
+        run: |
+          npm ci
+          node run.js
+        env:
+          BASE_URL: http://127.0.0.1:5173
+          API_URL: http://127.0.0.1:3000/api
+          CHROME_PATH: /usr/bin/google-chrome
+      - name: Capturas E2E (si algo falló)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2 (v4)
+        with:
+          name: e2e-capturas
+          path: e2e/capturas
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Registro de la API (si algo falló)
+        if: failure()
+        run: tail -n 80 api.log
+
+  # Las imágenes de docker compose (backend y frontend) tienen que poder construirse; solo se construyen, no se levantan
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0 (v4)
+      - name: .env mínimo para CI (valores falsos, solo para interpolar docker-compose.yml)
+        run: |
+          cp .env.example .env
+          {
+            echo "DB_ROOT_PASSWORD=ci_root_falso"
+            echo "DB_PASSWORD=ci_falso"
+            echo "JWT_SECRET=ci-secreto-falso-solo-para-build-0123456789abcdef"
+          } >> .env
+      - run: docker compose config --quiet
+      - run: docker compose build

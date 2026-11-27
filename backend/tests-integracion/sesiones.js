@@ -1,3 +1,5 @@
+// Autorización de tratamiento de datos que exige el registro (Ley 1581 de 2012)
+const PRIVACIDAD = { AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
 /**
  * Sesiones: cierre real (logout), invalidación al cambiar la contraseña, renovación deslizante y compatibilidad.
  * Requisitos: backend corriendo + base de demostración. Crea y borra su propio usuario de prueba.
@@ -20,7 +22,7 @@ const si = (n, c, d = '') => { if (!c) bad++; console.log((c ? 'OK   ' : 'FALLA'
     const adm = (await call('POST', '/login', { Correo: 'admin@stamplab.com', 'Contraseña': 'Admin123*' })).j.token;
     const doc = String(4400000000 + Math.floor(Math.random() * 99999999));
     const correo = `ses_${doc}@test.com`;
-    await call('POST', '/registro', { DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' });
+    await call('POST', '/registro', { ...PRIVACIDAD, DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' });
     const login = async (clave = 'Sesion12345') => (await call('POST', '/login', { Correo: correo, 'Contraseña': clave })).j?.token;
 
     try {
@@ -56,7 +58,15 @@ const si = (n, c, d = '') => { if (!c) bad++; console.log((c ? 'OK   ' : 'FALLA'
         if (nuevo) {
             si('el token nuevo vive ~2 h y es otro distinto', jwt.decode(nuevo).exp - jwt.decode(nuevo).iat >= 7000 && jwt.decode(nuevo).jti !== 'prueba-' + doc);
             exp('el token nuevo funciona', await call('GET', '/usuarios/' + doc, null, nuevo), 200);
+            si('el token nuevo sigue siendo la misma sesión (hereda el sid)', jwt.decode(nuevo).sid === 'prueba-' + doc, JSON.stringify(jwt.decode(nuevo)));
+            exp('cerrar sesión con el token renovado', await call('POST', '/logout', null, nuevo), 200);
+            exp('el token ANTERIOR de esa sesión (copiado) ya no sirve ni se renueva', await call('GET', '/usuarios/' + doc, null, porVencer), 401);
         }
+        // Tope absoluto (SESION_VIDA_MAXIMA_HORAS, 24 por defecto): una sesión iniciada hace 25 h ya no se renueva
+        const ahoraS = Math.floor(Date.now() / 1000);
+        const vieja = jwt.sign({ id: Number(doc), rol: 2, jti: 'vieja-' + doc, sid: 'vieja-' + doc, ini: ahoraS - 25 * 3600, sv: 1 }, SECRETO, { expiresIn: 600 });
+        const r2 = await call('GET', '/usuarios/' + doc, null, vieja);
+        si('pasada la vida máxima de la sesión ya no se renueva', r2.s === 200 && !r2.h.get('x-token-renovado'), 'estado ' + r2.s);
 
         console.log('--- compatibilidad y robustez');
         // formato anterior (sin jti ni sv) de un usuario que NO ha cambiado su clave: sigue valiendo
@@ -68,6 +78,15 @@ const si = (n, c, d = '') => { if (!c) bad++; console.log((c ? 'OK   ' : 'FALLA'
 
         console.log('--- el administrador no se ve afectado');
         exp('el administrador sigue operando', await call('GET', '/ventas?limit=1&page=1', null, adm), 200);
+
+        console.log('--- cuenta eliminada y vuelta a registrar con el mismo documento');
+        const deAntes = jwt.sign({ id: Number(doc), rol: 2, jti: 'antes-' + doc, sid: 'antes-' + doc, ini: Math.floor(Date.now() / 1000) - 60, sv: 5 }, SECRETO, { expiresIn: 600 });
+        exp('eliminar la cuenta', await call('DELETE', '/usuarios/' + doc, null, adm), 200);
+        exp('volver a registrarse con el mismo documento', await call('POST', '/registro', { ...PRIVACIDAD, DocumentoID: doc, Nombre: 'ZZ Sesiones', Correo: correo, 'Contraseña': 'Sesion12345', Telefono: '3001112222' }), 201);
+        const renacida = await login();
+        si('la cuenta nueva empieza en versión 0', !!renacida && jwt.decode(renacida).sv === 0, String(renacida && jwt.decode(renacida).sv));
+        exp('la sesión de la cuenta nueva funciona (sin reiniciar el servidor)', await call('GET', '/usuarios/' + doc, null, renacida), 200);
+        exp('un token de la cuenta eliminada (sesión anterior) NO vale', await call('GET', '/usuarios/' + doc, null, deAntes), 401);
     } finally {
         await call('DELETE', '/usuarios/' + doc, null, adm);
     }

@@ -36,7 +36,7 @@ async function pagina(ctx) {
 async function login(pg, c, p) {
     await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
     await setVal(pg, 'input[type=email]', c); await setVal(pg, 'input[type=password]', p);
-    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit());
+    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await pg.waitForFunction(() => !!localStorage.getItem('token'), { timeout: 30000 }).catch(() => {});
     await pg.waitForFunction(() => !/\/login/.test(location.pathname), { timeout: 12000 }).catch(() => {}); await sleep(900);
 }
 
@@ -146,6 +146,11 @@ async function login(pg, c, p) {
         for (const id of limpiar.cots) { await api('PUT', `/cotizaciones/${id}/cancelar`, null, adm); await api('DELETE', `/cotizaciones/${id}`, null, adm); }
         await api('POST', '/notificaciones/archivar-todas', {}, cli);
         await br.close();
+        // "Volver a pedir" y la cotización dejan productos en el carrito guardado del cliente demo: se vacía después de
+        // cerrar el navegador (así no queda un guardado diferido de la página que lo vuelva a llenar) para que run.js
+        // u otra prueba que compre después no herede esas unidades.
+        const vacio = await api('PUT', '/carrito', { items: [] }, cli);
+        if (vacio.s !== 200) console.log(`  (aviso) no se pudo vaciar el carrito del cliente demo: HTTP ${vacio.s}`);
     }
     console.log(fallos ? `\n✘ ${fallos} comprobaciones fallaron` : '\n✔ Las pantallas del cliente funcionan');
     process.exit(fallos ? 1 : 0);

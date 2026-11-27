@@ -83,13 +83,24 @@ export function fechaLimitePago(fechaVenta, plazoPagoHoras) {
 }
 
 /**
- * ¿Corre un plazo para pagar este pedido? Solo si está pendiente, es por transferencia y todavía no hay un comprobante
+ * Fecha desde la que corre el plazo de pago (misma regla que referenciaPlazo del servidor): la del pedido, salvo un
+ * comprobante rechazado con fecha de rechazo, que cuenta desde el rechazo.
+ */
+export function referenciaPlazoPago(venta) {
+    if (!venta) return null;
+    const rechazado = venta.MetodoPago !== "contraentrega" && venta.ComprobanteMotivoRechazo != null && venta.ComprobanteFechaRechazo;
+    return rechazado ? venta.ComprobanteFechaRechazo : venta.FechaVenta;
+}
+
+/**
+ * ¿Corre un plazo para pagar este pedido? Solo si está pendiente, es por transferencia (o aún no tiene método de pago:
+ * los pedidos que nacen de una cotización aceptada se pagan por transferencia) y todavía no hay un comprobante
  * válido (sin comprobante, o rechazado). Los de contra entrega y los que tienen el comprobante en revisión no se
  * cancelan por plazo: el servidor aplica exactamente esta misma regla.
  */
 export function plazoDePagoAplica(v = {}) {
     const pendiente = Number(v.EstadoID) === 8 || (v.estado?.Nombre || v.Estado) === "Pendiente";
-    if (!pendiente || v.MetodoPago !== "transferencia") return false;
+    if (!pendiente || (v.MetodoPago && v.MetodoPago !== "transferencia")) return false;
     const tieneComprobante = Boolean(v.ComprobanteTransferencia || v.TieneComprobante);
     return !tieneComprobante || Boolean(v.ComprobanteMotivoRechazo);
 }
@@ -154,10 +165,85 @@ export function fusionarCarritos(local, remoto) {
 }
 
 /**
+ * Stock de la variante (color + talla por nombre) del producto; sin color ni talla no hay tope.
+ * Si el inventario del producto no está cargado (p. ej. un ítem que vino del carrito del servidor) tampoco hay
+ * tope: el servidor valida el stock al comprar.
+ */
+export function stockVariante(producto, color, talla) {
+    if (!color && !talla) return Infinity;
+    if (!Array.isArray(producto?.inventario)) return Infinity;
+    const vars = (producto?.inventario || []).filter((i) => i.Stock > 0 && i.Estado);
+    const v = vars.find((i) => (!color || i.color?.Nombre === color) && (!talla || i.talla?.Nombre === talla));
+    return Number(v?.Stock) || 0;
+}
+
+/** El producto ACTUAL del catálogo cargado para un ítem del carrito (por ProductoID), o null si no está. */
+export function productoDelCatalogo(item, productosCatalogo = []) {
+    const id = item?.producto?.ProductoID ?? item?.ProductoID;
+    if (id === undefined || id === null || !Array.isArray(productosCatalogo)) return null;
+    return productosCatalogo.find((p) => String(p.ProductoID) === String(id)) || null;
+}
+
+/**
+ * Agrega (o edita, con editIdx) un ítem del carrito sin pasar del stock de la variante.
+ * Si el producto+color+talla ya está, suma la cantidad y la limita al stock.
+ * @returns {{ carrito: Array, cantidad: number, limitado: boolean, stock: number }}
+ *   carrito: nuevo arreglo (o el mismo si no se pudo agregar nada); cantidad: la que quedó en el carrito;
+ *   limitado: true si se pidió más de lo que hay.
+ * @param {{ productoStock?: object|null }} [opciones]  producto con el que se calcula el tope (por defecto el del
+ *   ítem); null o sin inventario cargado = sin tope.
+ */
+export function agregarItemCarrito(carrito, { producto, color, talla, cantidad, precio }, editIdx = null, opciones = {}) {
+    const lista = Array.isArray(carrito) ? carrito : [];
+    const fuenteStock = opciones && "productoStock" in opciones ? opciones.productoStock : producto;
+    const stock = stockVariante(fuenteStock, color, talla);
+    const pedida = Number(cantidad) || 0;
+    if (editIdx !== null && editIdx !== undefined) {
+        const final = Math.min(pedida, stock);
+        if (final < 1) return { carrito: lista, cantidad: 0, limitado: true, stock };
+        return {
+            carrito: lista.map((item, i) => (i === editIdx ? { ...item, color, talla, cantidad: final, precio } : item)),
+            cantidad: final, limitado: final < pedida, stock,
+        };
+    }
+    const ex = lista.findIndex((i) => i.producto?.ProductoID === producto.ProductoID && i.color === color && i.talla === talla);
+    const previa = ex >= 0 ? Number(lista[ex].cantidad) || 0 : 0;
+    const total = previa + pedida;
+    const final = Math.min(total, stock);
+    if (final < 1 || final === previa) return { carrito: lista, cantidad: previa, limitado: total > stock, stock };
+    const nuevo = ex >= 0
+        ? lista.map((item, i) => (i === ex ? { ...item, cantidad: final } : item))
+        : [...lista, { producto, nombre: producto.Nombre, imagen: producto.ImagenProducto, color, talla, cantidad: final, precio }];
+    return { carrito: nuevo, cantidad: final, limitado: final < total, stock };
+}
+
+/**
  * Arma los ítems del carrito para "Volver a pedir" a partir de un pedido y el catálogo actual.
  * Usa el precio ACTUAL (PrecioBase + talla) y solo variantes existentes con stock.
  * @returns {{ items: Array, omitidos: Array<{nombre:string, motivo:string}> }}
  */
+/**
+ * Pone al día los precios del carrito con el catálogo recién cargado (precio base + recargo de la talla).
+ * El carrito se guarda en el navegador y en el servidor, así que puede traer un precio viejo: el servidor
+ * rechaza el pedido si el precio quedó por debajo del catálogo. Los productos que ya no están en el catálogo
+ * se dejan como estaban. Devuelve el MISMO arreglo si nada cambió.
+ */
+export function actualizarPreciosCarrito(carrito = [], productosCatalogo = [], tallasCatalogo = []) {
+    if (!Array.isArray(carrito) || !carrito.length || !productosCatalogo.length) return carrito;
+    let cambio = false;
+    const actualizado = carrito.map((item) => {
+        const id = item?.producto?.ProductoID ?? item?.ProductoID;
+        const producto = productosCatalogo.find((p) => String(p.ProductoID) === String(id));
+        if (!producto) return item;
+        const talla = tallasCatalogo.find((t) => t.Nombre === item.talla);
+        const precio = num(producto.PrecioBase) + num(talla?.Precio);
+        if (precio === Number(item.precio) && item.producto === producto) return item;
+        cambio = true;
+        return { ...item, producto, precio };
+    });
+    return cambio ? actualizado : carrito;
+}
+
 export function itemsParaVolverAPedir(venta, productosCatalogo = [], tallasCatalogo = []) {
     const items = [];
     const omitidos = [];
@@ -226,7 +312,7 @@ export function resumenAtencion(cotizaciones = [], ventas = [], plazoPagoHoras =
     const esPendiente = (v) => Number(v.EstadoID) === 8 || nombreEstado(v) === "Pendiente";
     const rechazados = ventas.filter((v) => esPendiente(v) && v.ComprobanteMotivoRechazo);
     const pendientesPago = ventas.filter((v) => plazoDePagoAplica(v) && !v.ComprobanteMotivoRechazo).map((v) => {
-        const limite = fechaLimitePago(v.FechaVenta, plazoPagoHoras);
+        const limite = fechaLimitePago(referenciaPlazoPago(v), plazoPagoHoras);
         return { venta: v, limite, restante: textoTiempoRestante(limite, ahora) };
     });
     return {

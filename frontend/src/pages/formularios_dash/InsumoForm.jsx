@@ -132,7 +132,6 @@ const InsumoForm = ({ onClose, onSave, insumoEdit = null }) => {
 
     return (
         <>
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');`}</style>
 
             <div style={{ minHeight: "100vh", background: C.bg, padding: "28px 32px", fontFamily: "'Outfit',sans-serif" }}>
 

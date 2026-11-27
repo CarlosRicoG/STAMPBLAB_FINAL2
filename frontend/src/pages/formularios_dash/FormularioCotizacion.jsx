@@ -1,4 +1,4 @@
-import API_ROOT from "../../config/api";
+import { crearSubidorDisenos, TIPOS_IMAGEN_DISENO, MAX_MB_DISENO } from "../../utils/subidaDisenos";
 import React, { useState, useEffect, useRef } from "react";
 import {
     FaPlus, FaTrash, FaExclamationTriangle, FaCheckCircle, FaShoppingCart,
@@ -7,6 +7,7 @@ import {
 } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { escapeHtml } from "../../utils/escapeHtml";
+import { swalEncima } from "../../utils/alertas";
 import {
     createCotizacionCompleta, getColores, getTallas, getTelas, getTecnicas, getPartes
 } from "../../Services/api-cotizacion-landing/cotizacion-landing";
@@ -323,6 +324,8 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
     const [cargandoVariantes, setCargandoVariantes] = useState(false);
     const [validacionStock, setValidacionStock] = useState({ valido: false, mensaje: "", cargando: false });
     const [submitting, setSubmitting] = useState(false);
+    // Recuerda las imágenes ya subidas: un reintento tras un fallo no las vuelve a subir
+    const [subirDiseno] = useState(() => crearSubidorDisenos());
 
     useEffect(() => { cargarCatalogos(); }, []);
 
@@ -442,9 +445,8 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
         if (!tecnicaID) { Swal.fire("Atención", "Selecciona una técnica", "warning"); return false; }
         if (!parteID) { Swal.fire("Atención", "Selecciona una parte de la prenda", "warning"); return false; }
         if (!archivoDiseno) { Swal.fire("Atención", "Debes subir un archivo de diseño", "warning"); return false; }
-        const tiposPermitidos = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        if (!tiposPermitidos.includes(archivoDiseno.type)) { Swal.fire("Atención", "El archivo debe ser una imagen válida", "warning"); return false; }
-        if (archivoDiseno.size > 5 * 1024 * 1024) { Swal.fire("Atención", "El archivo no puede pesar más de 5MB", "warning"); return false; }
+        if (!TIPOS_IMAGEN_DISENO.includes(archivoDiseno.type)) { Swal.fire("Atención", "El archivo debe ser una imagen válida", "warning"); return false; }
+        if (archivoDiseno.size > MAX_MB_DISENO * 1024 * 1024) { Swal.fire("Atención", "El archivo no puede pesar más de 5MB", "warning"); return false; }
         return true;
     };
 
@@ -558,15 +560,6 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
 
     const calcularTotalCarrito = () => carritoProductos.reduce((total, p) => total + p.subtotal, 0);
 
-    const swalEncima = (opciones) =>
-        Swal.fire({
-            ...opciones,
-            didOpen: () => {
-                const container = document.querySelector(".swal2-container");
-                if (container) container.style.zIndex = "99999";
-            },
-        });
-
     const handleEnviarCotizacion = async () => {
         if (!documentoID) { await swalEncima({ title: "Atención", text: "Selecciona un cliente", icon: "warning" }); return; }
         if (carritoProductos.length === 0) { await swalEncima({ title: "Atención", text: "Agrega al menos un producto al carrito", icon: "warning" }); return; }
@@ -589,12 +582,8 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                         (prod.disenos || []).map(async (dis) => {
                             if (!dis.Archivo) return { ...dis, ImagenSubida: null };
                             try {
-                                const formData = new FormData();
-                                formData.append('imagen', dis.Archivo);
-                                const res = await fetch(`${API_ROOT}/api/cotizaciones/upload-diseno`, { method: 'POST', body: formData });
-                                const data = await res.json().catch(() => ({}));
-                                if (!res.ok || !data.filename) throw new Error(data.message || data.mensaje || `No se pudo subir el diseño "${dis.ImagenNombre}"`);
-                                return { ...dis, ImagenSubida: data.filename };
+                                // En un reintento, las imágenes que ya subieron no se vuelven a subir
+                                return { ...dis, ImagenSubida: await subirDiseno(dis.Archivo) };
                             } catch (e) { throw new Error(e.message || `No se pudo subir el diseño "${dis.ImagenNombre}"`); }
                         })
                     );
@@ -664,7 +653,6 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
     return (
         <>
             <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
         * { box-sizing: border-box; }
         @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
         @keyframes spin   { to{transform:rotate(360deg)} }
@@ -1010,7 +998,7 @@ const FormularioCotizacion = ({ onClose, onActualizar }) => {
                                                     <div key={prod.id} style={{ background: editandoIndex === index ? C.warningSoft : C.bg, borderRadius: 12, padding: "12px 14px", border: `1.5px solid ${editandoIndex === index ? C.warningBorder : C.border}`, transition: "all 0.15s" }}>
                                                         <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
                                                             {prod.ProductoImagen ? (
-                                                                <img src={prod.ProductoImagen} alt={prod.ProductoNombre} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.border}`, flexShrink: 0 }} />
+                                                                <img loading="lazy" decoding="async" src={prod.ProductoImagen} alt={prod.ProductoNombre} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, border: `1px solid ${C.border}`, flexShrink: 0 }} />
                                                             ) : (
                                                                 <div style={{ width: 48, height: 48, borderRadius: 8, background: prod.EsPersonalizado ? C.purpleSoft : C.accentSoft, border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                                                     {prod.EsPersonalizado ? <FaMagic style={{ color: C.purple, opacity: 0.6 }} /> : <FaTshirt style={{ color: C.accent, opacity: 0.5 }} />}

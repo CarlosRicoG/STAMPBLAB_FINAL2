@@ -21,7 +21,6 @@ import { C } from "../../config/tokens";
 /* ── Tokens de color ── */
 
 export const AUTH_CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
 .au-page, .au-page * { box-sizing: border-box; }
 .au-page { --au-ease: cubic-bezier(.22,1,.36,1); --au-grad: linear-gradient(100deg,#4f8ef7 0%,#6d5ff0 55%,#7c3aed 100%);
   min-height: calc(100vh - 72px); display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -449,7 +448,7 @@ const LoginLanding = () => {
                 navigate(destino);
             }
         } catch (err) {
-            if (err.response?.status === 401 || err.response?.status === 400) {
+            if (err.response?.status === 401 || (err.response?.status === 400 && !err.response?.data?.mensaje)) {
                 Swal.fire({ icon: "error", title: "Credenciales incorrectas", text: "El correo o la contraseña son incorrectos.", confirmButtonColor: C.danger });
             } else if (err.response?.status === 404) {
                 Swal.fire({ icon: "error", title: "Usuario no encontrado", text: "No existe una cuenta con este correo electrónico.", confirmButtonColor: C.danger });

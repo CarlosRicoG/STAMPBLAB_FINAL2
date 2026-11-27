@@ -14,7 +14,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
     const set = (s, v) => pg.evaluate((s, v) => { const el = document.querySelector(s); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, v); el.dispatchEvent(new Event('input', { bubbles: true })); }, s, v);
     await set('input[type=email]', 'admin@stamplab.com'); await set('input[type=password]', 'Admin123*');
-    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await sleep(3500);
+    await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await pg.waitForFunction(() => !!localStorage.getItem('token'), { timeout: 30000 }).catch(() => {}); await sleep(3500);
     await pg.goto(BASE + '/dashboard/mediciondesempeño', { waitUntil: 'networkidle2' }); await sleep(2500);
     await pg.evaluate(() => [...document.querySelectorAll('button')].find((b) => /Exportar PDF/i.test(b.innerText))?.click());
     let archivo = null;

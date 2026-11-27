@@ -44,7 +44,7 @@ const setVal = (pg, sel, v) => pg.evaluate((s, v) => { const el = document.query
         console.log('\n▶ Panel de administración SIN datos');
         await pg.goto(BASE + '/login', { waitUntil: 'networkidle2' });
         await setVal(pg, 'input[type=email]', 'admin@stamplab.com'); await setVal(pg, 'input[type=password]', 'Admin123*');
-        await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await sleep(3500);
+        await pg.evaluate(() => document.querySelector('button[type=submit]').form.requestSubmit()); await pg.waitForFunction(() => !!localStorage.getItem('token'), { timeout: 30000 }).catch(() => {}); await sleep(3500);
         ok('el administrador entra al panel', pg.url().includes('/dashboard'), pg.url());
         const modulos = [['', 'Indicadores (sin ventas)'], ['/ventas', 'Pedidos'], ['/ventas-pendientes', 'Pedidos pendientes'], ['/cotizaciones', 'Cotizaciones'],
             ['/roles', 'Roles'], ['/insumos', 'Insumos'], ['/pedidos', 'Compras'], ['/productos', 'Productos'], ['/colores', 'Colores'], ['/tallas', 'Tallas'],
@@ -68,6 +68,8 @@ const setVal = (pg, sel, v) => pg.evaluate((s, v) => { const el = document.query
         await pc.goto(BASE + '/signup', { waitUntil: 'networkidle2' }); await sleep(1000);
         const v = ['Cliente Vacio', doc, `vacio_${doc}@test.com`, '3105550000', 'Calle 1 # 2-3', 'Vacio12345*', 'Vacio12345*'];
         for (let i = 0; i < v.length; i++) await pc.evaluate((n, x) => { const el = document.querySelectorAll('form input')[n]; Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, x); el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); }, i, v[i]);
+        // Casillas obligatorias del formulario (autorización de tratamiento de datos personales, #reg-privacidad)
+        await pc.evaluate(() => document.querySelectorAll('form input[type=checkbox][required]').forEach((c) => { if (!c.checked) c.click(); }));
         await pc.evaluate(() => document.querySelector('form').requestSubmit()); await sleep(3000);
         for (const ruta of ['/miscompras', '/miscotizaciones', '/editarperfil']) {
             await pc.goto(BASE + ruta, { waitUntil: 'networkidle2' }); await sleep(900);

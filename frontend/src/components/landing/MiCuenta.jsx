@@ -11,6 +11,7 @@ import { formatoFechaHoraCO, ultimoPedidoEnCurso } from "../../utils/clienteUtil
 import { useResumenCliente, CLIENTE_CSS, BotonWhatsApp, useConfigPublica } from "./clienteKit";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, Stepper, EmptyState, Skeletons } from "./miCuentaKit";
 import { C } from "../../config/tokens";
+import MisDatosPersonales from "./MisDatosPersonales";
 
 const FLUJO = ["Pendiente", "Pagada", "En Producción", "Lista para Entrega", "Entregada"];
 const pasosDe = (nombre) => {
@@ -129,7 +130,7 @@ const MiCuenta = () => {
                                         <>
                                             <div className="mcu-order">
                                                 <div className="mcu-order-img">
-                                                    {primerDetalle?.producto?.ImagenProducto ? <img src={primerDetalle.producto.ImagenProducto} alt="" /> : <FaBoxOpen size={24} />}
+                                                    {primerDetalle?.producto?.ImagenProducto ? <img loading="lazy" decoding="async" src={primerDetalle.producto.ImagenProducto} alt="" /> : <FaBoxOpen size={24} />}
                                                 </div>
                                                 <div style={{ minWidth: 0 }}>
                                                     <div style={{ fontWeight: 900, color: C.navy, fontSize: 16 }}>Pedido #{enCurso.VentaID}</div>
@@ -157,6 +158,9 @@ const MiCuenta = () => {
                             </section>
                         </div>
                     )}
+
+                    {/* Derechos del titular (Ley 1581 de 2012): descargar mis datos y eliminar mi cuenta */}
+                    {!cargando && <MisDatosPersonales />}
                 </div>
             </div>
 

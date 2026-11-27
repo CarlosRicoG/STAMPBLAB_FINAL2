@@ -6,6 +6,7 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "test": "jest --testEnvironment=node",
+    "test:cov": "jest --testEnvironment=node --coverage",
     "db:setup": "sequelize-cli db:migrate && node scripts/seed-base.js",
     "respaldo": "node scripts/respaldo.js",
     "db:demo": "node scripts/seed-demo.js",
@@ -14,7 +15,18 @@
     "test:integracion": "node tests-integracion/run-all.js"
   },
   "jest": {
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "coverageReporters": [
+      "text-summary"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 58,
+        "branches": 48,
+        "functions": 61,
+        "lines": 61
+      }
+    }
   },
   "keywords": [],
   "author": "",
@@ -22,6 +34,7 @@
   "description": "",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",

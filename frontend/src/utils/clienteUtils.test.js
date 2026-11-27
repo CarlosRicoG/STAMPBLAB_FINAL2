@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { plazoDePagoAplica,
+import { actualizarPreciosCarrito, plazoDePagoAplica,
     precioUnitarioPrenda, estimarProducto, estimarCotizacion, desgloseCotizacion, fechaLimitePago,
     textoTiempoRestante, textoCostoEnvio, fusionarCarritos, itemsParaVolverAPedir, urlWhatsApp,
-    validarComprobante, resumenAtencion, ultimoPedidoEnCurso, formatoFechaCO,
+    validarComprobante, resumenAtencion, ultimoPedidoEnCurso, formatoFechaCO, referenciaPlazoPago,
 } from "./clienteUtils";
 
 describe("estimado de cotización", () => {
@@ -42,6 +42,17 @@ describe("plazos", () => {
         expect(l.toISOString()).toBe("2026-01-03T10:00:00.000Z");
         expect(fechaLimitePago("x", 48)).toBeNull();
         expect(fechaLimitePago("2026-01-01", 0)).toBeNull();
+    });
+    it("comprobante rechazado: el plazo corre desde el rechazo (misma regla que el servidor)", () => {
+        const base = { MetodoPago: "transferencia", FechaVenta: "2026-01-01T10:00:00.000Z" };
+        const rechazado = { ...base, ComprobanteMotivoRechazo: "borroso", ComprobanteFechaRechazo: "2026-01-05T10:00:00.000Z" };
+        expect(referenciaPlazoPago(rechazado)).toBe("2026-01-05T10:00:00.000Z");
+        expect(fechaLimitePago(referenciaPlazoPago(rechazado), 48).toISOString()).toBe("2026-01-07T10:00:00.000Z");
+        // Sin rechazo, o rechazo antiguo sin fecha guardada: desde el pedido
+        expect(referenciaPlazoPago(base)).toBe(base.FechaVenta);
+        expect(referenciaPlazoPago({ ...base, ComprobanteMotivoRechazo: "borroso", ComprobanteFechaRechazo: null })).toBe(base.FechaVenta);
+        // Fecha de rechazo sin motivo (comprobante ya reemplazado): desde el pedido
+        expect(referenciaPlazoPago({ ...base, ComprobanteMotivoRechazo: null, ComprobanteFechaRechazo: "2026-01-05T10:00:00.000Z" })).toBe(base.FechaVenta);
     });
     it("texto de tiempo restante", () => {
         const ahora = new Date("2026-01-01T00:00:00Z");
@@ -124,6 +135,28 @@ describe("resumen de atención", () => {
     });
 });
 
+describe("actualizarPreciosCarrito", () => {
+    const camiseta = { ProductoID: 1, PrecioBase: "30000" };
+    const tallas = [{ Nombre: "M", Precio: "0" }, { Nombre: "XXL", Precio: "5000" }];
+    it("sube el precio viejo del carrito al del catálogo (base + talla)", () => {
+        const carrito = [{ producto: { ProductoID: 1, PrecioBase: "25000" }, talla: "XXL", cantidad: 2, precio: 30000 }];
+        const r = actualizarPreciosCarrito(carrito, [camiseta], tallas);
+        expect(r[0].precio).toBe(35000);
+        expect(r[0].producto).toBe(camiseta);
+        expect(r[0].cantidad).toBe(2);
+    });
+    it("devuelve el mismo arreglo si no hay nada que cambiar", () => {
+        const carrito = [{ producto: camiseta, talla: "M", cantidad: 1, precio: 30000 }];
+        expect(actualizarPreciosCarrito(carrito, [camiseta], tallas)).toBe(carrito);
+    });
+    it("deja intactos los productos que ya no están en el catálogo y los carritos vacíos", () => {
+        const carrito = [{ producto: { ProductoID: 9 }, talla: "M", cantidad: 1, precio: 100 }];
+        expect(actualizarPreciosCarrito(carrito, [camiseta], tallas)).toBe(carrito);
+        expect(actualizarPreciosCarrito([], [camiseta], tallas)).toEqual([]);
+        expect(actualizarPreciosCarrito(carrito, [], tallas)).toBe(carrito);
+    });
+});
+
 describe("plazoDePagoAplica", () => {
     const base = { EstadoID: 8, MetodoPago: "transferencia" };
     it("corre solo si es transferencia pendiente sin comprobante válido", () => {
@@ -134,6 +167,11 @@ describe("plazoDePagoAplica", () => {
         expect(plazoDePagoAplica({ ...base, ComprobanteTransferencia: "x" })).toBe(false);
         expect(plazoDePagoAplica({ ...base, MetodoPago: "contraentrega" })).toBe(false);
         expect(plazoDePagoAplica({ ...base, EstadoID: 9 })).toBe(false);
-        expect(plazoDePagoAplica({ EstadoID: 8 })).toBe(false);
+    });
+    it("corre también para el pedido que nace de una cotización aceptada (aún sin método de pago)", () => {
+        expect(plazoDePagoAplica({ EstadoID: 8 })).toBe(true);
+        expect(plazoDePagoAplica({ EstadoID: 8, MetodoPago: null })).toBe(true);
+        expect(plazoDePagoAplica({ EstadoID: 8, MetodoPago: null, ComprobanteTransferencia: "x" })).toBe(false);
+        expect(plazoDePagoAplica({ EstadoID: 9, MetodoPago: null })).toBe(false);
     });
 });

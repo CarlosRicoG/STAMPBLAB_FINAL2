@@ -108,6 +108,12 @@ module.exports = (sequelize, DataTypes) => {
       allowNull: false,
       defaultValue: false
     },
+    // Cuándo el administrador marcó como devuelto el dinero de un pedido cancelado (reembolso pendiente o pago por
+    // verificar que sí llegó). Null = no se ha devuelto nada. Ver utils/pagoPorVerificar
+    ReembolsoRealizadoEn: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     // true cuando ya se avisó al cliente que el pedido está por cancelarse por falta de pago
     AvisoVencimiento: {
       type: DataTypes.BOOLEAN,
@@ -118,6 +124,11 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.STRING(300),
       allowNull: true
     },
+    // Cuándo se rechazó el comprobante: desde aquí corre de nuevo el plazo de pago (PLAZO_PAGO_HORAS)
+    ComprobanteFechaRechazo: {
+      type: DataTypes.DATE,
+      allowNull: true
+    },
     // Datos del cliente al momento de pedir (el perfil puede cambiar después sin alterar el pedido)
     ContactoNombre: { type: DataTypes.STRING(100), allowNull: true },
     ContactoTelefono: { type: DataTypes.STRING(20), allowNull: true },
@@ -126,7 +137,8 @@ module.exports = (sequelize, DataTypes) => {
     sequelize,
     modelName: 'Venta',
     tableName: 'ventas',
-    timestamps: false
+    timestamps: false,
+    indexes: [{ name: 'ventas_estado_fecha', fields: ['EstadoID', 'FechaVenta'] }]
   });
 
   return Venta;

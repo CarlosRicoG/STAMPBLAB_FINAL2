@@ -41,7 +41,11 @@ const exp = (n, r, ...ok) => { const pass = ok.includes(r.s); if (!pass) bad++; 
     exp('cotizacion sin productos', await call('POST', '/cotizaciones/inteligente', { detalles: [] }, cli), 400);
 
     console.log('--- REGISTRO / LOGIN');
-    const base = { DocumentoID: '555000123', Nombre: 'ZZ Validacion', Correo: 'zz_val@x.com', Telefono: '3001234567', 'Contraseña': 'Valida123*' };
+    const base = { DocumentoID: '555000123', Nombre: 'ZZ Validacion', Correo: 'zz_val@x.com', Telefono: '3001234567', 'Contraseña': 'Valida123*', AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
+    // Habeas data (Ley 1581 de 2012): sin la autorización expresa no hay registro
+    exp('registro: sin aceptar la política de datos', await call('POST', '/registro', { ...base, AceptaPrivacidad: false }), 400);
+    exp('registro: sin la casilla de la política', await call('POST', '/registro', { ...base, AceptaPrivacidad: undefined }), 400);
+    exp('registro: sin la versión de la política', await call('POST', '/registro', { ...base, VersionPolitica: undefined }), 400);
     exp('registro: correo invalido', await call('POST', '/registro', { ...base, Correo: 'no-es-correo' }), 400);
     exp('registro: contraseña corta', await call('POST', '/registro', { ...base, 'Contraseña': 'a1' }), 400);
     exp('registro: contraseña sin numeros', await call('POST', '/registro', { ...base, 'Contraseña': 'soloLetrasLargas' }), 400);
@@ -53,6 +57,59 @@ const exp = (n, r, ...ok) => { const pass = ok.includes(r.s); if (!pass) bad++; 
     exp('login valido del nuevo usuario', await call('POST', '/login', { Correo: base.Correo, 'Contraseña': base.Contraseña }), 200);
     exp('login con correo mal formado', await call('POST', '/login', { Correo: 'xx', 'Contraseña': 'a' }), 400);
     exp('login contraseña incorrecta (no cambia: 401)', await call('POST', '/login', { Correo: base.Correo, 'Contraseña': 'Incorrecta1' }), 401);
+
+    console.log('--- DERECHOS DEL TITULAR (Ley 1581)');
+    const tNuevo = (await call('POST', '/login', { Correo: base.Correo, 'Contraseña': base.Contraseña })).j?.token;
+    const misDatos = await call('GET', '/mi-cuenta/datos', undefined, tNuevo);
+    exp('descargar mis datos', misDatos, 200);
+    const datosOk = misDatos.j?.perfil?.Correo === base.Correo && misDatos.j?.perfil?.Contraseña === undefined
+        && misDatos.j?.autorizacionPrivacidad?.version === base.VersionPolitica && Boolean(misDatos.j?.autorizacionPrivacidad?.aceptadaEn);
+    exp('la descarga trae perfil y prueba de la autorización, sin contraseña', { s: datosOk ? 200 : 500 }, 200);
+    exp('descargar mis datos sin sesión', await call('GET', '/mi-cuenta/datos'), 401, 403);
+    // Un pedido en curso impide suprimir; cancelado, ya no
+    const pedidoTitular = await call('POST', '/ventas', { Subtotal: 25000, Total: 25000, detalles: det() }, tNuevo);
+    exp('el titular hace un pedido', pedidoTitular, 201);
+    const idPedido = pedidoTitular.j?.venta?.VentaID;
+    exp('suprimir con un pedido en curso: 409', await call('POST', '/mi-cuenta/suprimir', { 'Contraseña': base.Contraseña }, tNuevo), 409);
+    if (idPedido) exp('el titular cancela su pedido', await call('PATCH', '/ventas/' + idPedido + '/cancelar', {}, tNuevo), 200);
+    // Pago por verificar: pedido por transferencia con comprobante, cancelado antes de que el equipo lo revisara
+    const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(40)]).toString('base64');
+    const pedidoPago = await call('POST', '/ventas', { Subtotal: 25000, Total: 25000, metodoPago: 'transferencia', comprobanteTransferencia: PNG, detalles: det() }, tNuevo);
+    exp('el titular hace un pedido por transferencia (el comprobante va con el pedido)', pedidoPago, 201);
+    const idPago = pedidoPago.j?.venta?.VentaID;
+    if (idPago) {
+        const cancelado = await call('PATCH', '/ventas/' + idPago + '/cancelar', {}, tNuevo);
+        exp('lo cancela con el comprobante sin revisar (pago por verificar)', { s: cancelado.s === 200 && cancelado.j?.pagoPorVerificar ? 200 : 500 }, 200);
+        const bloqueo = await call('POST', '/mi-cuenta/suprimir', { 'Contraseña': base.Contraseña }, tNuevo);
+        exp('suprimir con un pago por verificar: 409', { s: bloqueo.s === 409 && /pago por verificar/.test(bloqueo.j?.mensaje || '') ? 409 : bloqueo.s }, 409);
+        exp('el cliente no puede cerrar su propio pago por verificar', await call('PATCH', '/ventas/' + idPago + '/rechazar-comprobante', { motivo: 'No hubo pago' }, tNuevo), 403);
+        exp('el admin registra que no hubo pago (motivo)', await call('PATCH', '/ventas/' + idPago + '/rechazar-comprobante', { motivo: 'No llegó ningún pago a la cuenta' }, adm), 200);
+        exp('ya cerrado: no se puede marcar como reembolsado', await call('PATCH', '/ventas/' + idPago + '/reembolsado', {}, adm), 400);
+    }
+    exp('suprimir con contraseña incorrecta', await call('POST', '/mi-cuenta/suprimir', { 'Contraseña': 'Incorrecta1' }, tNuevo), 403);
+    exp('suprimir mi cuenta', await call('POST', '/mi-cuenta/suprimir', { 'Contraseña': base.Contraseña }, tNuevo), 200);
+    exp('la sesión de la cuenta suprimida ya no vale', await call('GET', '/mi-cuenta/datos', undefined, tNuevo), 401);
+    exp('la sesión de la cuenta suprimida no crea pedidos', await call('POST', '/ventas', { Subtotal: 25000, Total: 25000, detalles: det() }, tNuevo), 401, 403);
+    exp('la cuenta suprimida no inicia sesión', await call('POST', '/login', { Correo: base.Correo, 'Contraseña': base.Contraseña }), 401);
+    if (idPedido) {
+        const vistaAdmin = await call('GET', '/ventas/' + idPedido, undefined, adm);
+        exp('el admin conserva el pedido (cifras) sin datos de contacto', { s: vistaAdmin.s === 200 && vistaAdmin.j?.ContactoNombre === 'Titular suprimido' && !vistaAdmin.j?.ContactoTelefono ? 200 : 500 }, 200);
+    }
+    exp('el titular puede volver a registrarse con su documento', await call('POST', '/registro', base), 201);
+    exp('un segundo registro con el mismo documento ya no reutiliza la fila', await call('POST', '/registro', { ...base, Correo: 'zz_val2@x.com' }), 400, 409);
+    const tOtra = (await call('POST', '/login', { Correo: base.Correo, 'Contraseña': base.Contraseña })).j?.token;
+    if (idPedido) {
+        const lista = await call('GET', '/ventas?page=1&limit=50', undefined, tOtra);
+        exp('el nuevo titular NO ve en su lista los pedidos del suprimido', { s: lista.s === 200 && !(lista.j?.datos || []).some((v) => v.VentaID === idPedido) ? 200 : 500 }, 200);
+        exp('el nuevo titular NO abre el pedido del suprimido', await call('GET', '/ventas/' + idPedido, undefined, tOtra), 404);
+        exp('ni su factura', await call('GET', '/ventas/' + idPedido + '/factura', undefined, tOtra), 404);
+        exp('ni su línea de tiempo', await call('GET', '/ventas/' + idPedido + '/historial', undefined, tOtra), 404);
+        const exportado = await call('GET', '/mi-cuenta/datos', undefined, tOtra);
+        exp('ni aparece en "descargar mis datos"', { s: exportado.s === 200 && !(exportado.j?.pedidos || []).some((v) => v.VentaID === idPedido) ? 200 : 500 }, 200);
+        exp('el admin sigue viendo el pedido', await call('GET', '/ventas/' + idPedido, undefined, adm), 200);
+        await call('DELETE', '/ventas/' + idPedido, null, adm);
+    }
+    if (idPago) await call('DELETE', '/ventas/' + idPago, null, adm);
     await call('DELETE', '/usuarios/555000123', null, adm);
 
     console.log('--- MENSAJES DE ERROR NORMALIZADOS');

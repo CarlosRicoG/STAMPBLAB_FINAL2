@@ -12,6 +12,7 @@ const HASH_FALSO = require('bcryptjs').hashSync('relleno-no-es-una-clave-real', 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../models');
+const { Op } = require('sequelize');
 
 // ==================== LOGIN ====================
 router.post('/login', validar(esquemas.login), async (req, res) => {
@@ -33,8 +34,9 @@ router.post('/login', validar(esquemas.login), async (req, res) => {
             where: { Correo: Correo }
         });
 
-        // Misma respuesta (401) exista o no el correo: no se puede averiguar quién está registrado
-        if (!usuario) {
+        // Misma respuesta (401) exista o no el correo: no se puede averiguar quién está registrado.
+        // Una cuenta suprimida por su titular (Ley 1581) cuenta como inexistente.
+        if (!usuario || usuario.SuprimidoEn) {
             await bcrypt.compare(Contraseña, HASH_FALSO); // gasta el mismo tiempo que con un usuario real
             return res.status(401).json({
                 mensaje: 'Correo o contraseña incorrectos'
@@ -83,7 +85,7 @@ router.post('/login', validar(esquemas.login), async (req, res) => {
 // ==================== REGISTRO ====================
 router.post('/registro', validar(esquemas.registro), async (req, res) => {
     try {
-        const { DocumentoID, Nombre, Correo, Telefono, Direccion, Contraseña, RolID } = req.body;
+        const { DocumentoID, Nombre, Correo, Telefono, Direccion, Contraseña, VersionPolitica } = req.body;
 
         // Validación de datos obligatorios
         if (!DocumentoID || !Nombre || !Correo || !Contraseña) {
@@ -106,7 +108,8 @@ router.post('/registro', validar(esquemas.registro), async (req, res) => {
         // Verificar si el documento ya existe
         const documentoExiste = await db.Usuario.findByPk(DocumentoID);
 
-        if (documentoExiste) {
+        // Una cuenta suprimida (fila anonimizada que se conserva por sus ventas) puede volver a registrarse
+        if (documentoExiste && !documentoExiste.SuprimidoEn) {
             return res.status(400).json({
                 mensaje: 'El documento ya está registrado'
             });
@@ -115,16 +118,38 @@ router.post('/registro', validar(esquemas.registro), async (req, res) => {
         // Encriptar contraseña
         const hashedPassword = await bcrypt.hash(Contraseña, 10);
 
-        // Crear usuario
-        const nuevoUsuario = await db.Usuario.create({
-            DocumentoID,
+        const datosUsuario = {
             Nombre,
             Correo,
             Telefono: Telefono || '',
             Direccion: Direccion || '',
             Contraseña: hashedPassword,
-            RolID: 2 // El registro publico SIEMPRE crea clientes (ignora cualquier RolID recibido)
-        });
+            RolID: 2, // El registro publico SIEMPRE crea clientes (ignora cualquier RolID recibido)
+            // Prueba de la autorización de tratamiento de datos (Decreto 1377 de 2013, art. 7): cuándo y qué versión
+            PrivacidadAceptadaEn: new Date(),
+            PrivacidadVersion: VersionPolitica,
+        };
+        let nuevoUsuario;
+        if (documentoExiste) {
+            // Se reutiliza la fila de la cuenta suprimida. Atómico: solo si SIGUE suprimida (dos registros simultáneos con el
+            // mismo documento: uno gana y el otro recibe 409). El nuevo titular no ve los pedidos, cotizaciones ni avisos del
+            // anterior (services/historialCliente); el administrador sí. HistorialDesde = el momento de la supresión tal como
+            // quedó guardado (DATETIME, al segundo): todo lo del titular anterior es <= y todo lo nuevo, posterior (>).
+            const fila = await db.sequelize.transaction(async (transaction) => {
+                const [afectadas] = await db.Usuario.update(
+                    { ...datosUsuario, SuprimidoEn: null, HistorialDesde: documentoExiste.SuprimidoEn },
+                    { where: { DocumentoID, SuprimidoEn: { [Op.ne]: null } }, transaction },
+                );
+                if (afectadas !== 1) return null;
+                await db.Notificacion.destroy({ where: { DocumentoID }, transaction });
+                await db.Carrito.destroy({ where: { DocumentoID }, transaction });
+                return db.Usuario.findByPk(DocumentoID, { transaction });
+            });
+            if (!fila) return res.status(409).json({ mensaje: 'El documento ya está registrado' });
+            nuevoUsuario = fila;
+        } else {
+            nuevoUsuario = await db.Usuario.create({ DocumentoID, ...datosUsuario });
+        }
 
         log('Usuario registrado:', nuevoUsuario.Correo);
 
@@ -174,8 +199,8 @@ router.post('/recuperar-password', async (req, res) => {
             where: { Correo }
         });
 
-        if (!usuario) {
-            // Por seguridad, no revelar si el correo existe o no
+        if (!usuario || usuario.SuprimidoEn) {
+            // Por seguridad, no revelar si el correo existe o no (una cuenta suprimida no recupera contraseña)
             return res.json({
                 mensaje: 'Si el correo existe, recibirás un enlace de recuperación'
             });
@@ -313,8 +338,9 @@ router.post('/restablecer-password', async (req, res) => {
             });
         }
 
-        // El enlace es de UN solo uso: si la contraseña ya cambió, la huella no coincide
-        if (!decoded.ph || decoded.ph !== huella(usuario.Contraseña)) {
+        // El enlace es de UN solo uso: si la contraseña ya cambió, la huella no coincide.
+        // Tampoco sirve un enlace emitido antes de que el titular suprimiera su cuenta.
+        if (usuario.SuprimidoEn || !decoded.ph || decoded.ph !== huella(usuario.Contraseña)) {
             return res.status(401).json({
                 mensaje: 'Este enlace ya fue utilizado o venció. Solicita uno nuevo.'
             });

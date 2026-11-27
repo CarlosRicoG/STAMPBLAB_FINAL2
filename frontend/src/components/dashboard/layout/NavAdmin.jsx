@@ -7,6 +7,7 @@ import { cerrarSesion } from "../../../Services/api-auth/auth";
 import BotonMenu from "./BotonMenu";
 import CampanaNotificaciones from "../../notificaciones/CampanaNotificaciones";
 import { C as TOKENS } from "../../../config/tokens";
+import { telefonoValido, MENSAJE_TELEFONO } from "../../../utils/validarTelefono";
 
 const API_URL = `${API_ROOT}/api/usuarios`;
 
@@ -165,6 +166,10 @@ const NavAdmin = () => {
             setMsgError("Nombre y correo son obligatorios.");
             return;
         }
+        if (!telefonoValido(form.Telefono)) {
+            setMsgError(MENSAJE_TELEFONO);
+            return;
+        }
 
         const payload = getTokenPayload();
         if (!payload?.id) { setMsgError("Sesión inválida."); return; }
@@ -211,7 +216,8 @@ const NavAdmin = () => {
 
         } catch (e) {
             console.error("Error al guardar:", e.response?.data || e.message);
-            setMsgError(e.response?.data?.mensaje || "Error al guardar los cambios.");
+            // Un 400 de validación trae la explicación en `mensaje` (y en `message`)
+            setMsgError(e.response?.data?.mensaje || e.response?.data?.message || "Error al guardar los cambios.");
         } finally {
             setGuardando(false);
         }
@@ -229,7 +235,6 @@ const NavAdmin = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
                 .nav-avatar-btn {
                     background: none; border: none; cursor: pointer;
                     display: flex; align-items: center; gap: 10px;
@@ -253,10 +258,18 @@ const NavAdmin = () => {
                 }
                 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+                /* Celular: la barra cabe en 375 px (sin nombre del usuario ni marca; el menú lateral es desplegable) */
+                @media (max-width: 767.98px) {
+                    .nav-admin-bar { padding: 0 12px !important; }
+                    .nav-admin-bar > div { gap: 8px !important; }
+                    .nav-admin-marca, .nav-avatar-btn > div:last-child { display: none; }
+                    .nav-avatar-btn { padding: 6px 4px; }
+                    .nav-logout-btn { padding: 8px 10px; white-space: nowrap; }
+                }
             `}</style>
 
             {/* ── NAVBAR ── */}
-            <header style={{
+            <header className="nav-admin-bar" style={{
                 height: 64, background: C.white, borderBottom: "1px solid #f1f5f9",
                 display: "flex", alignItems: "center", justifyContent: "space-between",
                 padding: "0 28px", boxShadow: "0 1px 8px rgba(0,0,0,0.06)",
@@ -264,7 +277,7 @@ const NavAdmin = () => {
             }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     <BotonMenu />
-                    <span style={{ fontWeight: 800, fontSize: 22, color: C.text, letterSpacing: "-0.03em", fontFamily: "'Outfit', sans-serif" }}>
+                    <span className="nav-admin-marca" style={{ fontWeight: 800, fontSize: 22, color: C.text, letterSpacing: "-0.03em", fontFamily: "'Outfit', sans-serif" }}>
                         Stamp<span style={{ color: C.accent }}>Lab</span>
                     </span>
                 </div>

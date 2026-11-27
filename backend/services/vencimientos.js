@@ -1,6 +1,7 @@
 /**
  * Mantenimiento automático (corre cada hora y al arrancar):
- *  - Pedidos por transferencia sin comprobante válido pasadas PLAZO_PAGO_HORAS horas: se cancelan y devuelven el stock.
+ *  - Pedidos por transferencia (o aún sin método de pago: los que nacen de una cotización) sin comprobante válido pasadas PLAZO_PAGO_HORAS horas: se cancelan y devuelven el stock.
+ *    Las horas cuentan desde el pedido; si el comprobante fue rechazado, desde el rechazo (ComprobanteFechaRechazo).
  *    (Los pedidos con comprobante en revisión y los de contra entrega NUNCA se cancelan solos.)
  *  - Cotizaciones sin respuesta pasados VIGENCIA_COTIZACION_DIAS días: pasan a Vencida. Si ya está aprobada, los días
  *    corren desde la aprobación (no desde que el cliente la pidió); si no, desde la fecha de la cotización.
@@ -22,40 +23,66 @@ const DIAS_AVISO_COTIZACION = 1;
 
 // Pedidos que pueden cancelarse solos si se pasa su plazo: transferencia sin comprobante válido (plazo en horas) y
 // contra entrega (plazo en días). Los de transferencia con comprobante en revisión nunca se cancelan solos.
-// `ahora` y los plazos fijan hasta qué fecha de venta cuenta como vencido.
+// `ahora` y los plazos fijan hasta qué fecha cuenta como vencido. La fecha de referencia es la del pedido, salvo para un
+// comprobante rechazado: ahí el plazo corre desde el rechazo (si no, un rechazo tardío cancelaría el pedido en minutos).
 const pedidosConPlazo = ({ ahora, plazoPagoHoras, plazoContraentregaDias, margenHoras = 0, desde = false }) => {
     const antes = (horas) => new Date(ahora.getTime() - (horas - margenHoras) * 3600 * 1000);
+    // Vencido (o, con `desde`, dentro de la ventana de aviso: pasó "plazo - margen" pero aún no el plazo)
+    const vencida = (horas) => (desde ? { [Op.between]: [antes(horas + margenHoras), antes(horas)] } : { [Op.lt]: antes(horas) });
     const o = [];
     if (plazoPagoHoras) {
+        const rechazado = { ComprobanteMotivoRechazo: { [Op.ne]: null } };
         o.push({
-            MetodoPago: 'transferencia',
-            FechaVenta: desde ? { [Op.between]: [antes(plazoPagoHoras + margenHoras), antes(plazoPagoHoras)] } : { [Op.lt]: antes(plazoPagoHoras) },
-            [Op.or]: [{ ComprobanteTransferencia: null }, { ComprobanteTransferencia: '' }, { ComprobanteMotivoRechazo: { [Op.ne]: null } }],
+            // Sin método de pago = pedido nacido de una cotización aceptada: se paga por transferencia y tiene el mismo plazo
+            MetodoPago: { [Op.or]: [{ [Op.eq]: 'transferencia' }, { [Op.is]: null }] },
+            [Op.or]: [
+                // Sin comprobante: desde la fecha del pedido
+                { [Op.or]: [{ ComprobanteTransferencia: null }, { ComprobanteTransferencia: '' }], FechaVenta: vencida(plazoPagoHoras) },
+                // Comprobante rechazado y sin corregir: desde el rechazo
+                { ...rechazado, ComprobanteFechaRechazo: vencida(plazoPagoHoras) },
+                // Rechazo sin fecha guardada (anterior a la columna): desde la fecha del pedido
+                { ...rechazado, ComprobanteFechaRechazo: null, FechaVenta: vencida(plazoPagoHoras) },
+            ],
         });
     }
     if (plazoContraentregaDias) {
-        const h = plazoContraentregaDias * 24;
-        o.push({
-            MetodoPago: 'contraentrega',
-            FechaVenta: desde ? { [Op.between]: [antes(h + margenHoras), antes(h)] } : { [Op.lt]: antes(h) },
-        });
+        o.push({ MetodoPago: 'contraentrega', FechaVenta: vencida(plazoContraentregaDias * 24) });
     }
     return o.length ? { EstadoID: ESTADO_VENTA.PENDIENTE, [Op.or]: o } : null;
+};
+
+// Fecha desde la que corre el plazo de un pedido (ver pedidosConPlazo)
+const referenciaPlazo = (venta) => (venta.MetodoPago !== 'contraentrega' && venta.ComprobanteMotivoRechazo != null && venta.ComprobanteFechaRechazo) || venta.FechaVenta;
+
+/** Misma regla que pedidosConPlazo, evaluada sobre la fila ya bloqueada (pudo cambiar desde la consulta). */
+const sigueVencido = (venta, ahora, { plazoPagoHoras, plazoContraentregaDias }) => {
+    if (!venta || venta.EstadoID !== ESTADO_VENTA.PENDIENTE) return false;
+    let horas;
+    if (venta.MetodoPago === 'contraentrega') horas = plazoContraentregaDias * 24;
+    else if (!venta.MetodoPago || venta.MetodoPago === 'transferencia') {
+        const sinComprobante = !venta.ComprobanteTransferencia;
+        const rechazado = venta.ComprobanteMotivoRechazo != null;
+        if (!sinComprobante && !rechazado) return false; // comprobante en revisión: nunca se cancela solo
+        horas = plazoPagoHoras;
+    } else return false;
+    if (!horas) return false;
+    return new Date(referenciaPlazo(venta)).getTime() < ahora.getTime() - horas * 3600 * 1000;
 };
 
 async function cancelarPedidosSinPago(ahora = new Date()) {
     const { plazoPagoHoras, plazoContraentregaDias } = configuracion.leer();
     const donde = pedidosConPlazo({ ahora, plazoPagoHoras, plazoContraentregaDias });
     if (!donde) return 0;
-    const candidatos = await db.Venta.findAll({ where: donde, attributes: ['VentaID', 'MetodoPago'], raw: true });
+    const candidatos = await db.Venta.findAll({ where: donde, attributes: ['VentaID'], raw: true });
     let canceladas = 0;
-    for (const { VentaID, MetodoPago } of candidatos) {
-        const contraentrega = MetodoPago === 'contraentrega';
-        const plazoHoras = contraentrega ? plazoContraentregaDias * 24 : plazoPagoHoras;
+    for (const { VentaID } of candidatos) {
         const t = await db.sequelize.transaction();
         try {
             const venta = await db.Venta.findByPk(VentaID, { transaction: t, lock: t.LOCK.UPDATE });
-            if (!venta || venta.EstadoID !== ESTADO_VENTA.PENDIENTE) { await t.rollback(); continue; }
+            // Con la fila bloqueada se vuelve a evaluar todo: el cliente pudo subir un comprobante, o el rechazo ser reciente
+            if (!sigueVencido(venta, ahora, { plazoPagoHoras, plazoContraentregaDias })) { await t.rollback(); continue; }
+            const contraentrega = venta.MetodoPago === 'contraentrega';
+            const plazoHoras = contraentrega ? plazoContraentregaDias * 24 : plazoPagoHoras;
             const detalles = await db.DetalleVenta.findAll({ where: { VentaID }, transaction: t });
             await inventario.devolver(detalles, t);
             await venta.update({ EstadoID: ESTADO_VENTA.CANCELADA }, { transaction: t });
@@ -129,7 +156,7 @@ async function avisarPedidosPorVencer(ahora = new Date()) {
             plazoPagoHoras: metodo === 'transferencia' ? plazo : 0, plazoContraentregaDias: metodo === 'contraentrega' ? plazo / 24 : 0,
         });
         // pedidosConPlazo con margen devuelve los pedidos que ya pasaron "plazo - margen" y aún no el plazo completo
-        const candidatos = await db.Venta.findAll({ where: { ...donde, AvisoVencimiento: false }, attributes: ['VentaID', 'FechaVenta'], raw: true });
+        const candidatos = await db.Venta.findAll({ where: { ...donde, AvisoVencimiento: false }, attributes: ['VentaID', 'MetodoPago', 'FechaVenta', 'ComprobanteMotivoRechazo', 'ComprobanteFechaRechazo'], raw: true });
         avisados += await avisarPedidos(candidatos, plazo, metodo === 'contraentrega', ahora);
     }
     return avisados;
@@ -137,12 +164,13 @@ async function avisarPedidosPorVencer(ahora = new Date()) {
 
 async function avisarPedidos(candidatos, plazoPagoHoras, contraentrega, ahora) {
     let avisados = 0;
-    for (const { VentaID, FechaVenta } of candidatos) {
+    for (const candidato of candidatos) {
+        const { VentaID } = candidato;
         try {
             // Reclamo atómico: si dos ejecuciones coinciden, solo una envía el aviso
             const [n] = await db.Venta.update({ AvisoVencimiento: true }, { where: { VentaID, AvisoVencimiento: false } });
             if (!n) continue;
-            const horasRestantes = Math.max(1, Math.round((new Date(FechaVenta).getTime() + plazoPagoHoras * 3600 * 1000 - ahora.getTime()) / 3600000));
+            const horasRestantes = Math.max(1, Math.round((new Date(referenciaPlazo(candidato)).getTime() + plazoPagoHoras * 3600 * 1000 - ahora.getTime()) / 3600000));
             notificaciones.pedidoPorVencer(VentaID, horasRestantes, contraentrega);
             avisados++;
         } catch (e) { console.error(`[vencimientos] aviso pedido #${VentaID}:`, e.message); }
@@ -187,11 +215,18 @@ async function ejecutar() {
 }
 
 let temporizador = null;
+let primeraVez = null;
 function iniciar() {
     if (temporizador || process.env.JOBS_DESACTIVADOS === '1' || process.env.NODE_ENV === 'test') return;
-    setTimeout(() => ejecutar().catch(() => {}), 30 * 1000).unref();
+    primeraVez = setTimeout(() => ejecutar().catch(() => {}), 30 * 1000);
+    primeraVez.unref();
     temporizador = setInterval(() => ejecutar().catch(() => {}), 60 * 60 * 1000);
     temporizador.unref();
 }
+// Apagado limpio: no se lanzan más rondas
+function detener() {
+    clearTimeout(primeraVez); clearInterval(temporizador);
+    primeraVez = null; temporizador = null;
+}
 
-module.exports = { ejecutar, cancelarPedidosSinPago, vencerCotizaciones, avisarPedidosPorVencer, avisarCotizacionesPorVencer, purgarNotificaciones, iniciar };
+module.exports = { ejecutar, pedidosConPlazo, sigueVencido, referenciaPlazo, cancelarPedidosSinPago, vencerCotizaciones, avisarPedidosPorVencer, avisarCotizacionesPorVencer, purgarNotificaciones, iniciar, detener };

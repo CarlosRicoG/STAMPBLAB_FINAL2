@@ -1,3 +1,5 @@
+// Autorización de tratamiento de datos que exige el registro (Ley 1581 de 2012)
+const PRIVACIDAD = { AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
 /**
  * Seguridad: que puede hacer un visitante, un cliente y un administrador
  * Requisitos: backend corriendo (API_URL, por defecto http://127.0.0.1:3000/api) y base con los datos
@@ -69,7 +71,7 @@ const si = (n, cond) => { if (!cond) bad++; console.log((cond ? 'OK   ' : 'FALLA
     await call('DELETE', '/ventas/' + vid, null, adm);
 
     console.log('--- REGISTRO PUBLICO');
-    const reg = await call('POST', '/registro', { DocumentoID: '888000999', Nombre: 'ZZ Intruso', Correo: 'zz_intruso@x.com', 'Contraseña': 'Intruso123*', Telefono: '3000000000', RolID: 1 });
+    const reg = await call('POST', '/registro', { ...PRIVACIDAD, DocumentoID: '888000999', Nombre: 'ZZ Intruso', Correo: 'zz_intruso@x.com', 'Contraseña': 'Intruso123*', Telefono: '3000000000', RolID: 1 });
     exp('POST /registro con RolID:1', reg, 201);
     si('rol asignado = ' + reg.j.usuario?.RolID + ' (debe ser 2, cliente)', reg.j.usuario?.RolID === 2);
     await call('DELETE', '/usuarios/888000999', null, adm);

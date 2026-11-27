@@ -11,6 +11,7 @@ const {
     Color,
     Talla,
     Estado,
+    Carrito,
     sequelize
 } = require('../models');
 
@@ -21,9 +22,20 @@ const historial = require('../services/historial');
 const configuracion = require('../services/config');
 const { esAdmin } = require('../middleware/authMiddleware');
 const log = require('../utils/log');
+const { errorDeComprobante } = require('../utils/comprobante');
+const { esPagoPorVerificar } = require('../utils/pagoPorVerificar');
 const { Op } = require('sequelize');
 
-// Obtener todas las ventas
+// El comprobante de transferencia (base64, hasta ~7 MB) solo viaja en GET /api/ventas/:id, que es donde se mira.
+// Las demás lecturas lo omiten y traen en su lugar TieneComprobante (0/1); así una escritura no lee ni devuelve megas sin necesidad.
+const TIENE_COMPROBANTE_SQL = "(`Venta`.`ComprobanteTransferencia` IS NOT NULL AND `Venta`.`ComprobanteTransferencia` <> '')";
+const sinComprobante = () => ({ exclude: ['ComprobanteTransferencia'], include: [[sequelize.literal(TIENE_COMPROBANTE_SQL), 'TieneComprobante']] });
+const tieneComprobante = (venta) => Boolean(typeof venta?.get === 'function' ? venta.get('TieneComprobante') : venta?.TieneComprobante);
+// Venta recién creada para la respuesta: sin el comprobante que se acaba de guardar, con TieneComprobante
+const respuestaSinComprobante = (venta) => {
+    const { ComprobanteTransferencia, ...datos } = typeof venta?.toJSON === 'function' ? venta.toJSON() : { ...venta };
+    return { ...datos, TieneComprobante: Boolean(ComprobanteTransferencia) };
+};
 
 // Errores de negocio (stock, datos) -> respuesta 4xx; el resto -> 500
 const responderError = (res, error, mensaje) => {
@@ -46,6 +58,8 @@ exports.getAllVentas = async (req, res) => {
         const whereVenta = {};
         const documentoFiltro = req.documentoForzado || req.query.documentoID;
         if (documentoFiltro) whereVenta.DocumentoID = documentoFiltro; // ventas de un cliente
+        // Cliente que volvió a registrarse con el documento de una cuenta suprimida: solo sus pedidos nuevos
+        if (req.historialDesde) whereVenta.FechaVenta = { [Op.gt]: req.historialDesde };
         if (estado === "pendientes") {
             whereVenta.EstadoID = ESTADO_VENTA.PENDIENTE;
         } else if (estado === "procesadas") {
@@ -88,12 +102,9 @@ exports.getAllVentas = async (req, res) => {
         // no sobre las filas del JOIN con DetalleVenta.
         const rows = await Venta.findAll({
             where: whereVenta,
-            // El comprobante (imagen base64) puede pesar MB: en el listado solo se indica si existe;
-            // la imagen completa se obtiene con GET /api/ventas/:id
-            attributes: {
-                exclude: ['ComprobanteTransferencia'],
-                include: [[sequelize.literal('(`Venta`.`ComprobanteTransferencia` IS NOT NULL)'), 'TieneComprobante']]
-            },
+            // El comprobante (imagen base64) puede pesar MB: en el listado solo se indica si existe, con la misma regla
+            // que el resto (NULL o '' = sin comprobante); la imagen completa se obtiene con GET /api/ventas/:id
+            attributes: sinComprobante(),
             include: [
                 {
                     model: Usuario,
@@ -187,6 +198,10 @@ exports.crearVenta = async (req, res) => {
     if (metodoPago === 'transferencia' && !comprobanteTransferencia) {
         return res.status(400).json({ error: "Debe proporcionar el comprobante de transferencia", message: "Debe proporcionar el comprobante de transferencia" });
     }
+    if (metodoPago === 'transferencia') {
+        const errorComprobante = errorDeComprobante(comprobanteTransferencia);
+        if (errorComprobante) return res.status(400).json({ error: errorComprobante, message: errorComprobante });
+    }
     if ((metodoPago === 'contraentrega' || tipoEntrega === 'envio') && (!nombreReceptor || !telefonoEntrega || !direccionEntrega)) {
         return res.status(400).json({
             error: "Complete todos los datos de entrega (nombre, teléfono y dirección)",
@@ -237,10 +252,14 @@ exports.crearVenta = async (req, res) => {
             }, { transaction: t });
         }
 
+        // Compra del cliente: compra todo su carrito, así que el guardado en el servidor se vacía en la misma transacción
+        // (si no, al entrar desde otro equipo reaparecerían productos ya comprados)
+        if (req.usuario && !esAdmin(req)) await Carrito.destroy({ where: { DocumentoID }, transaction: t });
+
         await historial.registrar({ tipo: 'venta', refId: nuevaVenta.VentaID, estadoId: nuevaVenta.EstadoID, nota: 'Pedido recibido', documentoId: req.usuario?.id }, t);
         await t.commit();
         notificaciones.pedidoRecibido(nuevaVenta.VentaID); // correo al cliente (sin esperar; un fallo no afecta la venta)
-        return res.status(201).json({ message: "Venta creada correctamente", venta: nuevaVenta });
+        return res.status(201).json({ message: "Venta creada correctamente", venta: respuestaSinComprobante(nuevaVenta) });
     } catch (error) {
         await t.rollback();
         return responderError(res, error, 'Error al crear venta');
@@ -272,7 +291,7 @@ exports.updateEstadoVenta = async (req, res) => {
     const t = await sequelize.transaction();
     try {
         // Se bloquea la fila de la venta: peticiones simultáneas sobre la misma venta se ejecutan de a una
-        const venta = await Venta.findByPk(ventaId, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(ventaId, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
 
         const estadoAnterior = venta.EstadoID;
@@ -295,6 +314,14 @@ exports.updateEstadoVenta = async (req, res) => {
             return res.status(400).json({ message, mensaje: message });
         }
 
+        // El cliente solo cancela mientras el pedido sigue pendiente. Se comprueba aquí, con la fila bloqueada:
+        // si el administrador lo marcó como pagado en ese mismo instante, la cancelación ya no procede.
+        if (req.usuario && !esAdmin(req) && estadoAnterior !== ESTADO_VENTA.PENDIENTE) {
+            await t.rollback();
+            const message = 'Solo puedes cancelar pedidos que aún estén pendientes. Contáctanos si ya está en proceso.';
+            return res.status(400).json({ message, mensaje: message });
+        }
+
         log(`Cambio de estado de venta #${ventaId}: ${estadoAnterior} -> ${estadoNuevo}`);
 
         const cancela = estadoNuevo === ESTADO_VENTA.CANCELADA;
@@ -307,6 +334,9 @@ exports.updateEstadoVenta = async (req, res) => {
         }
         // Un pedido que ya se pagó y se cancela deja un reembolso por hacer
         const reembolsoPendiente = cancela && [ESTADO_VENTA.PAGADA, ESTADO_VENTA.EN_PRODUCCION, ESTADO_VENTA.LISTA_ENTREGA].includes(estadoAnterior);
+        // Pendiente con un comprobante que nadie alcanzó a revisar: puede que el cliente sí haya transferido
+        const pagoPorVerificar = cancela && estadoAnterior === ESTADO_VENTA.PENDIENTE && venta.MetodoPago === 'transferencia'
+            && tieneComprobante(venta) && !venta.ComprobanteMotivoRechazo;
 
         await venta.update({
             EstadoID: estadoNuevo,
@@ -314,28 +344,36 @@ exports.updateEstadoVenta = async (req, res) => {
             ...(reembolsoPendiente ? { ReembolsoPendiente: true } : {}),
         }, { transaction: t });
         const porCliente = !esAdmin(req);
-        const notaFinal = [nota || (porCliente ? 'Cancelado por el cliente' : null), reembolsoPendiente ? 'Reembolso pendiente: el pedido ya estaba pagado' : null].filter(Boolean).join(' · ') || null;
+        const notaFinal = [nota || (porCliente ? 'Cancelado por el cliente' : null), reembolsoPendiente ? 'Reembolso pendiente: el pedido ya estaba pagado' : null,
+            pagoPorVerificar ? 'Tenía un comprobante sin revisar: verificar si hubo pago' : null].filter(Boolean).join(' · ') || null;
         await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: estadoNuevo, nota: notaFinal, documentoId: req.usuario?.id }, t);
         await t.commit();
         if (reembolsoPendiente) notificaciones.reembolsoPendiente(venta.VentaID);
+        if (pagoPorVerificar) notificaciones.pagoPorVerificar(venta.VentaID);
         notificaciones.pedidoEstado(venta.VentaID, nota || null); // correo y aviso al cliente con el nuevo estado
         if (porCliente && estadoNuevo === ESTADO_VENTA.CANCELADA) notificaciones.pedidoCanceladoPorCliente(venta.VentaID);
-        return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock, reembolsoPendiente });
+        return res.json({ message: 'Estado actualizado exitosamente', venta, stockDevuelto: devuelveStock, reembolsoPendiente, pagoPorVerificar });
     } catch (error) {
         await t.rollback();
         return responderError(res, error, 'Error al actualizar estado');
     }
 };
 
-// MARCAR EL REEMBOLSO COMO REALIZADO (pedido pagado que se canceló)
+// MARCAR EL REEMBOLSO COMO REALIZADO: pedido pagado que se canceló (ReembolsoPendiente) o pedido cancelado con un
+// comprobante sin revisar ("pago por verificar", utils/pagoPorVerificar) cuyo pago sí llegó y se devolvió.
 exports.marcarReembolsado = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
-        if (!venta.ReembolsoPendiente) { await t.rollback(); return res.status(400).json({ message: 'Este pedido no tiene un reembolso pendiente' }); }
-        await venta.update({ ReembolsoPendiente: false }, { transaction: t });
-        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Reembolso realizado', documentoId: req.usuario?.id }, t);
+        const porVerificar = esPagoPorVerificar(venta, tieneComprobante(venta));
+        if (!venta.ReembolsoPendiente && !porVerificar) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Este pedido no tiene un reembolso pendiente ni un pago por verificar' });
+        }
+        await venta.update({ ReembolsoPendiente: false, ReembolsoRealizadoEn: new Date() }, { transaction: t });
+        const nota = porVerificar ? 'Reembolso realizado: el pago del comprobante sin revisar sí llegó y se devolvió' : 'Reembolso realizado';
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota, documentoId: req.usuario?.id }, t);
         await t.commit();
         return res.json({ message: 'Reembolso marcado como realizado', venta });
     } catch (error) {
@@ -346,7 +384,7 @@ exports.marcarReembolsado = async (req, res) => {
 
 // ACTUALIZAR VENTA COMPLETA (con detalles)
 exports.updateVenta = async (req, res) => {
-    const { EstadoID, Subtotal, Total, detalles } = req.body;
+    const { EstadoID, detalles } = req.body; // Subtotal y Total del cuerpo se ignoran: los calcula el servidor
     const ventaId = req.params.id;
 
     // Si solo se actualiza el estado: misma lógica (y devolución de stock) que PATCH /:id/estado
@@ -354,7 +392,7 @@ exports.updateVenta = async (req, res) => {
 
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(ventaId, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(ventaId, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
         if (venta.EstadoID === ESTADO_VENTA.CANCELADA) {
             await t.rollback();
@@ -392,9 +430,11 @@ exports.updateVenta = async (req, res) => {
                     InventarioID: item.InventarioID || null
                 }, { transaction: t });
             }
+            // Totales calculados aquí con las líneas nuevas; el costo de envío del pedido se conserva
+            const subtotal = detalles.reduce((s, d) => s + Number(d.Cantidad) * Number(d.PrecioUnitario), 0);
             await venta.update({
-                Subtotal: Subtotal || venta.Subtotal,
-                Total: Total || venta.Total,
+                Subtotal: subtotal,
+                Total: subtotal + (Number(venta.CostoEnvio) || 0),
                 EstadoID: EstadoID || venta.EstadoID
             }, { transaction: t });
         }
@@ -407,44 +447,70 @@ exports.updateVenta = async (req, res) => {
     }
 };
 
-// El administrador rechaza el comprobante de transferencia con un motivo; el pedido sigue pendiente y el cliente puede subir otro
+// El administrador rechaza el comprobante de transferencia con un motivo; el pedido sigue pendiente y el cliente puede subir otro.
+// Con la fila bloqueada: no se cruza con una subida, un pago o la cancelación automática del mismo pedido.
+// Si el panel envía FechaTransferencia (la del comprobante que revisó) y ya no coincide con la actual -> 409.
 exports.rechazarComprobante = async (req, res) => {
     const motivo = typeof req.body.motivo === 'string' ? req.body.motivo.trim() : '';
     if (motivo.length < 5 || motivo.length > 300) return res.status(400).json({ message: 'Escribe el motivo del rechazo (entre 5 y 300 caracteres)' });
+    const revisado = req.body.FechaTransferencia ? new Date(req.body.FechaTransferencia) : null;
+    const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id);
-        if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
-        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !venta.ComprobanteTransferencia) {
-            return res.status(400).json({ message: 'Solo se puede rechazar el comprobante de un pedido pendiente pagado por transferencia' });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
+        // También sirve para cerrar un "pago por verificar" (pedido ya cancelado): no hubo pago o el comprobante no es válido
+        const porVerificar = esPagoPorVerificar(venta, tieneComprobante(venta));
+        if (!porVerificar && (venta.EstadoID !== ESTADO_VENTA.PENDIENTE || venta.MetodoPago !== 'transferencia' || !tieneComprobante(venta))) {
+            await t.rollback();
+            return res.status(400).json({ message: 'Solo se puede rechazar el comprobante de un pedido pendiente pagado por transferencia, o el de un pedido cancelado con el pago por verificar' });
         }
-        await venta.update({ ComprobanteMotivoRechazo: motivo });
-        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: `Comprobante rechazado: ${motivo}`, documentoId: req.usuario?.id });
+        // Se compara al segundo (la columna DATETIME no guarda milisegundos)
+        const segundo = (f) => Math.floor(new Date(f).getTime() / 1000);
+        if (revisado && !Number.isNaN(revisado.getTime()) && (!venta.FechaTransferencia || segundo(revisado) !== segundo(venta.FechaTransferencia))) {
+            await t.rollback();
+            const message = 'El cliente subió otro comprobante mientras lo revisabas. Vuelve a abrir el pedido y revisa el nuevo.';
+            return res.status(409).json({ message, mensaje: message });
+        }
+        if (porVerificar) {
+            // Pedido ya cancelado: solo queda constancia (no hay plazo que reiniciar ni se pide al cliente otro comprobante)
+            await venta.update({ ComprobanteMotivoRechazo: motivo, ComprobanteFechaRechazo: new Date() }, { transaction: t });
+            await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: `Pago por verificar cerrado: no hubo pago o el comprobante no es válido (${motivo})`, documentoId: req.usuario?.id }, t);
+            await t.commit();
+            return res.json({ message: 'Pago por verificar cerrado: se registró que no hubo pago', venta, pagoPorVerificarCerrado: true });
+        }
+        // La fecha del rechazo reinicia el plazo de pago (PLAZO_PAGO_HORAS desde aquí) y habilita de nuevo el aviso previo
+        await venta.update({ ComprobanteMotivoRechazo: motivo, ComprobanteFechaRechazo: new Date(), AvisoVencimiento: false }, { transaction: t });
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: `Comprobante rechazado: ${motivo}`, documentoId: req.usuario?.id }, t);
+        await t.commit();
         notificaciones.comprobanteRechazado(venta.VentaID, motivo);
         return res.json({ message: 'Comprobante rechazado; se avisó al cliente', venta });
     } catch (error) {
+        await t.rollback().catch(() => {});
         return responderError(res, error, 'Error al rechazar el comprobante');
     }
 };
 
-// El cliente (o el administrador) sube o reemplaza el comprobante de un pedido pendiente
+// El cliente (o el administrador) sube o reemplaza el comprobante de un pedido pendiente (con la fila bloqueada)
 exports.subirComprobante = async (req, res) => {
     const { comprobanteTransferencia, fechaTransferencia } = req.body;
-    if (typeof comprobanteTransferencia !== 'string' || !comprobanteTransferencia.trim()) {
-        return res.status(400).json({ message: 'Debes adjuntar el comprobante de transferencia' });
-    }
+    const errorComprobante = errorDeComprobante(comprobanteTransferencia);
+    if (errorComprobante) return res.status(400).json({ message: errorComprobante });
+    const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id);
-        if (!venta) return res.status(404).json({ message: 'Venta no encontrada' });
-        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE) return res.status(400).json({ message: 'Solo se puede subir el comprobante de un pedido pendiente' });
-        if (venta.MetodoPago && venta.MetodoPago !== 'transferencia') return res.status(400).json({ message: 'Este pedido no se paga por transferencia' });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
+        if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
+        if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE) { await t.rollback(); return res.status(400).json({ message: 'Solo se puede subir el comprobante de un pedido pendiente' }); }
+        if (venta.MetodoPago && venta.MetodoPago !== 'transferencia') { await t.rollback(); return res.status(400).json({ message: 'Este pedido no se paga por transferencia' }); }
         await venta.update({
             MetodoPago: 'transferencia', ComprobanteTransferencia: comprobanteTransferencia.trim(),
-            FechaTransferencia: fechaTransferencia ? new Date(fechaTransferencia) : new Date(), ComprobanteMotivoRechazo: null,
-        });
-        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Comprobante de pago recibido', documentoId: req.usuario?.id });
+            FechaTransferencia: fechaTransferencia ? new Date(fechaTransferencia) : new Date(), ComprobanteMotivoRechazo: null, ComprobanteFechaRechazo: null,
+        }, { transaction: t });
+        await historial.registrar({ tipo: 'venta', refId: venta.VentaID, estadoId: venta.EstadoID, nota: 'Comprobante de pago recibido', documentoId: req.usuario?.id }, t);
+        await t.commit();
         notificaciones.comprobanteSubido(venta.VentaID);
         return res.json({ message: 'Comprobante recibido. Lo revisaremos pronto.', venta: { VentaID: venta.VentaID } });
     } catch (error) {
+        await t.rollback().catch(() => {});
         return responderError(res, error, 'Error al subir el comprobante');
     }
 };
@@ -458,13 +524,28 @@ exports.historial = async (req, res) => {
 exports.deleteVenta = async (req, res) => {
     const t = await sequelize.transaction();
     try {
-        const venta = await Venta.findByPk(req.params.id, { transaction: t, lock: t.LOCK.UPDATE });
+        const venta = await Venta.findByPk(req.params.id, { attributes: sinComprobante(), transaction: t, lock: t.LOCK.UPDATE });
         if (!venta) { await t.rollback(); return res.status(404).json({ message: 'Venta no encontrada' }); }
 
         // Un pedido pagado, en producción o entregado es historial contable: no se borra, se cancela
         if (venta.EstadoID !== ESTADO_VENTA.PENDIENTE && venta.EstadoID !== ESTADO_VENTA.CANCELADA) {
             await t.rollback();
             const message = 'No se puede eliminar un pedido ya pagado, en producción o entregado porque es historial. Si fue un error, cancélalo.';
+            return res.status(400).json({ message, mensaje: message });
+        }
+
+        // Cancelado con el dinero aún sin devolver: borrarlo haría desaparecer el reembolso pendiente
+        if (venta.ReembolsoPendiente) {
+            await t.rollback();
+            const message = 'No se puede eliminar: este pedido tiene un reembolso pendiente. Márcalo como reembolsado antes de eliminarlo.';
+            return res.status(400).json({ message, mensaje: message });
+        }
+
+        // Cancelado con un comprobante sin revisar: puede haber un pago sin devolver (la fila se leyó con TieneComprobante, sin el base64)
+        if (esPagoPorVerificar(venta, tieneComprobante(venta))) {
+            await t.rollback();
+            const message = 'No se puede eliminar: este pedido tiene un pago por verificar (se canceló con un comprobante sin revisar). '
+                + 'Márcalo como reembolsado si el pago llegó y se devolvió, o registra que no hubo pago, antes de eliminarlo.';
             return res.status(400).json({ message, mensaje: message });
         }
 
@@ -492,7 +573,16 @@ exports.getDashboardData = async (req, res) => {
 
         // ── Construir WHERE para Venta (filtro de mes) ──
         // Los pedidos cancelados no son ventas: no cuentan en "más vendidos" ni en "ventas por mes".
-        let whereVenta = { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } };
+        // Las fechas se guardan en UTC: se convierten a la hora local antes de sacar mes y año, para que una venta de las
+        // 8 p. m. del último día del mes no cuente en el mes siguiente (ZONA_HORARIA, por defecto Colombia: -05:00)
+        const zona = /^[+-]\d{2}:\d{2}$/.test(process.env.ZONA_HORARIA || '') ? process.env.ZONA_HORARIA : '-05:00';
+        const local = (col) => sequelize.fn('CONVERT_TZ', sequelize.col(col), '+00:00', zona);
+        const anio = parseInt(new Date(Date.now() + parseInt(zona, 10) * 3600 * 1000).toISOString().slice(0, 4), 10);
+        // Sin mes se muestra todo el año en curso (antes mezclaba enero de años distintos)
+        let whereVenta = { [Op.and]: [
+            { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } },
+            sequelize.where(sequelize.fn('YEAR', local('venta.FechaVenta')), anio),
+        ] };
         if (mes) {
             const mesNum = parseInt(mes, 10);
             if (!Number.isInteger(mesNum) || mesNum < 1 || mesNum > 12) {
@@ -501,8 +591,8 @@ exports.getDashboardData = async (req, res) => {
             whereVenta = {
                 [Op.and]: [
                     { EstadoID: { [Op.ne]: ESTADO_VENTA.CANCELADA } },
-                    sequelize.where(sequelize.fn('MONTH', sequelize.col('venta.FechaVenta')), mesNum),
-                    sequelize.where(sequelize.fn('YEAR', sequelize.col('venta.FechaVenta')), new Date().getFullYear())
+                    sequelize.where(sequelize.fn('MONTH', local('venta.FechaVenta')), mesNum),
+                    sequelize.where(sequelize.fn('YEAR', local('venta.FechaVenta')), anio)
                 ]
             };
         }
@@ -516,8 +606,9 @@ exports.getDashboardData = async (req, res) => {
         // ── 1. Ventas por mes (agrupado por mes) ──
         const ventasPorMes = await DetalleVenta.findAll({
             attributes: [
-                [sequelize.fn('MONTH', sequelize.col('venta.FechaVenta')), 'mes'],
-                [sequelize.fn('COUNT', sequelize.col('DetalleVentaID')), 'ventas']
+                [sequelize.fn('MONTH', local('venta.FechaVenta')), 'mes'],
+                // Pedidos, no líneas: un pedido con 3 productos cuenta una vez
+                [sequelize.fn('COUNT', sequelize.fn('DISTINCT', sequelize.col('DetalleVenta.VentaID'))), 'ventas']
             ],
             include: [
                 {
@@ -528,8 +619,8 @@ exports.getDashboardData = async (req, res) => {
                 }
             ],
             where: whereDetalle,
-            group: [sequelize.fn('MONTH', sequelize.col('venta.FechaVenta'))],
-            order: [[sequelize.fn('MONTH', sequelize.col('venta.FechaVenta')), 'ASC']],
+            group: [sequelize.fn('MONTH', local('venta.FechaVenta'))],
+            order: [[sequelize.fn('MONTH', local('venta.FechaVenta')), 'ASC']],
             raw: true
         });
 
@@ -564,7 +655,7 @@ exports.getDashboardData = async (req, res) => {
         // así que consultamos DetalleCompra agrupado por mes.
         const insumosUtilizados = await DetalleCompra.findAll({
             attributes: [
-                [sequelize.fn('MONTH', sequelize.col('compra.FechaCompra')), 'mes'],
+                [sequelize.fn('MONTH', local('compra.FechaCompra')), 'mes'],
                 [sequelize.fn('SUM', sequelize.col('DetalleCompra.Cantidad')), 'cantidad']
             ],
             include: [
@@ -572,17 +663,17 @@ exports.getDashboardData = async (req, res) => {
                     model: Compra,
                     as: 'compra',
                     attributes: [],
-                    where: mes ? {
+                    where: {
                         [Op.and]: [
-                            sequelize.where(sequelize.fn('MONTH', sequelize.col('compra.FechaCompra')), parseInt(mes)),
-                            sequelize.where(sequelize.fn('YEAR', sequelize.col('compra.FechaCompra')), new Date().getFullYear())
+                            ...(mes ? [sequelize.where(sequelize.fn('MONTH', local('compra.FechaCompra')), parseInt(mes))] : []),
+                            sequelize.where(sequelize.fn('YEAR', local('compra.FechaCompra')), anio)
                         ]
-                    } : {}
+                    }
                 }
             ],
             where: { TipoSeleccion: 'insumo' },
-            group: [sequelize.fn('MONTH', sequelize.col('compra.FechaCompra'))],
-            order: [[sequelize.fn('MONTH', sequelize.col('compra.FechaCompra')), 'ASC']],
+            group: [sequelize.fn('MONTH', local('compra.FechaCompra'))],
+            order: [[sequelize.fn('MONTH', local('compra.FechaCompra')), 'ASC']],
             raw: true
         });
 

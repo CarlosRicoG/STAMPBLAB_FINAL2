@@ -276,7 +276,7 @@ const Home = () => {
                                     <div key={p.ProductoID} className="sx-card sx-reveal hm-prod" style={{ "--sx-i": idx }}>
                                         <div className="hm-pimg sx-zoom">
                                             {p.ImagenProducto
-                                                ? <img src={p.ImagenProducto} alt={p.Nombre} onError={e=>e.target.style.display="none"}/>
+                                                ? <img loading="lazy" decoding="async" src={p.ImagenProducto} alt={p.Nombre} onError={e=>e.target.style.display="none"}/>
                                                 : <div style={{ height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><p style={{ fontSize:13, color:C.muted }}>Sin imagen</p></div>
                                             }
                                             <span className="hm-avail">● Disponible</span>

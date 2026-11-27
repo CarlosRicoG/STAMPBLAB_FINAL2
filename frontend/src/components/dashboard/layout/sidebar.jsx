@@ -267,7 +267,7 @@ const useResumenPendientes = (pathname) => {
     return resumen;
 };
 
-const Sidebar = () => {
+const Sidebar = ({ movil = false, onCerrarMovil }) => {
     const location  = useLocation();
     const actual    = rutaActiva(location.pathname);
     const resumen   = useResumenPendientes(location.pathname);
@@ -275,6 +275,8 @@ const Sidebar = () => {
     const [collapsed, setCollapsed] = useState(() => {
         try { return localStorage.getItem(COLLAPSE_KEY) === "1"; } catch { return false; }
     });
+
+    const plegado = collapsed && !movil;
 
     // Al navegar, abre el grupo que contiene la ruta actual
     useEffect(() => {
@@ -284,27 +286,27 @@ const Sidebar = () => {
 
     useEffect(() => {
         try { localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0"); } catch { /* sin storage */ }
-        // Avisa al botón de hamburguesa de la barra superior
-        window.dispatchEvent(new CustomEvent("stamplab:menu-estado", { detail: { abierto: !collapsed } }));
-    }, [collapsed]);
+        // Avisa al botón de hamburguesa de la barra superior (en móvil lo hace el layout con el panel desplegable)
+        if (!movil) window.dispatchEvent(new CustomEvent("stamplab:menu-estado", { detail: { abierto: !collapsed } }));
+    }, [collapsed, movil]);
 
     // El botón de hamburguesa de la barra superior abre y cierra el menú
     useEffect(() => {
+        if (movil) return undefined; // en móvil el botón abre/cierra el panel desplegable (DashboardLayout)
         const alternar = () => setCollapsed((c) => !c);
         window.addEventListener("stamplab:menu-toggle", alternar);
         return () => window.removeEventListener("stamplab:menu-toggle", alternar);
-    }, []);
+    }, [movil]);
 
     const toggle = (key) => {
         // Colapsado: el grupo no puede desplegarse, así que se expande la barra y se abre
-        if (collapsed) { setCollapsed(false); setOpen(key); return; }
+        if (plegado) { setCollapsed(false); setOpen(key); return; }
         setOpen(prev => prev === key ? null : key);
     };
 
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
                 ${CF_SHARED_CSS}
 
                 /* La columna del layout se adapta al ancho real de la barra (colapsar libera espacio) */
@@ -390,7 +392,7 @@ const Sidebar = () => {
                 }
                 .sb-collapse-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
                 .sb-collapse-btn svg { transition: transform .25s; }
-                .sb-collapse-btn:hover svg { transform: translateX(${collapsed ? "3px" : "-3px"}); }
+                .sb-collapse-btn:hover svg { transform: translateX(${plegado ? "3px" : "-3px"}); }
 
                 .sb-brand { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 18px; color: #fff; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; animation: cf-fade .3s ease both; }
                 .sb-brand-ic { transition: transform .4s cubic-bezier(.2,.8,.2,1); }
@@ -400,7 +402,7 @@ const Sidebar = () => {
 
             {/* ── El aside usa height: 100% para estirarse con el layout padre ── */}
             <aside className="cf-sb" style={{
-                width: collapsed ? "72px" : "240px",
+                width: plegado ? "72px" : "240px",
                 height: "100%",
                 minHeight: "100vh",
                 background: `linear-gradient(180deg, ${BG} 0%, #18223b 60%, #141d33 100%)`,
@@ -429,7 +431,7 @@ const Sidebar = () => {
                     }}>
                         <FaChartBar size={16} color={C.white} />
                     </div>
-                    {!collapsed && <span className="sb-brand">Admin</span>}
+                    {!plegado && <span className="sb-brand">Admin</span>}
                 </div>
 
                 {/* ── MENÚ ── */}
@@ -439,7 +441,7 @@ const Sidebar = () => {
                 }}>
                     {menuItems.map((group) => {
                         const tieneActivo = group.items.some(i => i.to === actual);
-                        const abierto = !collapsed && open === group.key;
+                        const abierto = !plegado && open === group.key;
                         const sumaGrupo = resumen ? group.items.reduce((a, i) => a + (i.badge ? i.badge(resumen) : 0), 0) : 0;
                         const alertaGrupo = resumen ? group.items.some(i => i.alerta && i.alerta(resumen) > 0) : false;
                         const tituloGrupo = `${sumaGrupo} por atender en ${group.title}`;
@@ -450,15 +452,16 @@ const Sidebar = () => {
                                 <div key={group.key} className={`sb-group ${activo ? "has-active" : ""}`}>
                                     <Link
                                         to={destino.to}
+                                        onClick={movil ? onCerrarMovil : undefined}
                                         className="sb-group-btn"
-                                        title={collapsed ? group.title : undefined}
+                                        title={plegado ? group.title : undefined}
                                         aria-current={activo ? "page" : undefined}
-                                        style={{ textDecoration: "none", display: "flex", alignItems: "center", ...(collapsed ? { justifyContent: "center", padding: "9px 0" } : {}) }}
+                                        style={{ textDecoration: "none", display: "flex", alignItems: "center", ...(plegado ? { justifyContent: "center", padding: "9px 0" } : {}) }}
                                     >
                                         <span className="sb-icon">{group.icon}
-                                            {collapsed && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className="sb-badge-dot" />}
+                                            {plegado && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className="sb-badge-dot" />}
                                         </span>
-                                        {!collapsed && (
+                                        {!plegado && (
                                             <>
                                                 <span className="sb-label">{group.title}</span>
                                                 <Insignia valor={sumaGrupo} titulo={tituloGrupo} />
@@ -473,14 +476,14 @@ const Sidebar = () => {
                                 <button
                                     className="sb-group-btn"
                                     onClick={() => toggle(group.key)}
-                                    title={collapsed ? group.title : undefined}
+                                    title={plegado ? group.title : undefined}
                                     aria-expanded={abierto}
-                                    style={collapsed ? { justifyContent: "center", padding: "9px 0" } : undefined}
+                                    style={plegado ? { justifyContent: "center", padding: "9px 0" } : undefined}
                                 >
                                     <span className="sb-icon">{group.icon}
-                                        {collapsed && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className={`sb-badge-dot ${alertaGrupo ? "alerta" : ""}`} />}
+                                        {plegado && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className={`sb-badge-dot ${alertaGrupo ? "alerta" : ""}`} />}
                                     </span>
-                                    {!collapsed && (
+                                    {!plegado && (
                                         <>
                                             <span className="sb-label">{group.title}</span>
                                             {!abierto && <Insignia valor={sumaGrupo} titulo={tituloGrupo} className={alertaGrupo ? "alerta" : ""} />}
@@ -489,7 +492,7 @@ const Sidebar = () => {
                                     )}
                                 </button>
 
-                                {!collapsed && (
+                                {!plegado && (
                                     <div className={`sb-subnav ${abierto ? "open" : ""}`}>
                                         <div>
                                             <div className="sb-subnav-inner">
@@ -497,6 +500,7 @@ const Sidebar = () => {
                                                     <Link
                                                         key={item.to}
                                                         to={item.to}
+                                                        onClick={movil ? onCerrarMovil : undefined}
                                                         tabIndex={abierto ? 0 : -1}
                                                         className={`sb-link ${actual === item.to ? "active" : ""}`}
                                                         aria-current={actual === item.to ? "page" : undefined}
@@ -527,6 +531,11 @@ const Sidebar = () => {
 
                 {/* ── COLAPSAR ── */}
                 <div style={{ padding: "12px 8px", borderTop: `1px solid ${DIVIDER}` }}>
+                    {movil ? (
+                        <button className="sb-collapse-btn" onClick={() => onCerrarMovil?.()} aria-label="Cerrar el menú lateral">
+                            <FaAngleDoubleLeft size={14} /> <span>Cerrar menú</span>
+                        </button>
+                    ) : (
                     <button className="sb-collapse-btn" onClick={() => setCollapsed(!collapsed)}
                         title={collapsed ? "Expandir menú" : "Colapsar menú"}>
                         {collapsed
@@ -534,6 +543,7 @@ const Sidebar = () => {
                             : <><FaAngleDoubleLeft size={14} /> <span>Colapsar</span></>
                         }
                     </button>
+                    )}
                 </div>
             </aside>
         </>

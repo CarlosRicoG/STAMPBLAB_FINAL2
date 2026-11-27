@@ -19,28 +19,9 @@ const {
 
 const log = require('../utils/log');
 const PDFDocument = require('pdfkit');
-const https = require('https');
-const http  = require('http');
 const E = require('../utils/pdfEstilo');
 const { P } = E;
 const { leer: leerConfig } = require('../services/config');
-
-// ─────────────────────────────────────────────────────────
-// Descarga una imagen remota y devuelve un Buffer
-// ─────────────────────────────────────────────────────────
-function fetchImageBuffer(url) {
-    return new Promise((resolve, reject) => {
-        if (!url) return resolve(null);
-        const lib = url.startsWith('https') ? https : http;
-        lib.get(url, (res) => {
-            const chunks = [];
-            res.on('data', c => chunks.push(c));
-            res.on('end',  () => resolve(Buffer.concat(chunks)));
-            res.on('error', reject);
-        }).on('error', reject);
-    });
-}
-
 
 // ─────────────────────────────────────────────────────────
 // Imágenes de diseño: el campo real del modelo es "ImagenDiseño" (con ñ) y
@@ -59,7 +40,8 @@ function nombrePersonalizado(detalle) {
 }
 async function cargarImagenDiseno(clave) {
     if (!clave) return null;
-    if (/^https?:\/\//i.test(clave)) return fetchImageBuffer(clave);
+    // Solo archivos propios de uploads/disenos: nunca se descarga una URL que haya escrito el cliente
+    if (/^https?:\/\//i.test(clave)) return null;
     const archivo = path.join(__dirname, '..', 'uploads', 'disenos', path.basename(clave));
     if (!fs.existsSync(archivo)) return null;
     const buf = fs.readFileSync(archivo);

@@ -71,7 +71,7 @@ Documentos relacionados: `PRD.md` (producto) y `TDD.md` (diseño técnico).
 | F2 [R] | Sesión inconsistente entre `token`, `usuario` y `user` | ✅ (`cerrarSesion` y el 401 limpian las tres) |
 | F3 [R] | El carrito se compartía entre usuarios del mismo equipo | ✅ (se borra al cerrar sesión voluntaria; **no** en un 401, para no perder el carrito al vencer la sesión) |
 | F4 [R] | `fetch` sin comprobar `res.ok` (detalle de cotización, MisCompras, checkout, subida de diseño) | ✅ |
-| F5 [R] | Precios del carrito congelados | ⏳ |
+| F5 [R] | Precios del carrito congelados | ✅ | El carrito se pone al día con el catálogo al cargarlo (`actualizarPreciosCarrito`) |
 | F6 [R] | Crear cotización con producto personalizado siempre daba 400 (no enviaba `PrecioUnitario`) | ✅ |
 | F7 [R] | Editar una talla con recargo borraba el precio | ✅ |
 | F8 [R] | Volver al paso 1 al crear producto duplicaba el producto; variantes con `Promise.all` quedaban a medias | ✅ |
@@ -92,7 +92,7 @@ Documentos relacionados: `PRD.md` (producto) y `TDD.md` (diseño técnico).
 - ⏳ `PUT /inventarioproducto/:id` sobrescribe un valor absoluto: puede pisar ventas simultáneas (es lo que hace el formulario del panel).
 - ⏳ Precio por catálogo (`/ventas`, base + talla) distinto al de cotización (suma además tela): decidir una regla.
 - ⏳ Migración: las ventas pendientes anteriores a la columna `InventarioID` quedan sin ella. Se mitigó con un respaldo en `devolver` (resuelve por producto, color y talla); no hay *backfill* en la BD.
-- ⏳ Los `Services` de compras, tallas e insumos siguen imprimiendo objetos de negocio con `console.log` (no son contraseñas).
+- ✅ Los `Services` de compras, tallas e insumos ya no imprimen objetos de negocio con `console.log`.
 - ✅ `CotizacionProducto` (modelo y controlador sin ruta y sin tabla en las migraciones vigentes): eliminado, junto con `detalleventas` y `detallecompras` (CRUD directo que saltaba las reglas de stock y totales), `PUT /api/cotizaciones/detalle/:id` (evadía el bloqueo de cotizaciones aprobadas) y `POST /api/usuarios/login` (duplicado del login con límite de intentos).
 - ⏳ `GET /api/insumos` e `/inventarioproducto` son públicos y exponen costos y stock.
 - ⏳ Compras: no valida que el insumo esté activo (hacerlo bloquearía editar compras históricas de insumos desactivados después).
@@ -119,3 +119,57 @@ La revisión independiente de los cambios encontró errores **introducidos por l
 - `TRUST_PROXY=0` o `true` podía romper el arranque.
 - Un total aprobado con subtotal calculado en 0, o cantidades por talla que no suman, producían pedidos con líneas en 0 o con cantidad distinta a la cobrada.
 - El 401 del frontend vaciaba el carrito y perdía la ruta de origen.
+
+## 8. Validación del 2026-11-13 (rama `correcciones-validacion`)
+
+Recorrido completo (pruebas, integración, E2E y lectura de código de los flujos cliente, admin y seguridad). Corregido:
+- ✅ El pedido que nace de una cotización aceptada no tenía camino de pago ni vencía (ahora se paga por transferencia y usa `PLAZO_PAGO_HORAS`).
+- ✅ SSRF en el PDF de cotización: el servidor descargaba la URL que el cliente escribía como imagen de diseño.
+- ✅ `insumos[].CantidadRequerida` negativa rebajaba el precio de la cotización; `FechaCotizacion` ya no la fija el cliente.
+- ✅ El comprobante de transferencia se valida en el servidor (imagen o PDF real, 5 MB, nada de URLs ni texto libre).
+- ✅ El límite de 100 kb de la Ola 2 se saltaba con `urlencoded`.
+- ✅ La cancelación del cliente se comprueba con la fila bloqueada; cancelar con comprobante sin revisar avisa al administrador.
+- ✅ Bandeja "Hoy": 702 KB → 2.7 KB, totales reales y mismo conteo que el menú. Indicadores por pedidos, año en curso y hora de Colombia.
+Sigue pendiente: A18 (clave de admin por defecto en el compose), contraentrega (decisión de negocio), un solo administrador (los permisos no se aplican en el backend), comprobantes en base64 dentro de la base, paginar compras/insumos/proveedores, y la cobertura unitaria del backend (≈35 %; la integración cubre el resto pero no se mide).
+
+## 9. Auditoría del 2026-11-25 (rama `ola-a-dinero-sesion`)
+
+Revisión de backend, frontend, infraestructura y CI. Solo hallazgos que no estaban registrados arriba. Estado al 2026-11-26.
+
+### Ola A: dinero y sesión (✅ corregida, con pruebas unitarias e integración 11/11)
+| # | Hallazgo | Corrección |
+|---|---|---|
+| S1 [V] | Logout solo revocaba el último token; un token anterior copiado se renovaba sin fin | `sid` estable heredado al renovar y revocado en el logout; tope `SESION_VIDA_MAXIMA_HORAS` (24 por defecto) |
+| S2 [V] | `updateVenta` guardaba el `Total` del cliente y perdía `CostoEnvio` | Subtotal y total se recalculan en el servidor |
+| S3 [V] | El carrito del servidor no se vaciaba al comprar (podía volver lo comprado) | Se vacía en la misma transacción de la compra del cliente |
+| S4 [V] | Se podía borrar un pedido cancelado con reembolso pendiente | 400 |
+| S5 [V] | Comprobante rechazado tras el plazo cancelaba el pedido en menos de 1 h | Columna `ComprobanteFechaRechazo` (migración 20261126000000); el plazo cuenta desde el rechazo, también en Mis compras y en el panel |
+| S6 [V] | Carreras al subir/rechazar comprobante y al vencer | Transacción y `FOR UPDATE`; el vencimiento reevalúa la regla con la fila bloqueada; 409 si el cliente subió otro comprobante |
+| S7 [V] | `POST /api/ventas` aceptaba cualquier `EstadoID` | Solo Pendiente o Pagada |
+
+Limitación: el 409 compara `FechaTransferencia`, que envía el cliente; quien la repita a propósito lo evita (protección completa: hash del comprobante).
+
+**Defecto previo encontrado durante la verificación (✅ en la Ola B):** al borrar un usuario se subía su versión de sesión en memoria; si se registraba de nuevo con el mismo documento, sus tokens se rechazaban hasta reiniciar la API. Ahora el borrado guarda un corte por documento en `sesiones_revocadas` (en la misma transacción que el borrado) y la integración se puede correr dos veces seguidas sin reiniciar.
+
+### Ola B: seguridad y operación (✅ 2026-11-26; jest 322, vitest 66, integración 11/11 dos corridas seguidas)
+- Cotizaciones: `tecnicas` máx. 20 por detalle y textos libres ≤ 1000; técnicas, partes y tallas cargadas en lote; `createCotizacionCompleta` en transacción (el recálculo del total relanza el error); `convertirCotizacionAVenta` da 404 si la cotización desapareció.
+- `upload-diseno`: límite por usuario (`DISENOS_MAX_HORA`, el admin queda exento) y limpieza horaria de imágenes huérfanas (`DISENOS_HUERFANOS_HORAS`; no borra si la base no devuelve referencias, tope de 200 por ronda). El frontend ya no vuelve a subir imágenes en un reintento.
+- Usuarios: Joi `usuarioCreacion` y `usuarioEdicion`; el perfil del admin valida el teléfono con la misma regla.
+- Logs: sin query y con documentos (5+ dígitos) y correos enmascarados.
+- Operación: apagado limpio con SIGTERM (node como PID 1, `init: true`), `GET /api/salud` + healthcheck del compose, variables de correo, sesión, zona horaria y jobs en el compose.
+- `server.js`: `GET /` mínimo, 404 genérico, sin el limitador de la ruta eliminada; **en producción la API no arranca sin `CORS_ORIGIN`**.
+- `deleteInventario` protege pedidos Pendiente y Pagada con una sola consulta; índice `detalleventa_inventario` (migración 20261126010000).
+- Frontend: el token solo se adjunta a la API o al mismo origen; CSP completa (`script-src 'self'`) verificada con Puppeteer en 32 rutas sin violaciones; el contenedor admite APIs por `http:` (red local), Vercel solo `https:` y localhost.
+- CI: `permissions: contents: read`, `concurrency` (solo cancela PR), `timeout-minutes`, `npm audit --audit-level=high` y job `docker compose build`. **No verificado en GitHub.**
+
+### Ola D: rendimiento (✅ 2026-11-26; jest 356, vitest 66, integración 11/11, E2E 8/8 con 218 comprobaciones)
+- Frontend: JS inicial 626 → 492 KB (193 → 156 KB gzip); precarga del service worker 3261 → 1303 KiB (los chunks del panel van a `assets/panel/` y se guardan al visitarlos, solo si la respuesta es JavaScript); `DashboardLayout` y la campana en diferido; sin JS de Bootstrap (no se usaba); Font Awesome (CDN) sustituido por react-icons; Google Fonts (Outfit) en un único `<link>` en vez de 36 `@import`; `loading="lazy"` en listados; placeholders locales en vez de `via.placeholder.com`. Misma fuente e íconos comprobados en 32 rutas antes/después.
+- Backend, sin cambiar la forma de las respuestas: el comprobante base64 ya no se lee ni se devuelve salvo en `GET /ventas/:id` (las demás usan `TieneComprobante`, con la misma regla `NULL`/`''` en todo el código); cotizaciones con `separate: true` (sin producto cartesiano) e include compartido; paginación opcional en las cotizaciones del cliente; N+1 eliminados en compra del cliente, venta directa, cotización completa y avisos de stock; roles con `CantidadUsuarios` (la lista de usuarios solo con `?usuarios=1`, que el frontend no usa).
+- Pendiente: el listado de ventas sigue haciendo que la base lea los comprobantes para calcular `TieneComprobante` (columna generada o comprobantes como archivo); sweetalert2 (79 KB) sigue en la precarga.
+- Nota de pruebas: `revision-cliente.js` deja un producto en el carrito guardado del cliente demo; si `run.js` corre después, su compra lleva 2 unidades y la comprobación "el stock bajó en 1" falla. Correr `run.js` primero (como hace `npm test` en `e2e/`) o vaciar ese carrito.
+
+### Pendiente por olas
+- **Ola B, quedó fuera:** E2E en CI; fijar el dominio real de la API en `connect-src`; acciones de CI fijadas por SHA.
+- **Ola C, Ley 1581 (⏳ ❓):** aviso de privacidad y autorización en el registro; exportar y suprimir datos del titular. Requiere el texto legal del negocio.
+- **Ola D, rendimiento (✅, ver arriba). Lista original:** el service worker precarga ≈3,4 MB de JS del admin; `DashboardLayout` no es diferido; JS de Bootstrap sin uso; Font Awesome por CDN; Google Fonts importado ≈20 veces; base64 del comprobante leído y devuelto sin necesidad; listados de cotizaciones con 5 `include` anidados; N+1 en ventas, cotizaciones y notificaciones; roles con todos sus usuarios; lectura de usuarios cada 30 s.
+- **Ola E, mantenibilidad (= Ola 4):** partir `Productos.jsx`, `CotizacionesL.jsx`, `FormularioCotizacion.jsx`, `CompraForm.jsx`, `ModalDetalleVenta.jsx` y `Cotizaciones.jsx`; extraer `formatPrecio`, `swalTop` y la subida de diseños; ≈1800 colores hex fuera de `tokens.js`; modales de la tienda sin accesibilidad; panel admin no adaptable a móvil; comprobante PDF mostrado con `<img>`; respuesta vieja de variantes en `CotizacionesL.jsx`; migración base con `sequelize.sync()`; umbral de cobertura.

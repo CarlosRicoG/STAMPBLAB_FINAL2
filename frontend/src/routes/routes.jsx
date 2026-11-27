@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import ErrorBoundary from "../components/ErrorBoundary";
-import DashboardLayout from "../components/layouts/DashboardLayout";
+const DashboardLayout = lazy(() => import("../components/layouts/DashboardLayout"));
 const MiCuenta = lazy(() => import("../components/landing/MiCuenta"));
 const Hoy = lazy(() => import("../pages/Hoy"));
 const Tarifas = lazy(() => import("../pages/Tarifas"));
@@ -26,7 +26,6 @@ const RecuperarContraseña = lazy(() => import("../components/auth/Recuperarcont
 const DashboardMedicionesempeño = lazy(() => import("../pages/MedicionDesempeño"));
 const EditarPerfil = lazy(() => import("../components/landing/EditarPerfil"));
 const MisCotizaciones = lazy(() => import("../components/landing/Miscotizaciones"));
-const FormularioCompra = lazy(() => import("../components/landing/FormularioCompra"));
 const AgregarProducto = lazy(() => import("../pages/formularios_dash/AgregarProducto"));
 const Ventas = lazy(() => import("../pages/Ventas"));
 import { ProtectedRoute } from "./ProtectedRoute";
@@ -35,6 +34,7 @@ const VentasPendientes = lazy(() => import("../pages/VentasPendientes"));
 const Compras = lazy(() => import("../pages/Compras"));
 const Clientes = lazy(() => import("../pages/Clientes"));
 const MisCompras = lazy(() => import("../components/landing/MisCompras"));
+const Privacidad = lazy(() => import("../components/landing/Privacidad"));
 
 // Carga diferida: cada página se descarga al visitarla (bundle inicial mucho más liviano)
 const Cargando = () => (
@@ -81,11 +81,12 @@ const AppRoutes = () => {
             <Route path="/login" element={<LoginLanding />} />
             <Route path="/recuperarcontraseña" element={<RecuperarContraseña />} />
             <Route path="/restablecercontraseña" element={<RestablecerContraseña />} />
+            {/* Política de tratamiento de datos y aviso de privacidad (Ley 1581 de 2012): pública */}
+            <Route path="/privacidad" element={<Privacidad />} />
             <Route path="/editarperfil" element={<ProtectedRoute><EditarPerfil /></ProtectedRoute>} />
             <Route path="/micuenta" element={<ProtectedRoute><MiCuenta /></ProtectedRoute>} />
             <Route path="/miscompras" element={<ProtectedRoute><MisCompras /></ProtectedRoute>} />
             <Route path="/miscotizaciones" element={<ProtectedRoute><MisCotizaciones /></ProtectedRoute>} />
-            <Route path="/formularioCompra" element={<ProtectedRoute><FormularioCompra /></ProtectedRoute>} />
 
 
             <Route

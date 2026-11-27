@@ -14,6 +14,7 @@ const METODOS = { transferencia: 'Transferencia bancaria', contraentrega: 'Contr
 exports.descargarComprobante = async (req, res) => {
     try {
         const venta = await Venta.findByPk(req.params.id, {
+            attributes: { exclude: ['ComprobanteTransferencia'] }, // el PDF no lo usa (base64 de hasta ~7 MB)
             include: [{ model: Usuario, as: 'usuario' }, { model: Estado, as: 'estado' },
                 { model: DetalleVenta, as: 'detalles', include: [{ model: Producto, as: 'producto' }] }],
         });

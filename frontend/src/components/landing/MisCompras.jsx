@@ -11,17 +11,20 @@ import { getTallas } from "../../Services/api-productos/atributos";
 import { getHistorialVenta, subirComprobanteVenta, archivoADataURL, mensajeError } from "../../Services/api-cliente/cliente";
 import { guardarCarritoServidor } from "../../Services/api-carrito/carrito";
 import { escapeHtml } from "../../utils/escapeHtml";
-import { plazoDePagoAplica, fechaLimitePago, textoTiempoRestante, formatoFechaHoraCO, formatoFechaCO, validarComprobante, itemsParaVolverAPedir, fusionarCarritos, textoCostoEnvio } from "../../utils/clienteUtils";
+import { plazoDePagoAplica, fechaLimitePago, referenciaPlazoPago, textoTiempoRestante, formatoFechaHoraCO, formatoFechaCO, validarComprobante, itemsParaVolverAPedir, fusionarCarritos, textoCostoEnvio } from "../../utils/clienteUtils";
 import { LineaTiempo, BotonWhatsApp, useConfigPublica, CLIENTE_CSS } from "./clienteKit";
 import usePlus from "../../hooks/usePlus";
 import { MC_CSS, formatPrecio, leerUsuario, MiCuentaHero, StatCard, PillTabs, Stepper, McModal, ModalHead, EmptyState, Skeletons } from "./miCuentaKit";
 import { C } from "../../config/tokens";
+import DatosDePago from "./DatosDePago";
 
 const CART_KEY = "cart_productos_landing";
 const esPendiente = (v) => (v.estado?.Nombre || "Pendiente") === "Pendiente";
 const tieneComprobante = (v) => !!(v.ComprobanteTransferencia || v.TieneComprobante);
 // Un pedido por transferencia pendiente puede (re)subir comprobante si lo rechazaron o si aún no tiene uno
-const puedeSubirComprobante = (v) => esPendiente(v) && (!!v.ComprobanteMotivoRechazo || (v.MetodoPago === "transferencia" && !tieneComprobante(v)));
+// (los pedidos que nacen de una cotización aceptada llegan sin método de pago y también se pagan por transferencia)
+const pagaPorTransferencia = (v) => !v.MetodoPago || v.MetodoPago === "transferencia";
+const puedeSubirComprobante = (v) => esPendiente(v) && (!!v.ComprobanteMotivoRechazo || (pagaPorTransferencia(v) && !tieneComprobante(v)));
 
 
 /* ── Estados ── */
@@ -94,7 +97,7 @@ const BotonComprobante = ({ venta, etiqueta, onSubido }) => {
 /* Avisos del pedido pendiente: plazo para pagar, comprobante rechazado o faltante */
 const AvisosPago = ({ venta, config, onSubido }) => {
     if (!esPendiente(venta)) return null;
-    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras) : null;
+    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(referenciaPlazoPago(venta), config?.plazoPagoHoras) : null;
     const restante = textoTiempoRestante(limite);
     return (
         <>
@@ -108,12 +111,13 @@ const AvisosPago = ({ venta, config, onSubido }) => {
                     </div>
                 </div>
             )}
-            {!venta.ComprobanteMotivoRechazo && venta.MetodoPago === "transferencia" && !tieneComprobante(venta) && (
+            {!venta.ComprobanteMotivoRechazo && pagaPorTransferencia(venta) && !tieneComprobante(venta) && (
                 <div className="ck-alert warn" role="status">
                     <FaExclamationTriangle size={18} />
                     <div>
                         <b>Aún no has subido tu comprobante</b>
-                        <p>Sube la foto de tu transferencia para que podamos confirmar el pago.</p>
+                        <p>Haz la transferencia y sube la foto del comprobante para que podamos confirmar el pago.</p>
+                        <DatosDePago pago={config?.pago} />
                         <BotonComprobante venta={venta} etiqueta="Subir comprobante" onSubido={onSubido} />
                     </div>
                 </div>
@@ -200,7 +204,7 @@ const ModalDetalle = ({ venta, onClose, config, onRecargar, onVolverAPedir }) =>
                         <div className="mc-item-h">
                             <div className="mc-item-img">
                                 {det.producto?.ImagenProducto
-                                    ? <img src={det.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
+                                    ? <img loading="lazy" decoding="async" src={det.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
                                     : <FaBoxOpen style={{ opacity: .5 }} />}
                             </div>
                             <div style={{ minWidth: 0 }}>
@@ -424,7 +428,7 @@ const MisCompras = () => {
                                                 <div className="mc-prod">
                                                     <div className="mc-thumb">
                                                         {primerDetalle.producto?.ImagenProducto
-                                                            ? <img src={primerDetalle.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
+                                                            ? <img loading="lazy" decoding="async" src={primerDetalle.producto.ImagenProducto} alt="prod" style={{ objectFit: "contain" }} />
                                                             : <FaBoxOpen style={{ opacity: .5 }} />}
                                                         {n > 1 && <span className="mc-more">+{n - 1}</span>}
                                                     </div>
@@ -445,7 +449,7 @@ const MisCompras = () => {
                                                 </div>
 
                                                 {estadoNombre === "Pendiente" && (() => {
-                                                    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(venta.FechaVenta, config?.plazoPagoHoras) : null;
+                                                    const limite = plazoDePagoAplica(venta) ? fechaLimitePago(referenciaPlazoPago(venta), config?.plazoPagoHoras) : null;
                                                     return (
                                                         <>
                                                             {venta.ComprobanteMotivoRechazo && (

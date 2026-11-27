@@ -1,3 +1,5 @@
+// Autorización de tratamiento de datos que exige el registro (Ley 1581 de 2012)
+const PRIVACIDAD = { AceptaPrivacidad: true, VersionPolitica: 'pruebas-integracion' };
 /**
  * Mejoras de flujo: avisos en la campana (cliente y administrador), aceptar/rechazar cotizaciones, línea de tiempo,
  * comprobante rechazado, vencimientos automáticos, tarifas, bandeja de hoy, carrito, datos de contacto y entrega.
@@ -26,7 +28,7 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     const limpiar = { ventas: [], cots: [] };
 
     // un segundo cliente (temporal)
-    await call('POST', '/registro', { Nombre: 'Otro Mejoras', Correo: 'otro.mejoras@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: 1888888881, Telefono: '3009998888' });
+    await call('POST', '/registro', { ...PRIVACIDAD, Nombre: 'Otro Mejoras', Correo: 'otro.mejoras@stamplab.com', 'Contraseña': 'Otro12345*', DocumentoID: 1888888881, Telefono: '3009998888' });
     const otro = await login('otro.mejoras@stamplab.com', 'Otro12345*');
 
     const notifs = async (t, archivada = false) => (await call('GET', `/notificaciones?archivada=${archivada}`, undefined, t)).j;
@@ -160,6 +162,16 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     r = await call('GET', '/resumen/hoy', undefined, adm);
     si('la bandeja "Hoy" trae sus cuatro listas', r.s === 200 && ['cotizacionesPendientes', 'comprobantesPorRevisar', 'pedidosPorAvanzar', 'stockBajo'].every((k) => Array.isArray(r.j[k])), JSON.stringify(r.j).slice(0, 150));
     si('el pedido en producción aparece en "por avanzar"', r.j.pedidosPorAvanzar.some((p) => p.VentaID === VP));
+    si('la bandeja trae los totales reales de cada lista', ['cotizaciones', 'comprobantes', 'pedidos', 'stockBajo'].every((k) => typeof r.j.totales?.[k] === 'number') && r.j.totales.pedidos >= r.j.pedidosPorAvanzar.length && r.j.totales.comprobantes >= r.j.comprobantesPorRevisar.length, JSON.stringify(r.j.totales));
+    si('los comprobantes de la bandeja no viajan en base64 (solo un indicador)', r.j.comprobantesPorRevisar.every((c) => c.tieneComprobante === true && c.comprobante === undefined), JSON.stringify(r.j.comprobantesPorRevisar[0] || {}).slice(0, 120));
+    si('la bandeja pesa poco aunque haya comprobantes', JSON.stringify(r.j).length < 200 * 1024, JSON.stringify(r.j).length + ' bytes');
+    const resMenu = (await call('GET', '/resumen/pendientes', undefined, adm)).j;
+    si('el contador "Hoy" del menú coincide con lo que muestra la bandeja', resMenu.total === r.j.totales.cotizaciones + r.j.totales.comprobantes + r.j.totales.pedidos, `menú ${resMenu.total} vs bandeja ${r.j.totales.cotizaciones}+${r.j.totales.comprobantes}+${r.j.totales.pedidos}`);
+    r = await call('GET', '/ventas/dashboard', undefined, adm);
+    si('el panel de indicadores responde con datos del año en curso', r.s === 200 && r.j.estado === true && Array.isArray(r.j.datos?.ventasPorTecnicas), r.s);
+    r = await call('GET', '/ventas/dashboard?mes=13', undefined, adm); si('un mes inválido en indicadores se rechaza', r.s === 400, r.s);
+    r = await call('POST', '/ventas', pedido({ telefonoEntrega: '1'.repeat(21), nombreReceptor: 'A', direccionEntrega: 'Calle 1', tipoEntrega: 'envio' }), cli);
+    si('un teléfono de entrega demasiado largo se rechaza con un 400 claro (no un 500)', r.s === 400, r.s); if (r.s === 201) limpiar.ventas.push(r.j.venta.VentaID);
     r = await call('GET', '/resumen/hoy', undefined, cli); si('el cliente no ve la bandeja', r.s === 403, r.s);
 
     console.log('--- campana: gestionar notificaciones');
@@ -198,21 +210,38 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     const VRECH = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VRECH);                    // comprobante rechazado
     await call('PATCH', `/ventas/${VRECH}/rechazar-comprobante`, { motivo: 'Ilegible, súbelo otra vez' }, adm);
     const hace3dias = new Date(Date.now() - 3 * 864e5);
+    // Pedidos que nacen de una cotización aceptada: llegan sin método de pago y se pagan por transferencia
+    const VSM = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VSM);                        // sin método, vencido
+    const VSMP = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VSMP);                      // sin método, paga a tiempo
+    await db.Venta.update({ MetodoPago: null, ComprobanteTransferencia: null, FechaVenta: hace3dias }, { where: { VentaID: [VSM, VSMP].filter(Boolean) } });
+    r = await call('PATCH', `/ventas/${VSMP}/comprobante`, { comprobanteTransferencia: PNG }, cli);
+    si('un pedido sin método de pago (de cotización) acepta el comprobante del cliente', r.s === 200, r.s);
+    si('y queda como transferencia con el comprobante en revisión', (await call('GET', '/ventas/' + VSMP, undefined, adm)).j.MetodoPago === 'transferencia');
     if (VSP) await db.Venta.update({ ComprobanteTransferencia: null, FechaVenta: hace3dias }, { where: { VentaID: VSP } });
     await db.Venta.update({ FechaVenta: hace3dias }, { where: { VentaID: [VRV, VCE, VRECH].filter(Boolean) } });
+    // El plazo de un comprobante rechazado corre desde el rechazo: se mueve también esa fecha
+    if (VRECH) await db.Venta.update({ ComprobanteFechaRechazo: hace3dias }, { where: { VentaID: VRECH } });
+    // Pedido viejo con el comprobante rechazado hace un momento: todavía tiene el plazo completo
+    const VRECHN = (await call('POST', '/ventas', pedido(), cli)).j?.venta?.VentaID; limpiar.ventas.push(VRECHN);
+    r = await call('PATCH', `/ventas/${VRECHN}/rechazar-comprobante`, { motivo: 'Ilegible, súbelo otra vez' }, adm);
+    si('se rechaza el comprobante del pedido viejo (caso de plazo desde el rechazo)', !!VRECHN && r.s === 200, r.s);
+    if (VRECHN) await db.Venta.update({ FechaVenta: hace3dias }, { where: { VentaID: VRECHN } });
     const stockAntes = await stock();
     r = await call('POST', '/resumen/mantenimiento', {}, cli); si('el cliente no dispara el mantenimiento', r.s === 403, r.s);
-    r = await call('POST', '/resumen/mantenimiento', {}, adm); si('el mantenimiento corre', r.s === 200 && r.j.pedidosCancelados >= 2, JSON.stringify(r.j));
+    r = await call('POST', '/resumen/mantenimiento', {}, adm); si('el mantenimiento corre', r.s === 200 && r.j.pedidosCancelados >= 3, JSON.stringify(r.j));
     const est = async (id) => (await call('GET', '/ventas/' + id, undefined, adm)).j.EstadoID;
     si('el pedido sin pago a tiempo se canceló solo', (await est(VSP)) === 12);
     si('el que tenía el comprobante rechazado y sin corregir también', (await est(VRECH)) === 12);
     si('el que tiene el comprobante en revisión NO se cancela', (await est(VRV)) === 8);
+    si('un pedido viejo con el comprobante rechazado hace poco NO se cancela (el plazo corre desde el rechazo)', (await est(VRECHN)) === 8);
+    si('el pedido de cotización sin pago a tiempo también se cancela solo', (await est(VSM)) === 12);
+    si('el pedido de cotización que subió su comprobante NO se cancela', (await est(VSMP)) === 8);
     si('el de contra entrega NO se cancela', (await est(VCE)) === 8);
     si('el pedido reciente NO se cancela', (await est(VNUEVO)) === 8);
-    si('el stock de los cancelados se devolvió (+2)', (await stock()) === stockAntes + 2, `${stockAntes} -> ${await stock()}`);
+    si('el stock de los cancelados se devolvió (+3)', (await stock()) === stockAntes + 3, `${stockAntes} -> ${await stock()}`);
     si('el cliente recibe el aviso de la cancelación automática', !!(await hay(cli, new RegExp(`Cancelamos tu pedido #${VSP}`))));
     si('queda en el historial como cancelado automáticamente', (await call('GET', `/ventas/${VSP}/historial`, undefined, adm)).j.some((h) => /automáticamente/.test(h.Nota || '')));
-    r = await call('POST', '/resumen/mantenimiento', {}, adm); si('correrlo de nuevo no cancela dos veces ni devuelve más stock', (await stock()) === stockAntes + 2 && r.j.pedidosCancelados === 0, JSON.stringify(r.j));
+    r = await call('POST', '/resumen/mantenimiento', {}, adm); si('correrlo de nuevo no cancela dos veces ni devuelve más stock', (await stock()) === stockAntes + 3 && r.j.pedidosCancelados === 0, JSON.stringify(r.j));
 
     const CV = await cotizar(cli); const CR = await cotizar(cli); const CN = await cotizar(cli);
     const CA = await cotizar(cli); const CP = await cotizar(cli);
@@ -278,7 +307,7 @@ const PNG = 'data:image/png;base64,' + Buffer.concat([Buffer.from([0x89, 0x50, 0
     si('el contra entrega reciente no se toca ni se avisa', (await est(CEN)) === 8 && !(await hay(cli, new RegExp(`pedido #${CEN} se cancelará`))));
 
     console.log('--- limpieza');
-    for (const id of limpiar.ventas.filter(Boolean)) { await call('PATCH', `/ventas/${id}/estado`, { EstadoID: 12 }, adm); await call('DELETE', `/ventas/${id}`, undefined, adm); }
+    for (const id of limpiar.ventas.filter(Boolean)) { await call('PATCH', `/ventas/${id}/estado`, { EstadoID: 12 }, adm); await call('PATCH', `/ventas/${id}/reembolsado`, undefined, adm); await call('DELETE', `/ventas/${id}`, undefined, adm); }
     for (const id of limpiar.cots.filter(Boolean)) { await call('PUT', `/cotizaciones/${id}/cancelar`, undefined, adm); await call('DELETE', `/cotizaciones/${id}`, undefined, adm); }
     await db.Notificacion.destroy({ where: { DocumentoID: 1888888881 } });
     await call('DELETE', '/usuarios/1888888881', undefined, adm);

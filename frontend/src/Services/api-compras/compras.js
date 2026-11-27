@@ -8,7 +8,6 @@ const API_URL = `${API_BASE}/api/compras`;
 export const getCompras = async () => {
     try {
         const response = await axios.get(API_URL);
-        console.log("Compras obtenidas:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error completo al obtener compras:", error);
@@ -28,7 +27,6 @@ export const getCompras = async () => {
 export const getCompraById = async (id) => {
     try {
         const response = await axios.get(`${API_URL}/${id}`);
-        console.log("Compra obtenida:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error al obtener compra:", error);
@@ -45,9 +43,7 @@ export const getCompraById = async (id) => {
 // Crear una nueva compra
 export const createCompra = async (compra) => {
     try {
-        console.log("Enviando compra:", compra);
         const response = await axios.post(API_URL, compra);
-        console.log("Compra creada:", response.data);
 
         return {
             estado: true,
@@ -70,9 +66,7 @@ export const createCompra = async (compra) => {
 // Actualizar una compra
 export const updateCompra = async (id, compra) => {
     try {
-        console.log("Actualizando compra:", id, compra);
         const response = await axios.put(`${API_URL}/${id}`, compra);
-        console.log("Compra actualizada:", response.data);
 
         return {
             estado: true,
@@ -95,9 +89,7 @@ export const updateCompra = async (id, compra) => {
 // Eliminar una compra
 export const deleteCompra = async (id) => {
     try {
-        console.log("Eliminando compra:", id);
         const response = await axios.delete(`${API_URL}/${id}`);
-        console.log("Compra eliminada:", response.data);
 
         return {
             estado: true,
@@ -119,7 +111,6 @@ export const deleteCompra = async (id) => {
 export const getProveedores = async () => {
     try {
         const response = await axios.get(`${API_ROOT}/api/proveedores`);
-        console.log("Preedores obtenidos:", response.data);
         return response.data;
     } catch (error) {
         console.error("Error completo al obtener proveedores:", error);
@@ -142,7 +133,6 @@ export const getVariantesByProductoEnCompra = async (productoId) => {
         // RUTA CORRECTA: usar el endpoint de inventario
         const response = await axios.get(`${API_ROOT}/api/inventarioproducto/producto/${productoId}`);
         
-        console.log("Variantes obtenidas:", response.data);
         
         // Manejar diferentes formatos de respuesta
         const variantes = response.data.datos || response.data.variantes || response.data || [];

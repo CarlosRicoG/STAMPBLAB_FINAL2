@@ -57,7 +57,16 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0
-    }
+    },
+    // Prueba de la autorización de tratamiento de datos (Ley 1581 de 2012 / Decreto 1377 de 2013): cuándo y qué versión
+    // de la política aceptó en el registro. Null en usuarios creados por el administrador desde el panel.
+    PrivacidadAceptadaEn: { type: DataTypes.DATE, allowNull: true },
+    PrivacidadVersion: { type: DataTypes.STRING(50), allowNull: true },
+    // Cuenta suprimida a pedido del titular: la fila se conserva anonimizada para no perder sus ventas (ver miCuentaController)
+    SuprimidoEn: { type: DataTypes.DATE, allowNull: true },
+    // Al volver a registrarse con el documento de una cuenta suprimida: el cliente solo ve lo posterior a esta fecha
+    // (sus pedidos y cotizaciones anteriores son del titular suprimido). Null = ve todo. Ver services/historialCliente
+    HistorialDesde: { type: DataTypes.DATE, allowNull: true }
   }, {
     sequelize,
     modelName: 'Usuario',

@@ -9,6 +9,9 @@ import { FaUser, FaIdCard, FaEnvelope, FaPhoneAlt, FaMapMarkerAlt, FaLock, FaKey
 import { errorContrasena } from "../../utils/validarContrasena";
 import { AuthShell, AuthTabs, AuthField, AuthButton, StrengthMeter } from "./Login";
 import { C } from "../../config/tokens";
+import { VERSION_POLITICA } from "../../config/privacidad";
+
+const MENSAJE_PRIVACIDAD = "Debes autorizar el tratamiento de tus datos personales para crear tu cuenta.";
 
 
 /* ── Tokens de color ── */
@@ -20,10 +23,12 @@ const RegistroLanding = () => {
     const [direccion, setDireccion] = useState("");
     const [contraseña, setContraseña] = useState("");
     const [confirmar, setConfirmar] = useState("");
+    // Autorización de tratamiento de datos (Ley 1581 de 2012): nunca viene marcada; la marca la persona
+    const [aceptaPrivacidad, setAceptaPrivacidad] = useState(false);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
 
-    const [errores, setErrores] = useState({ nombre: "", documento: "", correo: "", telefono: "", direccion: "", contraseña: "", confirmar: "" });
+    const [errores, setErrores] = useState({ nombre: "", documento: "", correo: "", telefono: "", direccion: "", contraseña: "", confirmar: "", privacidad: "" });
 
     const validarNombre = (v) => {
         if (!v.trim()) return "El nombre es requerido.";
@@ -79,15 +84,21 @@ const RegistroLanding = () => {
             direccion: validarDireccion(direccion),
             contraseña: validarContraseña(contraseña),
             confirmar: validarConfirmar(confirmar),
+            privacidad: aceptaPrivacidad ? "" : MENSAJE_PRIVACIDAD,
         };
         setErrores(nuevosErrores);
         if (Object.values(nuevosErrores).some(e => e !== "")) {
-            Swal.fire({ icon: "error", title: "Errores en el formulario", text: "Por favor corrige los errores antes de continuar.", confirmButtonColor: C.danger });
+            const soloPrivacidad = Object.entries(nuevosErrores).every(([k, v]) => k === "privacidad" || v === "");
+            Swal.fire({ icon: "error", title: "Errores en el formulario", text: soloPrivacidad ? MENSAJE_PRIVACIDAD : "Por favor corrige los errores antes de continuar.", confirmButtonColor: C.danger });
             return;
         }
         setLoading(true);
         try {
-            const datos = { DocumentoID: documento.trim(), Nombre: nombre.trim(), Correo: correo.trim(), Telefono: telefono.trim(), Direccion: direccion.trim(), Contraseña: contraseña, RolID: 2 };
+            const datos = {
+                DocumentoID: documento.trim(), Nombre: nombre.trim(), Correo: correo.trim(), Telefono: telefono.trim(), Direccion: direccion.trim(), Contraseña: contraseña, RolID: 2,
+                // Prueba de la autorización: el servidor guarda la fecha y la versión de la política aceptada
+                AceptaPrivacidad: true, VersionPolitica: VERSION_POLITICA,
+            };
             const response = await registrarUsuario(datos);
             if (response.data?.estado !== false) {
                 Swal.fire({ icon: "success", title: "¡Registro exitoso!", text: "Tu cuenta ha sido creada. Por favor inicia sesión.", confirmButtonColor: C.navy }).then(() => navigate("/login"));
@@ -160,6 +171,25 @@ const RegistroLanding = () => {
                         onChange={e => setConfirmar(e.target.value)}
                         onBlur={() => blur("confirmar", validarConfirmar, confirmar)}
                         disabled={loading} error={errores.confirmar} valid={ok(validarConfirmar, confirmar)} required />
+
+                    {/* Autorización previa, expresa e informada (Ley 1581 de 2012, art. 9; Decreto 1377 de 2013) */}
+                    <div style={{ margin: "6px 0 16px" }}>
+                        <label htmlFor="reg-privacidad" style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 13.5, color: C.text, lineHeight: 1.5, cursor: "pointer" }}>
+                            <input id="reg-privacidad" type="checkbox" checked={aceptaPrivacidad} required disabled={loading}
+                                aria-invalid={!!errores.privacidad} aria-describedby={errores.privacidad ? "reg-privacidad-err" : undefined}
+                                onChange={(e) => { setAceptaPrivacidad(e.target.checked); if (e.target.checked) setErrores((prev) => ({ ...prev, privacidad: "" })); }}
+                                style={{ marginTop: 3, width: 17, height: 17, accentColor: C.accent, flexShrink: 0 }} />
+                            <span>
+                                Autorizo el tratamiento de mis datos personales según la{" "}
+                                {/* Pestaña nueva: el formulario no se pierde al leer la política */}
+                                <a href="/privacidad" target="_blank" rel="noopener noreferrer" className="au-link">Política de Tratamiento de Datos Personales</a>
+                                {" "}de StampLab, para gestionar mi cuenta, pedidos, cotizaciones, pagos, envíos y avisos por correo y WhatsApp.
+                            </span>
+                        </label>
+                        {errores.privacidad && (
+                            <p id="reg-privacidad-err" className="au-msg err" role="alert" style={{ marginTop: 6 }}>{errores.privacidad}</p>
+                        )}
+                    </div>
 
                     <AuthButton loading={loading} loadingText="Registrando...">Registrar</AuthButton>
                 </form>

@@ -154,7 +154,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = 
                                 <div className="mc-item-h">
                                     <div className="mc-item-img">
                                         {esPrendaPropia ? <FaTshirt /> : detalle.producto?.ImagenProducto
-                                            ? <img src={detalle.producto.ImagenProducto} alt="" />
+                                            ? <img loading="lazy" decoding="async" src={detalle.producto.ImagenProducto} alt="" />
                                             : <FaBoxOpen style={{ opacity: .5 }} />}
                                     </div>
                                     <div style={{ minWidth: 0 }}>
@@ -200,7 +200,7 @@ const ModalDetalleCotizacion = ({ cotizacion, onClose, onCancelar, cancelando = 
                                                 <div key={tidx} className="mc-design">
                                                     {tec.ImagenUrl ? (
                                                         <button type="button" className="mc-design-img" onClick={() => setImagenAmpliada(tec.ImagenUrl)} title="Click para ampliar">
-                                                            <img src={tec.ImagenUrl} alt="Diseño" onError={e => { e.target.style.display = "none"; }} />
+                                                            <img loading="lazy" decoding="async" src={tec.ImagenUrl} alt="Diseño" onError={e => { e.target.style.display = "none"; }} />
                                                         </button>
                                                     ) : (
                                                         <div className="mc-design-img" style={{ cursor: "default", borderStyle: "dashed" }}><FaImage /></div>
@@ -441,7 +441,7 @@ const MisCotizaciones = () => {
                                                     <div className="mc-prod">
                                                         <div className="mc-thumb">
                                                             {esPrendaPropia ? <FaTshirt /> : primerDetalle.producto?.ImagenProducto
-                                                                ? <img src={primerDetalle.producto.ImagenProducto} alt="" />
+                                                                ? <img loading="lazy" decoding="async" src={primerDetalle.producto.ImagenProducto} alt="" />
                                                                 : <FaBoxOpen style={{ opacity: .5 }} />}
                                                             {nDet > 1 && <span className="mc-more">+{nDet - 1}</span>}
                                                         </div>

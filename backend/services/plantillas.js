@@ -84,12 +84,22 @@ function cotizacionEstado({ usuario, cotizacion, estadoNombre }) {
     };
 }
 
-function comprobanteRechazado({ usuario, venta, motivo }) {
+// Fecha y hora en la zona del negocio (ZONA_HORARIA, por defecto Colombia: -05:00)
+const fechaHora = (f) => {
+    const zona = /^[+-]\d{2}:\d{2}$/.test(process.env.ZONA_HORARIA || '') ? process.env.ZONA_HORARIA : '-05:00';
+    return new Date(f).toLocaleString('es-CO', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: zona });
+};
+
+// `hasta`: hasta cuándo sigue reservado el pedido (fin del plazo de pago contado desde el rechazo); opcional
+function comprobanteRechazado({ usuario, venta, motivo, hasta = null }) {
+    const reserva = hasta
+        ? `Tu pedido sigue reservado hasta el ${esc(fechaHora(hasta))}; si para entonces no recibimos un comprobante válido, se cancelará automáticamente.`
+        : 'Tu pedido sigue reservado mientras tanto.';
     return {
         asunto: `Necesitamos otro comprobante para tu pedido #${venta.VentaID}`,
         html: base({
             titulo: `Revisa el comprobante de tu pedido #${venta.VentaID}`, saludo: `Hola ${primerNombre(usuario)},`,
-            cuerpo: `<p style="margin:0 0 14px;color:#0f172a;font-size:14px;line-height:1.6;">No pudimos validar el comprobante que subiste. Motivo:</p><p style="margin:0 0 14px;padding:12px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:14px;">${esc(motivo)}</p><p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Puedes subir uno nuevo desde "Mis compras". Tu pedido sigue reservado mientras tanto.</p>`,
+            cuerpo: `<p style="margin:0 0 14px;color:#0f172a;font-size:14px;line-height:1.6;">No pudimos validar el comprobante que subiste. Motivo:</p><p style="margin:0 0 14px;padding:12px 14px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;color:#991b1b;font-size:14px;">${esc(motivo)}</p><p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">Puedes subir uno nuevo desde "Mis compras". ${reserva}</p>`,
             boton: { texto: 'Subir nuevo comprobante', url: `${URL_WEB()}/miscompras` },
         }),
     };

@@ -37,6 +37,9 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      SESION_VIDA_MAXIMA_HORAS: ${SESION_VIDA_MAXIMA_HORAS:-24}
+      SESION_DURACION: ${SESION_DURACION:-2h}
+      SESION_UMBRAL_RENOVACION_S: ${SESION_UMBRAL_RENOVACION_S:-1800}
       CORS_ORIGIN: ${CORS_ORIGIN}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@stamplab.com}
@@ -44,6 +47,10 @@ services:
       MAIL_USER: ${MAIL_USER:-}
       MAIL_PASS: ${MAIL_PASS:-}
       MAIL_MODO: ${MAIL_MODO:-}
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SECURE: ${MAIL_SECURE:-false}
+      MAIL_FROM: ${MAIL_FROM:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       ADMIN_NOTIFY_EMAIL: ${ADMIN_NOTIFY_EMAIL:-}
       PLAZO_PAGO_HORAS: ${PLAZO_PAGO_HORAS:-48}
@@ -52,10 +59,20 @@ services:
       COSTO_ENVIO: ${COSTO_ENVIO:-0}
       STOCK_MINIMO: ${STOCK_MINIMO:-5}
       WHATSAPP: ${WHATSAPP:-}
+      PAGO_BANCO: ${PAGO_BANCO:-}
+      PAGO_TIPO_CUENTA: ${PAGO_TIPO_CUENTA:-}
+      PAGO_CUENTA: ${PAGO_CUENTA:-}
+      PAGO_TITULAR: ${PAGO_TITULAR:-}
+      PAGO_DOCUMENTO: ${PAGO_DOCUMENTO:-}
+      PAGO_NOTA: ${PAGO_NOTA:-}
       AUTH_MAX_FALLOS: ${AUTH_MAX_FALLOS:-15}
       RECUPERAR_MAX_HORA: ${RECUPERAR_MAX_HORA:-5}
       REGISTRO_MAX_HORA: ${REGISTRO_MAX_HORA:-20}
       TRUST_PROXY: ${TRUST_PROXY:-}
+      ZONA_HORARIA: "${ZONA_HORARIA:--05:00}"
+      JOBS_DESACTIVADOS: ${JOBS_DESACTIVADOS:-}
+      DISENOS_MAX_HORA: ${DISENOS_MAX_HORA:-30}
+      DISENOS_HUERFANOS_HORAS: ${DISENOS_HUERFANOS_HORAS:-24}
       NODE_ENV: ${NODE_ENV:-development}
     ports:
       - "${HOST_BACKEND_PORT:-3000}:3000"
@@ -67,8 +84,19 @@ services:
       - ./backend/uploads:/app/uploads
     networks:
       - app-network
-    # Migraciones (crean las tablas la primera vez) + roles/estados/administrador, y arranca la API
-    command: sh -c "npx sequelize-cli db:migrate && node scripts/seed-base.js && npm start"
+    # Migraciones (crean las tablas la primera vez) + roles/estados/administrador, y arranca la API.
+    # "exec" deja a node como el proceso que recibe SIGTERM (apagado limpio); init: true reenvía señales y recoge zombis.
+    command: sh -c "npx sequelize-cli db:migrate && node scripts/seed-base.js && exec node server.js"
+    init: true
+    # El servidor se da 10 s para cerrar (temporizador de seguridad); docker espera un poco más antes de matarlo
+    stop_grace_period: 15s
+    # Sano = la API responde y la base contesta (GET /api/salud). La imagen node:alpine no trae curl: se usa fetch de node
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/salud').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
 
   frontend:
     build:
@@ -82,7 +110,8 @@ services:
     ports:
       - "${HOST_FRONTEND_PORT:-5173}:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - app-network
 

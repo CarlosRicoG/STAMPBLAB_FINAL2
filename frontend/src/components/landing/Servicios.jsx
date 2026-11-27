@@ -11,6 +11,8 @@ import usePlus from "../../hooks/usePlus";
 import { C } from "../../config/tokens";
 
 const IMG_FALLBACK = 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop';
+// Marcador propio (public/): si la imagen de terceros falla o la bloquean, no se pide otra imagen ajena
+const IMG_LOCAL = '/placeholder-producto.svg';
 
 const obtenerImagenTecnica = (tecnica) => {
     if (tecnica.imagenTecnica) return tecnica.imagenTecnica;
@@ -306,11 +308,12 @@ const Servicios = () => {
                                     {tecnicasFiltradas.map((tecnica, index) => (
                                         <div key={tecnica.TecnicaID || index} className="sx-card sx-reveal svc-card" style={{ "--sx-i": index % 4 }}>
                                             <div className="svc-img sx-zoom">
-                                                <img
+                                                <img decoding="async"
                                                     src={obtenerImagenTecnica(tecnica)}
                                                     alt={tecnica.Nombre}
                                                     loading="lazy"
-                                                    onError={e => { e.target.onerror = null; e.target.src = IMG_FALLBACK; }}
+                                                    referrerPolicy="no-referrer"
+                                                    onError={e => { e.target.onerror = null; e.target.src = IMG_LOCAL; }}
                                                 />
                                                 <div className={`svc-badge-st ${tecnica.Estado ? "svc-badge-ok" : "svc-badge-no"}`}>
                                                     {tecnica.Estado

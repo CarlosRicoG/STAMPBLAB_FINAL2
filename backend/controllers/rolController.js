@@ -53,26 +53,31 @@ const esRolProtegido = (nombreRol) => {
     );
 };
 
+// La pantalla de roles no muestra quiénes tienen cada rol: por defecto no se carga la lista de usuarios (el rol Cliente
+// puede tener miles) y se devuelve solo el número, CantidadUsuarios, con un COUNT agrupado.
+// ?usuarios=1 (opcional) trae además la lista { DocumentoID, Nombre } como antes.
+const conListaUsuarios = (req) => ['1', 'true', 'si', 'sí'].includes(String(req?.query?.usuarios ?? '').trim().toLowerCase());
+const includeRol = (req) => [
+    ...(conListaUsuarios(req) ? [{ model: Usuario, as: 'usuarios', attributes: ['DocumentoID', 'Nombre'] }] : []),
+    { model: Permiso, as: 'permisos', through: { attributes: [] }, attributes: ['PermisoID', 'Nombre'] },
+];
+const conCantidadUsuarios = async (roles) => {
+    const lista = (Array.isArray(roles) ? roles : [roles]).filter(Boolean);
+    const ids = lista.map((r) => r.RolID);
+    const filas = ids.length ? await Usuario.count({ where: { RolID: ids }, group: ['RolID'] }) : [];
+    const porRol = new Map((Array.isArray(filas) ? filas : []).map((f) => [String(f.RolID), Number(f.count) || 0]));
+    const datos = lista.map((r) => ({ ...(typeof r.toJSON === 'function' ? r.toJSON() : r), CantidadUsuarios: porRol.get(String(r.RolID)) || 0 }));
+    return Array.isArray(roles) ? datos : datos[0];
+};
+
 // Obtener todos los roles
 exports.getAllRoles = async (req, res) => {
     try {
         const roles = await Rol.findAll({
-            include: [
-                {
-                    model: Usuario,
-                    as: 'usuarios',
-                    attributes: ['DocumentoID', 'Nombre']
-                },
-                {
-                    model: Permiso,
-                    as: 'permisos',
-                    through: { attributes: [] },
-                    attributes: ['PermisoID', 'Nombre']
-                }
-            ]
+            include: includeRol(req)
         });
         
-        res.json(roles);
+        res.json(await conCantidadUsuarios(roles));
     } catch (error) {
         console.error('Error al obtener roles:', error);
         res.status(500).json({
@@ -87,19 +92,7 @@ exports.getAllRoles = async (req, res) => {
 exports.getRolById = async (req, res) => {
     try {
         const rol = await Rol.findByPk(req.params.id, {
-            include: [
-                {
-                    model: Usuario,
-                    as: 'usuarios',
-                    attributes: ['DocumentoID', 'Nombre']
-                },
-                {
-                    model: Permiso,
-                    as: 'permisos',
-                    through: { attributes: [] },
-                    attributes: ['PermisoID', 'Nombre']
-                }
-            ]
+            include: includeRol(req)
         });
 
         if (!rol) {
@@ -111,7 +104,7 @@ exports.getRolById = async (req, res) => {
 
         res.json({
             estado: true,
-            datos: rol
+            datos: await conCantidadUsuarios(rol)
         });
     } catch (error) {
         console.error('Error al obtener rol:', error);
@@ -294,25 +287,13 @@ exports.updateRol = async (req, res) => {
 
         // Recargar el rol con sus relaciones
         const rolActualizado = await Rol.findByPk(req.params.id, {
-            include: [
-                {
-                    model: Usuario,
-                    as: 'usuarios',
-                    attributes: ['DocumentoID', 'Nombre']
-                },
-                {
-                    model: Permiso,
-                    as: 'permisos',
-                    through: { attributes: [] },
-                    attributes: ['PermisoID', 'Nombre']
-                }
-            ]
+            include: includeRol(req)
         });
 
         res.json({
             estado: true,
             mensaje: 'Rol actualizado exitosamente',
-            datos: rolActualizado
+            datos: rolActualizado ? await conCantidadUsuarios(rolActualizado) : rolActualizado
         });
     } catch (error) {
         console.error('Error al actualizar rol:', error);

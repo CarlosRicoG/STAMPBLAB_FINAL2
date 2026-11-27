@@ -5,8 +5,10 @@ import { getVentas, getVentaById, updateEstadoVenta } from "../Services/api-vent
 import { getEstadosVenta } from "../Services/api-ventas/estados";
 import { siguientesEstados } from "../Services/api-ventas/flujo";
 import { ESTADO_VENTA } from "../config/estados";
-import ModalDetalleVenta, { CamposNotaFecha } from "./ModalDetalleVenta";
+import ModalDetalleVenta from "./ModalDetalleVenta";
+import { CamposNotaFecha } from "./ventas/ModalCambioEstado";
 import { C } from "../config/tokens";
+import { formatPrecio } from "../utils/formato";
 
 /* ── Tokens ── */
 
@@ -31,13 +33,6 @@ const Badge = ({ type, children }) => {
 };
 
 
-const formatPrecio = (valor) => {
-    const num = parseFloat(valor) || 0;
-    return num.toLocaleString('es-CO', {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2
-    });
-};
 
 
 /* ── Paginación ── */
@@ -209,6 +204,8 @@ const VentasPendientes = () => {
         try {
             setLoading(true); setError(null);
             const data = await getVentas({ page, limit, search, estado: "pendientes" });
+            // Si se atendió el único pedido de la última página, esa página queda vacía: se vuelve a la anterior
+            if (!(data.datos || []).length && (data.total || 0) > 0 && page > 1) { setPaginaActual(page - 1); return loadVentasPendientes(page - 1, limit, search); }
             setVentas(data.datos || []);
             setTotalItems(data.total || 0);
             setTotalPaginas(data.totalPaginas || 1);
@@ -275,7 +272,6 @@ const VentasPendientes = () => {
     return (
         <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
                 * { box-sizing: border-box; }
                 @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
                 @keyframes spin { to{transform:rotate(360deg)} }

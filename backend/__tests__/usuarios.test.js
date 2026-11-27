@@ -12,11 +12,18 @@ jest.mock('../models', () => ({
         create: jest.fn(),
     },
     Rol: {},
+    // Transacción administrada: si el callback lanza, se deshace
+    sequelize: { transaction: jest.fn(async (cb) => { const tx = { id: 'tx' }; try { const r = await cb(tx); tx.confirmada = true; return r; } catch (e) { tx.deshecha = true; throw e; } }) },
 }));
 
 jest.mock('bcryptjs', () => ({
     hash: jest.fn().mockResolvedValue('hashedPassword123'),
     compare: jest.fn(),
+}));
+
+jest.mock('../services/sesion', () => ({
+    cerrarCuenta: jest.fn().mockResolvedValue(() => {}),
+    revocarTodas: jest.fn().mockResolvedValue(),
 }));
 
 jest.mock('jsonwebtoken', () => ({
@@ -222,6 +229,40 @@ describe('deleteUsuario', () => {
             estado: true,
             mensaje: 'Usuario eliminado exitosamente'
         }));
+    });
+
+    test('corta sus sesiones con un corte por documento (no subiendo la versión) antes de borrar la fila', async () => {
+        const sesion = require('../services/sesion');
+        sesion.cerrarCuenta.mockClear(); sesion.revocarTodas.mockClear();
+        const orden = [];
+        sesion.cerrarCuenta.mockImplementationOnce(async () => { orden.push('corte'); return () => orden.push('corte en memoria'); });
+        const destroyMock = jest.fn(async () => { orden.push('borrado'); });
+        Usuario.findByPk.mockResolvedValue({ DocumentoID: 3, RolID: 2, destroy: destroyMock });
+
+        await controller.deleteUsuario({ params: { id: '3' } }, mockRes());
+
+        // Corte y borrado en la misma transacción; el corte en memoria, solo después
+        const tx = sesion.cerrarCuenta.mock.calls[0][1].transaction;
+        expect(sesion.cerrarCuenta).toHaveBeenCalledWith(3, { transaction: tx });
+        expect(destroyMock).toHaveBeenCalledWith({ transaction: tx });
+        expect(sesion.revocarTodas).not.toHaveBeenCalled();
+        expect(orden).toEqual(['corte', 'borrado', 'corte en memoria']);
+    });
+
+    test('si el borrado falla (clave foránea) se deshace el corte y no se aplica en memoria', async () => {
+        const sesion = require('../services/sesion');
+        const aplicar = jest.fn();
+        sesion.cerrarCuenta.mockResolvedValueOnce(aplicar);
+        const err = new Error('fk'); err.name = 'SequelizeForeignKeyConstraintError';
+        Usuario.findByPk.mockResolvedValue({ DocumentoID: 4, RolID: 2, destroy: jest.fn().mockRejectedValue(err) });
+        const res = mockRes();
+
+        await controller.deleteUsuario({ params: { id: '4' } }, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(aplicar).not.toHaveBeenCalled();
+        const tx = sesion.cerrarCuenta.mock.calls.at(-1)[1].transaction;
+        expect(tx.deshecha).toBe(true);
     });
 
 });
